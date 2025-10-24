@@ -1,0 +1,11 @@
+backend/.env
+backend/node_modules/
+backend/dist/
+mobile/.env
+mobile/node_modules/
+mobile/build/
+.DS_Store
+.vscode/
+.idea/
+*.log
+*.tmp
