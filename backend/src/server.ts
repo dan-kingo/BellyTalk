@@ -1,7 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import { healthCheck } from "./controllers/health.controller";
+import healthRouter from "./routes/health.route";
 
 dotenv.config();
 
@@ -11,7 +11,7 @@ app.use(express.json());
 
 
 // Health check
-app.get("/",healthCheck);
+app.use("/api", healthRouter);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
