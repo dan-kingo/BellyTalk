@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { supabaseAdmin } from "../configs/supabase";
+import { supabase, supabaseAdmin } from "../configs/supabase";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -32,4 +32,27 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
     console.error("Auth middleware error:", err);
     return res.status(500).json({ error: "Internal auth error" });
   }
+};
+
+export const requireRole = (roles: string[]) => {
+  return async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.id;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .single();
+
+      if (error || !profile) return res.status(403).json({ error: "Profile not found" });
+      if (!roles.includes(profile.role))
+        return res.status(403).json({ error: "Forbidden: insufficient role" });
+
+      next();
+    } catch (err) {
+      res.status(500).json({ error: "Server error in role check" });
+    }
+  };
 };

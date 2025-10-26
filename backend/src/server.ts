@@ -8,6 +8,8 @@ import adminRouter from "./routes/admin.route.js";
 import uploadRouter from "./routes/upload.route.js";
 import healthRouter from "./routes/health.route.js";
 import { errorHandler, notFoundHandler } from "./middlewares/error.middleware.js";
+import contentRouter from "./routes/content.route.js";
+import hospitalRouter from "./routes/hospital.route.js";
 
 dotenv.config();
 
@@ -26,6 +28,9 @@ app.use("/api/auth", authRouter);
 app.use("/api/profile", profileRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/uploads", uploadRouter);
+app.use("/api/content", contentRouter);
+app.use("/api/hospitals", hospitalRouter);
+
 
 // not found + error handler
 app.use(notFoundHandler);
