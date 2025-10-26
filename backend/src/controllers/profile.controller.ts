@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthRequest } from "../middlewares/auth.middleware.js";
 import { supabaseAdmin } from "../configs/supabase";
+import { sendMail } from "../services/email.service.js";
 
 /**
  * GET /api/profile/me
@@ -48,9 +49,9 @@ export const updateMe = async (req: AuthRequest, res: Response) => {
   }
 };
 
+
 /**
- * POST /api/profile/request-role-upgrade
- * Body: { role: 'doctor'|'counselor', documents: [{url, type}] }
+ * requestRoleUpgrade - updated to notify admins
  */
 export const requestRoleUpgrade = async (req: AuthRequest, res: Response) => {
   try {
@@ -58,7 +59,6 @@ export const requestRoleUpgrade = async (req: AuthRequest, res: Response) => {
     const { role, documents } = req.body;
     if (!role || !["doctor", "counselor"].includes(role)) return res.status(400).json({ error: "Invalid role" });
 
-    // Save requested role in extra and set role_status to 'pending'
     const extraUpdate = { requested_role: role, documents: documents || [] };
 
     const { data, error } = await supabaseAdmin
@@ -70,7 +70,23 @@ export const requestRoleUpgrade = async (req: AuthRequest, res: Response) => {
 
     if (error) return res.status(500).json({ error: error.message });
 
-    // Optionally notify admins via email/webhook here
+    // Find admin emails
+    const { data: admins, error: adminErr } = await supabaseAdmin.from("profiles").select("email").eq("role", "admin");
+    if (!adminErr && Array.isArray(admins) && admins.length) {
+      const emails = admins.map((a: any) => a.email).filter(Boolean);
+      const html = `
+        <p>A user (${data.email}) requested to become <strong>${role}</strong>.</p>
+        <p>Open the admin panel to review documents and approve or reject.</p>
+      `;
+      // send to each admin (could be batched)
+      for (const to of emails) {
+        try {
+          await sendMail(to, "Provider Role Request — BellyTalk", html);
+        } catch (mailErr) {
+          console.warn("Failed to notify admin", to, mailErr);
+        }
+      }
+    }
 
     return res.status(200).json({ profile: data });
   } catch (err) {

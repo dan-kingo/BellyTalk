@@ -1,10 +1,8 @@
 import { Request, Response } from "express";
-import { supabase, supabaseAdmin } from "../configs/supabase";
-
+import { sendMail } from "../services/email.service.js";
+import { supabase, supabaseAdmin } from "../configs/supabase.js";
 /**
  * register:
- * - create user via service_role admin.createUser
- * - insert a profile row in public.profiles using service client
  */
 export const register = async (req: Request, res: Response) => {
   try {
@@ -15,7 +13,7 @@ export const register = async (req: Request, res: Response) => {
     const { data: createData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true
+      email_confirm: false // let user verify
     });
 
     if (createError) {
@@ -44,7 +42,28 @@ export const register = async (req: Request, res: Response) => {
       return res.status(500).json({ error: "Failed to create profile" });
     }
 
-    return res.status(201).json({ message: "User created", userId });
+    // Trigger Supabase verification email: use anon client to request magic link (email)
+    try {
+      await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: undefined }});
+    } catch (e) {
+      // continue - Supabase may already send by default via admin.createUser depending on settings
+      console.warn("signInWithOtp warning:", e);
+    }
+
+    // Send a friendly email telling user to check their inbox for verification
+    const html = `
+      <p>Welcome to BellyTalk,</p>
+      <p>Thanks for signing up. We sent a verification email — please check your inbox (and spam) and click the verification link to activate your account.</p>
+      <p>If you didn't receive an email, you can request a new verification link from the app.</p>
+      <p>— BellyTalk</p>
+    `;
+    try {
+      await sendMail(email, "Welcome to BellyTalk — verify your email", html);
+    } catch (mailErr) {
+      console.warn("Failed to send custom welcome email:", mailErr);
+    }
+
+    return res.status(201).json({ message: "User created. Check email for verification.", userId });
   } catch (err) {
     console.error("register error:", err);
     return res.status(500).json({ error: "Server error" });
@@ -53,7 +72,6 @@ export const register = async (req: Request, res: Response) => {
 
 /**
  * login:
- * - use anon client to sign in and return session (access_token + user)
  */
 export const login = async (req: Request, res: Response) => {
   try {
