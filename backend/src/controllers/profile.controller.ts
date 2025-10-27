@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthRequest } from "../middlewares/auth.middleware.js";
 import { supabaseAdmin } from "../configs/supabase";
 import { sendMail } from "../services/email.service.js";
+import { uploadFile } from "./upload.controller.js"; // 👈 reusing your own service
 
 /**
  * GET /api/profile/me
@@ -25,20 +26,41 @@ export const getMe = async (req: AuthRequest, res: Response) => {
  * PUT /api/profile/me
  * allowed updates: full_name, phone, language, avatar_url, bio, location, extra (careful)
  */
+
+
 export const updateMe = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const allowed = ["full_name", "phone", "language", "avatar_url", "bio", "location", "extra"];
     const payload: Record<string, any> = {};
+
     for (const key of allowed) {
       if (key in req.body) payload[key] = req.body[key];
+    }
+
+    // Handle avatar file (if provided)
+    if ((req as any).file) {
+      // use your existing uploadFile util
+      const fileReq = Object.assign({}, req, { body: { folder: `bellytalk/avatars/${userId}` } });
+      const uploadRes = await new Promise<any>((resolve) => {
+        (uploadFile as any)(fileReq, {
+          status: () => ({ json: (data: any) => resolve(data) })
+        } as any);
+      });
+
+      if (uploadRes?.result?.secure_url) payload.avatar_url = uploadRes.result.secure_url;
     }
 
     if (Object.keys(payload).length === 0) return res.status(400).json({ error: "No updatable fields provided" });
 
     payload.updated_at = new Date().toISOString();
 
-    const { data, error } = await supabaseAdmin.from("profiles").update(payload).eq("id", userId).select().maybeSingle();
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .update(payload)
+      .eq("id", userId)
+      .select()
+      .maybeSingle();
 
     if (error) return res.status(500).json({ error: error.message });
 
@@ -49,17 +71,38 @@ export const updateMe = async (req: AuthRequest, res: Response) => {
   }
 };
 
-
 /**
  * requestRoleUpgrade - updated to notify admins
  */
+
 export const requestRoleUpgrade = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { role, documents } = req.body;
-    if (!role || !["doctor", "counselor"].includes(role)) return res.status(400).json({ error: "Invalid role" });
+    const { role } = req.body;
+    if (!role || !["doctor", "counselor"].includes(role))
+      return res.status(400).json({ error: "Invalid role" });
 
-    const extraUpdate = { requested_role: role, documents: documents || [] };
+    const uploadedDocs: string[] = [];
+
+    // Handle file uploads (if present)
+    if ((req as any).files && Array.isArray((req as any).files)) {
+      for (const file of (req as any).files) {
+        const mockReq = {
+          ...req,
+          file,
+          body: { folder: `bellytalk/role-requests/${userId}` }
+        };
+        const uploadRes = await new Promise<any>((resolve) => {
+          (uploadFile as any)(mockReq, {
+            status: () => ({ json: (data: any) => resolve(data) })
+          } as any);
+        });
+
+        if (uploadRes?.result?.secure_url) uploadedDocs.push(uploadRes.result.secure_url);
+      }
+    }
+
+    const extraUpdate = { requested_role: role, documents: uploadedDocs };
 
     const { data, error } = await supabaseAdmin
       .from("profiles")
@@ -70,27 +113,21 @@ export const requestRoleUpgrade = async (req: AuthRequest, res: Response) => {
 
     if (error) return res.status(500).json({ error: error.message });
 
-    // Find admin emails
-    const { data: admins, error: adminErr } = await supabaseAdmin.from("profiles").select("email").eq("role", "admin");
-    if (!adminErr && Array.isArray(admins) && admins.length) {
+    // Notify admins
+    const { data: admins } = await supabaseAdmin.from("profiles").select("email").eq("role", "admin");
+    if (admins?.length) {
       const emails = admins.map((a: any) => a.email).filter(Boolean);
       const html = `
-        <p>A user (${data.email}) requested to become <strong>${role}</strong>.</p>
-        <p>Open the admin panel to review documents and approve or reject.</p>
+        <p>User <strong>${data.full_name}</strong> (${data.email}) requested <strong>${role}</strong> access.</p>
+        <p>Documents:</p>
+        <ul>${uploadedDocs.map((u) => `<li><a href="${u}" target="_blank">${u}</a></li>`).join("")}</ul>
       `;
-      // send to each admin (could be batched)
-      for (const to of emails) {
-        try {
-          await sendMail(to, "Provider Role Request — BellyTalk", html);
-        } catch (mailErr) {
-          console.warn("Failed to notify admin", to, mailErr);
-        }
-      }
+      for (const to of emails) await sendMail(to, "BellyTalk Role Request", html);
     }
 
-    return res.status(200).json({ profile: data });
+    res.status(200).json({ message: "Role request submitted", documents: uploadedDocs, profile: data });
   } catch (err) {
     console.error("requestRoleUpgrade error:", err);
-    return res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Server error" });
   }
 };

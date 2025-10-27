@@ -4,7 +4,19 @@ import { requireAuth } from "../middlewares/auth.middleware.js";
 const router = Router();
 
 router.get("/me", requireAuth, getMe);
-router.put("/me", requireAuth, updateMe);
-router.post("/request-role-upgrade", requireAuth, requestRoleUpgrade);
+import { uploadMiddleware } from "../controllers/upload.controller.js";
+
+router.put(
+  "/me",
+  requireAuth,
+  uploadMiddleware.single("avatar"), 
+  updateMe
+);
+router.post(
+  "/request-role-upgrade",
+  requireAuth,
+  uploadMiddleware.array("documents", 5), 
+  requestRoleUpgrade
+);
 
 export default router;

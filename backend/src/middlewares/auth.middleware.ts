@@ -40,7 +40,7 @@ export const requireRole = (roles: string[]) => {
       const userId = req.user!.id;
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-      const { data: profile, error } = await supabase
+      const { data: profile, error } = await supabaseAdmin
         .from("profiles")
         .select("role")
         .eq("id", userId)

@@ -96,3 +96,131 @@ export const rejectProvider = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ error: "Server error" });
   }
 };
+
+
+/**
+ * GET /api/admin/providers/pending
+ * Lists all users who requested role upgrade
+ */
+export const listRoleRequests = async (_req: AuthRequest, res: Response) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name, email, role_status, extra, created_at, updated_at")
+      .eq("role_status", "pending");
+
+    if (error) {
+       res.status(500).json({ error: error.message });
+       return;
+      }
+
+    // Extract docs from `extra`
+    const requests = (data || []).map((u) => ({
+      id: u.id,
+      full_name: u.full_name,
+      email: u.email,
+      requested_role: u.extra?.requested_role || "unknown",
+      documents: u.extra?.documents || [],
+      submitted_at: u.updated_at,
+    }));
+
+    res.json({ count: requests.length, requests });
+  } catch (err) {
+    console.error("listRoleRequests error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+/**
+ * POST /api/admin/providers/:id/approve
+ * Approves a provider role upgrade and notifies user
+ */
+export const approveRole = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Retrieve user's current profile to know requested role
+    const { data: profile, error: fetchErr } = await supabaseAdmin
+      .from("profiles")
+      .select("id, email, full_name, extra")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (fetchErr || !profile)
+      return res.status(404).json({ error: "User not found or invalid ID" });
+
+    const newRole = profile.extra?.requested_role || "doctor";
+
+    // Update role and status
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .update({ role: newRole, role_status: "approved" })
+      .eq("id", id)
+      .select()
+      .maybeSingle();
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    // Notify user
+    const html = `
+      <p>Dear ${data.full_name || "user"},</p>
+      <p>Your request to become a <strong>${newRole}</strong> has been <strong>approved</strong>.</p>
+      <p>You can now log in to your account and start offering services.</p>
+      <br/>
+      <p>— BellyTalk Admin Team</p>
+    `;
+    await sendMail(profile.email, "🎉 Role Approved — BellyTalk", html);
+
+    res.status(200).json({ message: "Role approved successfully", profile: data });
+  } catch (err) {
+    console.error("approveRole error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+/**
+ * POST /api/admin/providers/:id/reject
+ * Rejects a provider role upgrade and notifies user
+ */
+export const rejectRole = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    // Retrieve profile for email
+    const { data: profile, error: fetchErr } = await supabaseAdmin
+      .from("profiles")
+      .select("id, email, full_name, extra")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (fetchErr || !profile)
+      return res.status(404).json({ error: "User not found or invalid ID" });
+
+    const requestedRole = profile.extra?.requested_role || "doctor";
+
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .update({ role_status: "rejected" })
+      .eq("id", id)
+      .select()
+      .maybeSingle();
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    // Email user
+    const html = `
+      <p>Dear ${profile.full_name || "user"},</p>
+      <p>We regret to inform you that your request to become a <strong>${requestedRole}</strong> has been <strong>rejected</strong>.</p>
+      <p>Reason: ${reason || "Not specified"}</p>
+      <br/>
+      <p>— BellyTalk Admin Team</p>
+    `;
+    await sendMail(profile.email, "❌ Role Rejected — BellyTalk", html);
+
+    res.status(200).json({ message: "Role rejected successfully", profile: data });
+  } catch (err) {
+    console.error("rejectRole error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
