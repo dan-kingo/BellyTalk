@@ -1,17 +1,29 @@
-import { ZodObject } from "zod";
 import { Request, Response, NextFunction } from "express";
+import { ZodSchema } from "zod";
 
-export const validate =
-  (schema: ZodObject<any>, target: "body" | "query" | "params" = "body") =>
-  (req: Request, res: Response, next: NextFunction) => {
-    const parseTarget = (target === "body" ? req.body : target === "query" ? req.query : req.params) as any;
-    const result = schema.safeParse(parseTarget);
-    if (!result.success) {
-      return res.status(400).json({ error: "Validation error", issues: result.error.format() });
+/**
+ * Safe validation middleware that does not mutate immutable request props (like req.query).
+ */
+export const validate = (schema: ZodSchema<any>, location: "body" | "query" = "body") => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Parse input
+      const parsed = schema.parse(req[location]);
+
+      // Only replace mutable parts
+      if (location === "body") {
+        req.body = parsed;
+      } else if (location === "query") {
+        // clone validated values instead of assigning to req.query directly
+        Object.assign(req.query, parsed);
+      }
+
+      next();
+    } catch (err: any) {
+      return res.status(400).json({
+        error: "Validation error",
+        issues: err?.issues || err.message,
+      });
     }
-    // overwrite validated object
-    if (target === "body") req.body = result.data;
-    else if (target === "query") req.query = result.data as any;
-    else req.params = result.data as any;
-    return next();
   };
+};

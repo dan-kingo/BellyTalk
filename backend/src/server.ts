@@ -10,7 +10,7 @@ import healthRouter from "./routes/health.route.js";
 import { errorHandler, notFoundHandler } from "./middlewares/error.middleware.js";
 import contentRouter from "./routes/content.route.js";
 import hospitalRouter from "./routes/hospital.route.js";
-
+import chatRouter from "./routes/chat.route.js";
 dotenv.config();
 
 const app = express();
@@ -30,7 +30,7 @@ app.use("/api/admin", adminRouter);
 app.use("/api/uploads", uploadRouter);
 app.use("/api/content", contentRouter);
 app.use("/api/hospitals", hospitalRouter);
-
+app.use("/api/chat", chatRouter);
 
 // not found + error handler
 app.use(notFoundHandler);
