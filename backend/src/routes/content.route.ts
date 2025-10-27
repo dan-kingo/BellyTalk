@@ -10,16 +10,21 @@ import {
   translateContent,
 } from "../controllers/content.controller.js";
 import { contentSchema } from "../validators/content.schema.js";
+import { uploadMiddleware } from "../controllers/upload.controller.js";
 
 const router = Router();
+router.post(
+  "/",
+  requireAuth,
+  requireRole(["admin", "doctor", "counselor"]),
+  uploadMiddleware.single("cover"),
+  createContent
+);
 
 router.get("/", getAllContent);
 router.get("/:id", getSingleContent);
-router.post("/", requireAuth, requireRole(["doctor", "counselor", "admin"]), validate(contentSchema), createContent);
-router.put("/:id", requireAuth, requireRole(["doctor", "counselor", "admin"]), validate(contentSchema.partial()), updateContent);
-router.delete("/:id", requireAuth, requireRole(["admin"]), deleteContent);
-
-// Translate route (optional)
-router.post("/:id/translate", requireAuth, translateContent);
+router.put("/:id", requireAuth, uploadMiddleware.single("cover"), updateContent);
+router.delete("/:id", requireAuth, deleteContent);
+router.post("/:id/translate", translateContent);
 
 export default router;
