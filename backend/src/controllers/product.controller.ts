@@ -116,18 +116,18 @@ console.log("Updating product:", id, payload);
       }
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("products")
       .update(payload)
       .eq("id", id)
-      .select();
+      .select().single();
 
     if (error) throw error;
-    if (!data || data.length === 0) {
+    if (!data) {
       return res.status(404).json({ error: "Not found" });
     }
 
-    res.json({ message: "Product updated", product: data[0] });
+    res.json({ message: "Product updated", product: data });
   } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: err.message });
