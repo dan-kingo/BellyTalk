@@ -8,21 +8,38 @@ import { AuthRequest } from "../middlewares/auth.middleware.js";
 export const getCart = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
+    
     // find cart
-    const { data: carts, error: cartsErr } = await supabaseAdmin.from("carts").select("*").eq("user_id", userId).limit(1);
+    const { data: carts, error: cartsErr } = await supabaseAdmin
+      .from("carts")
+      .select("*")
+      .eq("user_id", userId)
+      .limit(1);
+    
     if (cartsErr) throw cartsErr;
 
     let cart = carts?.[0];
     if (!cart) {
-      const { data: newCart, error: insertErr } = await supabaseAdmin.from("carts").insert([{ user_id: userId }]).select().single();
+      const { data: newCart, error: insertErr } = await supabaseAdmin
+        .from("carts")
+        .insert([{ user_id: userId }])
+        .select()
+        .single();
       if (insertErr) throw insertErr;
       cart = newCart;
     }
 
-    // get items
+    // get items with proper join syntax
     const { data: items, error: itemsErr } = await supabaseAdmin
       .from("cart_items")
-      .select("cart_items.*, products(title, price, image_url)")
+      .select(`
+        *,
+        products (
+          title,
+          price,
+          image_url
+        )
+      `)
       .eq("cart_id", cart.id);
 
     if (itemsErr) throw itemsErr;
@@ -33,7 +50,6 @@ export const getCart = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 export const addToCart = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
