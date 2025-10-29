@@ -38,3 +38,26 @@ code {
 .glass-button:hover::before {
   left: 100%;
 }
+
+/* Custom colors for Tailwind v4 */
+@theme inline {
+  --color-primary-50: #fef2f4;
+  --color-primary-100: #fde6ea;
+  --color-primary-200: #fcc9d4;
+  --color-primary-300: #f99bb4;
+  --color-primary-400: #f4628d;
+  --color-primary-500: #E06B80;
+  --color-primary-600: #CD2C58;
+  --color-primary-700: #b01d45;
+  --color-primary-800: #93193b;
+  --color-primary-900: #7d1835;
+  
+  --color-primary: #CD2C58;
+  
+  --color-secondary: #E06B80;
+  --color-secondary-light: #FFC69D;
+  --color-secondary-lighter: #FFE6D4;
+  
+  --color-accent: #FFC69D;
+  --color-accent-light: #FFE6D4;
+}
