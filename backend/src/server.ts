@@ -12,6 +12,8 @@ import contentRouter from "./routes/content.route.js";
 import hospitalRouter from "./routes/hospital.route.js";
 import chatRouter from "./routes/chat.route.js";
 import shopRouter from "./routes/shop.route.js";
+import audioRouter from "./routes/audio.route.js";
+import hmsWebhookRouter from "./routes/hms.webhook.route.js";
 
 dotenv.config();
 
@@ -34,6 +36,8 @@ app.use("/api/content", contentRouter);
 app.use("/api/hospitals", hospitalRouter);
 app.use("/api/chat", chatRouter);
 app.use("/api/shop", shopRouter);
+app.use("/api/audio", audioRouter);
+app.use("/api/hms/webhook", express.json({ limit: "2mb" }), hmsWebhookRouter);
 
 // not found + error handler
 app.use(notFoundHandler);
