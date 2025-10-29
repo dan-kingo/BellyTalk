@@ -1,9 +1,9 @@
 backend/.env
 backend/node_modules/
 backend/dist/
-mobile/.env
-mobile/node_modules/
-mobile/build/
+user-web/.env
+user-web/node_modules/
+user-web/dist/
 .DS_Store
 .vscode/
 .idea/
