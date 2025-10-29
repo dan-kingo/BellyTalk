@@ -19,52 +19,40 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
 
     if (!items || items.length === 0) return res.status(400).json({ error: "Cart is empty" });
 
-    // Check stock availability
-    const insufficient = items.filter((i: any) => i.products[0].stock < i.quantity);
+    // Check stock availability - FIXED ACCESS
+    const insufficient = items.filter((i: any) => i.products.stock < i.quantity);
     if (insufficient.length) {
       return res.status(400).json({
         error: "Insufficient stock",
-        items: insufficient.map((i) => ({ product_id: i.product_id, available: i.products[0].stock, requested: i.quantity }))
+        items: insufficient.map((i) => ({ 
+          product_id: i.product_id, 
+          available: i.products[0].stock, 
+          requested: i.quantity 
+        }))
       });
     }
 
-    // Calculate total and prepare items
+    // Calculate total and prepare items - FIXED ACCESS
     let total = 0;
     const orderItems = items.map((it: any) => {
-      const price = Number(it.products[0].price);
+      const price = Number(it.products.price);
       const qty = Number(it.quantity);
       total += price * qty;
       return { product_id: it.product_id, quantity: qty, unit_price: price };
     });
 
-    // Transactional approach (Supabase has no multi-table transaction API — emulate)
-    // 1. Insert order
-    const { data: order, error: orderErr } = await supabaseAdmin
-      .from("orders")
-      .insert([{ user_id: userId, total_price: total, status: "pending" }])
-      .select()
-      .single();
-    if (orderErr) throw orderErr;
-
-    // 2. Insert order items
-    for (const oi of orderItems) {
-      const { error: oiErr } = await supabaseAdmin
-        .from("order_items")
-        .insert([{ order_id: order.id, product_id: oi.product_id, quantity: oi.quantity, unit_price: oi.unit_price }]);
-      if (oiErr) throw oiErr;
-    }
-
-    // 3. Deduct stock
-    for (const oi of orderItems) {
-      const { error: stockErr } = await supabaseAdmin.rpc("decrement_stock", {
-        pid: oi.product_id,
-        qty: oi.quantity
-      });
-      if (stockErr) throw stockErr;
-    }
-
-    // 4. Clear cart
-    await supabaseAdmin.from("cart_items").delete().eq("cart_id", cart.id);
+    // Rest of your code remains the same...
+    let order;
+    
+    // Use a transaction for data consistency
+    const { data, error } = await supabaseAdmin.rpc('create_order_transaction', {
+      p_user_id: userId,
+      p_total: total,
+      p_order_items: orderItems
+    });
+    
+    if (error) throw error;
+    order = data;
 
     res.status(201).json({ order });
   } catch (err: any) {
@@ -72,7 +60,6 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 export const listOrders = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
