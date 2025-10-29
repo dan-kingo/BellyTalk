@@ -44,7 +44,7 @@ const Navbar: React.FC = () => {
                   </span>
                   <button
                     onClick={toggleTheme}
-                    className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all duration-300"
+                    className="p-2 cursor-pointer rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all duration-300"
                     aria-label="Toggle theme"
                   >
                     {isDark ? (
@@ -59,7 +59,7 @@ const Navbar: React.FC = () => {
                   </button>
                   <button
                     onClick={handleLogout}
-                    className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md text-sm font-medium transition"
+                    className="bg-gray-100 cursor-pointer dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md text-sm font-medium transition"
                   >
                     Logout
                   </button>
@@ -69,7 +69,7 @@ const Navbar: React.FC = () => {
               <>
                 <button
                   onClick={toggleTheme}
-                  className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all duration-300"
+                  className="p-2 cursor-pointer rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all duration-300"
                   aria-label="Toggle theme"
                 >
                   {isDark ? (
@@ -95,7 +95,7 @@ const Navbar: React.FC = () => {
           <div className="md:hidden flex items-center space-x-2">
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all duration-300"
+              className="p-2 cursor-pointer rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all duration-300"
               aria-label="Toggle theme"
             >
               {isDark ? (
@@ -110,7 +110,7 @@ const Navbar: React.FC = () => {
             </button>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-secondary focus:outline-none"
+              className="text-gray-700 cursor-pointer dark:text-gray-300 hover:text-primary dark:hover:text-secondary focus:outline-none"
             >
               <svg className="h-6 w-6" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
                 {mobileMenuOpen ? (

@@ -16,7 +16,7 @@ const DashboardPage: React.FC = () => {
 
   const renderMotherDashboard = () => (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg shadow-lg p-6 text-white">
+      <div className="bg-linear-to-r from-primary-500 to-primary-600 rounded-lg shadow-lg p-6 text-white">
         <h2 className="text-2xl font-bold mb-2">Welcome back, {profile.full_name}!</h2>
         <p className="text-primary-100">Track your pregnancy journey and stay connected with your care team.</p>
       </div>
@@ -57,7 +57,7 @@ const DashboardPage: React.FC = () => {
 
   const renderCounselorDashboard = () => (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg shadow-lg p-6 text-white">
+      <div className="bg-linear-to-r from-primary-500 to-primary-600 rounded-lg shadow-lg p-6 text-white">
         <h2 className="text-2xl font-bold mb-2">Welcome, {profile.full_name}!</h2>
         <p className="text-green-100">Manage your consultations and support mothers on their journey.</p>
       </div>
@@ -98,7 +98,7 @@ const DashboardPage: React.FC = () => {
 
   const renderDoctorDashboard = () => (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+      <div className="bg-linear-to-r from-primary-800 to-primary-700 rounded-lg shadow-lg p-6 text-white">
         <h2 className="text-2xl font-bold mb-2">Welcome, Dr. {profile.full_name}!</h2>
         <p className="text-blue-100">Manage your patients and provide expert medical care.</p>
       </div>
@@ -107,7 +107,7 @@ const DashboardPage: React.FC = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Patient Records</h3>
-            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
@@ -117,7 +117,7 @@ const DashboardPage: React.FC = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Consultations</h3>
-            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
@@ -127,7 +127,7 @@ const DashboardPage: React.FC = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Hospital Network</h3>
-            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
           </div>
