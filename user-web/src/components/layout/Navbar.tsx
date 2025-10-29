@@ -30,6 +30,12 @@ const Navbar: React.FC = () => {
                 <Link to="/dashboard" className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-secondary px-3 py-2 rounded-md text-sm font-medium transition">
                   Dashboard
                 </Link>
+                <Link to="/hospitals" className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-secondary px-3 py-2 rounded-md text-sm font-medium transition">
+                  Hospitals
+                </Link>
+                <Link to="/content" className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-secondary px-3 py-2 rounded-md text-sm font-medium transition">
+                  Content
+                </Link>
                 <Link to="/profile" className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-secondary px-3 py-2 rounded-md text-sm font-medium transition">
                   Profile
                 </Link>
@@ -141,6 +147,12 @@ const Navbar: React.FC = () => {
                 </div>
                 <Link to="/dashboard" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-secondary hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                   Dashboard
+                </Link>
+                <Link to="/hospitals" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-secondary hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                  Hospitals
+                </Link>
+                <Link to="/content" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-secondary hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                  Content
                 </Link>
                 <Link to="/profile" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-secondary hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                   Profile

@@ -36,30 +36,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    let mounted = true;
+
     const initAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
 
-        if (session?.access_token) {
+        if (error) {
+          console.error('Error getting session:', error);
+          if (mounted) {
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (session?.access_token && mounted) {
           localStorage.setItem('access_token', session.access_token);
-          localStorage.setItem('refresh_token', session.refresh_token);
+          if (session.refresh_token) {
+            localStorage.setItem('refresh_token', session.refresh_token);
+          }
           setUser(session.user as User);
           await refreshProfile();
+        } else if (mounted) {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          setUser(null);
+          setProfile(null);
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
+        if (mounted) {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          setUser(null);
+          setProfile(null);
+        }
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+
       (async () => {
         if (session) {
           localStorage.setItem('access_token', session.access_token);
-          localStorage.setItem('refresh_token', session.refresh_token);
+          if (session.refresh_token) {
+            localStorage.setItem('refresh_token', session.refresh_token);
+          }
           setUser(session.user as User);
           await refreshProfile();
         } else {
@@ -72,6 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
