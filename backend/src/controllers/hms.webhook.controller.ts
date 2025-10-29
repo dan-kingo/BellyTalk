@@ -73,6 +73,39 @@ export const handleHMSWebhook = async (req: Request, res: Response) => {
       }
     }
 
+    if (event === "video.recording.ready") {
+  const roomId = data?.room_id;
+  if (roomId) {
+    const { data: session } = await supabaseAdmin
+      .from("video_sessions")
+      .select("*")
+      .eq("room_id", roomId)
+      .maybeSingle();
+    if (session) {
+      const updates = {
+        recording_url: data?.recording_url || data?.url,
+        recording_duration: data?.duration,
+        ended_at: new Date().toISOString(),
+        status: "ended",
+      };
+      await supabaseAdmin.from("video_sessions").update(updates).eq("id", session.id);
+
+      const { data: users } = await supabaseAdmin
+        .from("profiles")
+        .select("email")
+        .in("id", [session.initiator_id, session.receiver_id]);
+
+      const emails = users?.map(u => u.email).filter(Boolean);
+      const html = `
+        <p>Your video session recording is ready:</p>
+        <a href="${updates.recording_url}">${updates.recording_url}</a>
+        <p>Duration: ${updates.recording_duration || "Unknown"} seconds</p>
+      `;
+      for (const to of emails || []) await sendMail(to, "📹 Video Recording Ready — BellyTalk", html);
+    }
+  }
+}
+
     res.status(200).json({ ok: true });
   } catch (err: any) {
     console.error("HMS webhook error:", err);

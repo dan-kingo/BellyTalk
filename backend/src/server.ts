@@ -14,6 +14,7 @@ import chatRouter from "./routes/chat.route.js";
 import shopRouter from "./routes/shop.route.js";
 import audioRouter from "./routes/audio.route.js";
 import hmsWebhookRouter from "./routes/hms.webhook.route.js";
+import videoRouter from "./routes/video.route.js";
 
 dotenv.config();
 
@@ -38,6 +39,7 @@ app.use("/api/chat", chatRouter);
 app.use("/api/shop", shopRouter);
 app.use("/api/audio", audioRouter);
 app.use("/api/hms/webhook", express.json({ limit: "2mb" }), hmsWebhookRouter);
+app.use("/api/video", videoRouter);
 
 // not found + error handler
 app.use(notFoundHandler);
