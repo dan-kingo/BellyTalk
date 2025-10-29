@@ -1,42 +1,63 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-@layer base {
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-      sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    transition: background-color 0.3s ease;
-  }
-
-  code {
-    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-      monospace;
-  }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease;
 }
 
-@layer components {
-  .glass-button {
-    position: relative;
-    overflow: hidden;
-  }
+body.dark {
+  background-color: #111827;
+}
 
-  .glass-button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-    transition: left 0.5s;
-  }
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
 
-  .glass-button:hover::before {
-    left: 100%;
-  }
+.glass-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.5s;
+}
+
+.glass-button:hover::before {
+  left: 100%;
+}
+
+/* Custom colors for Tailwind v4 */
+@theme inline {
+  --color-primary-50: #fef2f4;
+  --color-primary-100: #fde6ea;
+  --color-primary-200: #fcc9d4;
+  --color-primary-300: #f99bb4;
+  --color-primary-400: #f4628d;
+  --color-primary-500: #E06B80;
+  --color-primary-600: #CD2C58;
+  --color-primary-700: #b01d45;
+  --color-primary-800: #93193b;
+  --color-primary-900: #7d1835;
+  
+  --color-primary: #CD2C58;
+  
+  --color-secondary: #E06B80;
+  --color-secondary-light: #FFC69D;
+  --color-secondary-lighter: #FFE6D4;
+  
+  --color-accent: #FFC69D;
+  --color-accent-light: #FFE6D4;
 }
