@@ -34,7 +34,20 @@ const ChatPage: React.FC = () => {
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Mobile responsiveness
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
 
   useEffect(() => {
     if (isMobile) {
@@ -45,26 +58,27 @@ const ChatPage: React.FC = () => {
       setShowMobileChat(true);
     }
   }, [isMobile]);
-useEffect(() => {
-  loadConversations();
 
-  if (user?.id) {
-    // Initialize and update presence
-    presenceService.initializePresence(user.id);
-    
-    // Update presence every 30 seconds to stay online
-    const interval = setInterval(() => {
-      presenceService.updatePresence(user.id, 'online');
-    }, 30000);
+  useEffect(() => {
+    loadConversations();
 
-    return () => {
-      clearInterval(interval);
-      // Set offline status when leaving
-      presenceService.updatePresence(user.id, 'offline');
-      presenceService.cleanup();
-    };
-  }
-}, [user]);
+    if (user?.id) {
+      // Initialize and update presence
+      presenceService.initializePresence(user.id);
+      
+      // Update presence every 30 seconds to stay online
+      const interval = setInterval(() => {
+        presenceService.updatePresence(user.id, 'online');
+      }, 30000);
+
+      return () => {
+        clearInterval(interval);
+        // Set offline status when leaving
+        presenceService.updatePresence(user.id, 'offline');
+        presenceService.cleanup();
+      };
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -116,60 +130,61 @@ useEffect(() => {
   }, [user, selectedConversation]);
 
   useEffect(() => {
-  if (selectedConversation && user) {
-    setMessages([]);
-    setHasMore(true);
-    loadMessages(selectedConversation.id);
+    if (selectedConversation && user) {
+      setMessages([]);
+      setHasMore(true);
+      loadMessages(selectedConversation.id);
 
-    const otherUserId = getOtherParticipantId(selectedConversation);
+      const otherUserId = getOtherParticipantId(selectedConversation);
 
-    // Get initial presence with error handling
-    const loadInitialPresence = async () => {
-      try {
-        const presence = await presenceService.getPresence(otherUserId);
-        setOtherUserStatus(presence?.status || 'offline');
-      } catch (error) {
-        console.error('Error getting initial presence:', error);
-        setOtherUserStatus('offline');
-      }
-    };
-
-    loadInitialPresence();
-
-    // Subscribe to presence changes
-    const presenceChannel = presenceService.subscribeToPresence(otherUserId, (status) => {
-      console.log(`Presence update for ${otherUserId}:`, status);
-      setOtherUserStatus(status);
-    });
-
-    // Subscribe to typing indicators
-    const typingChannel = presenceService.subscribeToTyping(
-      selectedConversation.id,
-      user.id,
-      (isTyping) => {
-        console.log(`Typing update for conversation ${selectedConversation.id}:`, isTyping);
-        setIsOtherUserTyping(isTyping);
-      }
-    );
-
-    return () => {
-      try {
-        if (presenceChannel && typeof presenceChannel.unsubscribe === 'function') {
-          presenceChannel.unsubscribe();
+      // Get initial presence with error handling
+      const loadInitialPresence = async () => {
+        try {
+          const presence = await presenceService.getPresence(otherUserId);
+          setOtherUserStatus(presence?.status || 'offline');
+        } catch (error) {
+          console.error('Error getting initial presence:', error);
+          setOtherUserStatus('offline');
         }
-        if (typingChannel && typeof typingChannel.unsubscribe === 'function') {
-          typingChannel.unsubscribe();
+      };
+
+      loadInitialPresence();
+
+      // Subscribe to presence changes
+      const presenceChannel = presenceService.subscribeToPresence(otherUserId, (status) => {
+        console.log(`Presence update for ${otherUserId}:`, status);
+        setOtherUserStatus(status);
+      });
+
+      // Subscribe to typing indicators
+      const typingChannel = presenceService.subscribeToTyping(
+        selectedConversation.id,
+        user.id,
+        (isTyping) => {
+          console.log(`Typing update for conversation ${selectedConversation.id}:`, isTyping);
+          setIsOtherUserTyping(isTyping);
         }
-      } catch (error) {
-        console.error('Error unsubscribing channels:', error);
-      }
-    };
-  } else {
-    // Reset status when no conversation is selected
-    setOtherUserStatus('offline');
-    setIsOtherUserTyping(false);
-  }
-}, [selectedConversation, user]);
+      );
+
+      return () => {
+        try {
+          if (presenceChannel && typeof presenceChannel.unsubscribe === 'function') {
+            presenceChannel.unsubscribe();
+          }
+          if (typingChannel && typeof typingChannel.unsubscribe === 'function') {
+            typingChannel.unsubscribe();
+          }
+        } catch (error) {
+          console.error('Error unsubscribing channels:', error);
+        }
+      };
+    } else {
+      // Reset status when no conversation is selected
+      setOtherUserStatus('offline');
+      setIsOtherUserTyping(false);
+    }
+  }, [selectedConversation, user]);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages, isOtherUserTyping]);
@@ -428,7 +443,8 @@ useEffect(() => {
           <img
             src={attachment.url}
             alt={attachment.original_filename}
-            className="max-w-xs rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+            className="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+            style={{ maxWidth: 'min(300px, 85vw)' }}
             loading="lazy"
           />
         </a>
@@ -440,10 +456,11 @@ useEffect(() => {
         href={attachment.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-2 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+        className="flex items-center gap-2 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors max-w-full"
+        style={{ maxWidth: 'min(300px, 85vw)' }}
       >
-        <File className="w-5 h-5" />
-        <span className="text-sm truncate max-w-xs">{attachment.original_filename}</span>
+        <File className="w-5 h-5 shrink-0" />
+        <span className="text-sm truncate flex-1">{attachment.original_filename}</span>
       </a>
     );
   };
@@ -460,16 +477,16 @@ useEffect(() => {
 
   return (
     <Layout>
-      <div className="flex h-[calc(100vh-8rem)] bg-white dark:bg-gray-900 rounded-lg shadow-lg overflow-hidden">
+      <div className="flex h-[calc(100vh-8rem)] bg-white dark:bg-gray-900 rounded-lg shadow-lg overflow-hidden max-w-full">
         {/* Conversations List - Hidden on mobile when chat is open */}
-        <div className={`${isMobile ? (showConversationList ? 'flex' : 'hidden') : 'flex'} w-full md:w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex-col`}>
+        <div className={`${isMobile ? (showConversationList ? 'flex' : 'hidden') : 'flex'} w-full md:w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex-col max-w-full`}>
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">Messages</h2>
               {isMobile && (
                 <button
                   onClick={() => setShowNewChatDialog(true)}
-                  className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                  className="p-2 text-gray-500 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300"
                 >
                   <Plus className="w-5 h-5" />
                 </button>
@@ -478,7 +495,7 @@ useEffect(() => {
             {!isMobile && (
               <button
                 onClick={() => setShowNewChatDialog(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary dark:bg-secondary text-white rounded-lg hover:opacity-90 transition-opacity"
+                className="w-full cursor-pointer flex items-center justify-center gap-2 px-4 py-2 bg-primary dark:bg-secondary text-white rounded-lg hover:opacity-90 transition-opacity"
               >
                 <Plus className="w-5 h-5" />
                 New Chat
@@ -492,7 +509,7 @@ useEffect(() => {
                 No conversations yet
               </div>
             ) : (
-              <div>
+              <div className="max-w-full">
                 {conversations.map((conversation) => {
                   const otherProfile = getOtherParticipantProfile(conversation);
                   const isSelected = selectedConversation?.id === conversation.id;
@@ -501,11 +518,11 @@ useEffect(() => {
                     <button
                       key={conversation.id}
                       onClick={() => handleSelectConversation(conversation)}
-                      className={`w-full p-4 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 text-left transition-colors ${
+                      className={`w-full p-4 border-b cursor-pointer border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 text-left transition-colors max-w-full ${
                         isSelected ? 'bg-gray-100 dark:bg-gray-800' : ''
                       }`}
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-3 max-w-full">
                         <div className="relative shrink-0">
                           <div className="w-12 h-12 rounded-full bg-linear-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold text-lg">
                             {otherProfile?.full_name?.charAt(0).toUpperCase() || '?'}
@@ -516,8 +533,8 @@ useEffect(() => {
                             </div>
                           )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-baseline justify-between mb-1">
+                        <div className="flex-1 min-w-0 overflow-hidden">
+                          <div className="flex items-baseline justify-between mb-1 max-w-full">
                             <h3 className="font-semibold text-gray-900 dark:text-white truncate">
                               {otherProfile?.full_name || 'Unknown User'}
                             </h3>
@@ -547,7 +564,7 @@ useEffect(() => {
         </div>
 
         {/* Chat Area - Hidden on mobile when conversations list is open */}
-        <div className={`${isMobile ? (showMobileChat ? 'flex' : 'hidden') : 'flex'} flex-1 flex-col bg-gray-50 dark:bg-gray-950`}>
+        <div className={`${isMobile ? (showMobileChat ? 'flex' : 'hidden') : 'flex'} flex-1 flex-col bg-gray-50 dark:bg-gray-950 max-w-full overflow-hidden`}>
           {selectedConversation ? (
             <>
               <div className="p-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
@@ -555,21 +572,21 @@ useEffect(() => {
                   {isMobile && (
                     <button
                       onClick={handleBackToConversations}
-                      className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      className="p-2 text-gray-500 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300 shrink-0"
                     >
                       <ArrowLeft className="w-5 h-5" />
                     </button>
                   )}
-                  <div className="w-10 h-10 rounded-full bg-linear-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold">
+                  <div className="w-10 h-10 rounded-full bg-linear-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold shrink-0">
                     {getOtherParticipantProfile(selectedConversation)?.full_name?.charAt(0).toUpperCase() || '?'}
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 dark:text-white">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 dark:text-white truncate">
                       {getOtherParticipantProfile(selectedConversation)?.full_name || 'Unknown User'}
                     </h3>
                     <div className="flex items-center gap-2 text-sm">
-                      <div className={`w-2 h-2 rounded-full ${otherUserStatus === 'online' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                      <span className="text-gray-600 dark:text-gray-400">
+                      <div className={`w-2 h-2 rounded-full ${otherUserStatus === 'online' ? 'bg-green-500' : 'bg-gray-400'} shrink-0`}></div>
+                      <span className="text-gray-600 dark:text-gray-400 truncate">
                         {otherUserStatus === 'online' ? 'online' : 'offline'}
                         {isOtherUserTyping && ' • typing...'}
                       </span>
@@ -580,7 +597,8 @@ useEffect(() => {
 
               <div
                 ref={messagesContainerRef}
-                className="flex-1 overflow-y-auto p-4 space-y-2"
+                className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-2 max-w-full"
+                style={{ overflowAnchor: 'none' }}
               >
                 {hasMore && messages.length > 0 && (
                   <div className="flex justify-center mb-4">
@@ -600,7 +618,7 @@ useEffect(() => {
                   return (
                     <div
                       key={message.id}
-                      className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-1`}
+                      className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-1 max-w-full`}
                     >
                       <div
                         className={`max-w-[85%] sm:max-w-md px-3 py-2 rounded-2xl shadow-sm ${
@@ -608,16 +626,19 @@ useEffect(() => {
                             ? 'bg-primary dark:bg-secondary text-white rounded-br-sm'
                             : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm'
                         }`}
+                        style={{ maxWidth: 'min(400px, 85vw)' }}
                       >
                         {attachments.length > 0 && (
-                          <div className="space-y-2 mb-2">
+                          <div className="space-y-2 mb-2 max-w-full">
                             {attachments.map((attachment: any, idx: number) => (
-                              <div key={idx}>{renderAttachment(attachment)}</div>
+                              <div key={idx} className="max-w-full">
+                                {renderAttachment(attachment)}
+                              </div>
                             ))}
                           </div>
                         )}
                         {message.content && (
-                          <p className="text-sm wrap-break-word">{message.content}</p>
+                          <p className="text-sm wrap-break-word whitespace-pre-wrap">{message.content}</p>
                         )}
                         <p className={`text-[10px] mt-1 text-right ${isOwn ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'}`}>
                           {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -627,21 +648,24 @@ useEffect(() => {
                   );
                 })}
                 {isOtherUserTyping && (
-                  <div className="flex justify-start">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl px-4 py-2 shadow-sm">
+                  <div className="flex justify-start max-w-full">
+                    <div 
+                      className="bg-white dark:bg-gray-800 rounded-2xl px-4 py-2 shadow-sm"
+                      style={{ maxWidth: 'min(400px, 85vw)' }}
+                    >
                       <TypingIndicator />
                     </div>
                   </div>
                 )}
-                <div ref={messagesEndRef} />
+                <div ref={messagesEndRef} className="h-px" />
               </div>
 
-              <form onSubmit={handleSendMessage} className="p-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
+              <form onSubmit={handleSendMessage} className="p-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 max-w-full">
                 {attachments.length > 0 && (
-                  <div className="flex gap-2 mb-2 overflow-x-auto pb-2">
+                  <div className="flex gap-2 mb-2 overflow-x-auto pb-2 max-w-full">
                     {attachments.map((file, idx) => (
                       <div key={idx} className="relative shrink-0">
-                        <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center relative">
+                        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center relative">
                           {file.type.startsWith('image/') ? (
                             <img 
                               src={URL.createObjectURL(file)} 
@@ -649,22 +673,22 @@ useEffect(() => {
                               className="w-full h-full object-cover rounded-lg" 
                             />
                           ) : (
-                            <File className="w-8 h-8 text-gray-400" />
+                            <File className="w-6 h-6 text-gray-400" />
                           )}
                           <button
                             type="button"
                             onClick={() => removeAttachment(idx)}
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                            className="absolute cursor-pointer -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 text-xs"
                           >
-                            <X className="w-4 h-4" />
+                            <X className="w-3 h-3" />
                           </button>
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate w-20">{file.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate w-16">{file.name}</p>
                       </div>
                     ))}
                   </div>
                 )}
-                <div className="flex gap-2 items-end">
+                <div className="flex gap-2 items-end max-w-full">
                   <input
                     type="file"
                     ref={fileInputRef}
@@ -676,7 +700,7 @@ useEffect(() => {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-3 text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-secondary transition-colors"
+                    className="p-2 text-gray-500 cursor-pointer dark:text-gray-400 hover:text-primary dark:hover:text-secondary transition-colors shrink-0"
                   >
                     <Paperclip className="w-5 h-5" />
                   </button>
@@ -689,29 +713,29 @@ useEffect(() => {
                     }}
                     placeholder="Type a message..."
                     disabled={sending}
-                    className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-secondary"
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-secondary text-sm md:text-base min-w-0"
                   />
                   <button
                     type="submit"
                     disabled={sending || (!messageContent.trim() && attachments.length === 0)}
-                    className="bg-primary hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white p-3 rounded-full disabled:opacity-50 transition-all shrink-0 w-12 h-12 flex items-center justify-center"
+                    className="bg-primary cursor-pointer hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white p-2 rounded-full disabled:opacity-50 transition-all shrink-0 w-10 h-10 md:w-12 md:h-12 flex items-center justify-center"
                   >
                     {sending ? (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     ) : (
-                      <Send className="w-5 h-5" />
+                      <Send className="w-4 h-4 md:w-5 md:h-5" />
                     )}
                   </button>
                 </div>
               </form>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
-              <div className="text-center">
+            <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400 p-4">
+              <div className="text-center max-w-full">
                 <p className="text-lg mb-2">Select a conversation to start chatting</p>
                 <button
                   onClick={() => setShowNewChatDialog(true)}
-                  className="text-primary dark:text-secondary hover:underline"
+                  className="text-primary cursor-pointer dark:text-secondary hover:underline"
                 >
                   or start a new chat
                 </button>
@@ -723,7 +747,7 @@ useEffect(() => {
 
       {showNewChatDialog && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full max-h-[80vh] flex flex-col">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full max-h-[80vh] flex flex-col mx-4">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">New Chat</h3>
               <button
@@ -732,7 +756,7 @@ useEffect(() => {
                   setSearchQuery('');
                   setSearchResults([]);
                 }}
-                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                className="text-gray-500 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -766,14 +790,14 @@ useEffect(() => {
                       onClick={() => handleStartChat(userProfile.id)}
                       className="w-full p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-3"
                     >
-                      <div className="w-10 h-10 rounded-full bg-linear-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold">
+                      <div className="w-10 h-10 rounded-full bg-linear-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold shrink-0">
                         {userProfile.full_name.charAt(0).toUpperCase()}
                       </div>
-                      <div className="flex-1 text-left">
-                        <p className="font-medium text-gray-900 dark:text-white">{userProfile.full_name}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{userProfile.email}</p>
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="font-medium text-gray-900 dark:text-white truncate">{userProfile.full_name}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{userProfile.email}</p>
                       </div>
-                      <span className="text-xs px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded-full text-gray-700 dark:text-gray-300">
+                      <span className="text-xs px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded-full text-gray-700 dark:text-gray-300 shrink-0">
                         {userProfile.role}
                       </span>
                     </button>
