@@ -16,6 +16,7 @@ import CartPage from './pages/CartPage';
 import ChatPage from './pages/ChatPage';
 import OrdersPage from './pages/OrdersPage';
 import CheckoutPage from './pages/CheckoutPage';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 const App: React.FC = () => {
   return (
@@ -104,7 +105,9 @@ const App: React.FC = () => {
               path="/chat"
               element={
                 <PrivateRoute>
-                  <ChatPage />
+                  <ErrorBoundary>
+                    <ChatPage />
+                  </ErrorBoundary>
                 </PrivateRoute>
               }
             />

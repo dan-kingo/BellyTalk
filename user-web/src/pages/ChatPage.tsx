@@ -7,7 +7,7 @@ import { Conversation, Message, Profile } from '../types';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import Layout from '../components/layout/Layout';
 import TypingIndicator from '../components/chat/TypingIndicator';
-import { Search, Paperclip, Send, Plus, X, File } from 'lucide-react';
+import { Search, Paperclip, Send, Plus, X, File, ArrowLeft } from 'lucide-react';
 
 const ChatPage: React.FC = () => {
   const { user } = useAuth();
@@ -26,27 +26,45 @@ const ChatPage: React.FC = () => {
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [showConversationList, setShowConversationList] = useState(true);
+  const [showMobileChat, setShowMobileChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Mobile responsiveness
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+
   useEffect(() => {
-    loadConversations();
-
-    if (user?.id) {
-      presenceService.updatePresence(user.id, 'online');
-
-      const interval = setInterval(() => {
-        presenceService.updatePresence(user.id, 'online');
-      }, 30000);
-
-      return () => {
-        clearInterval(interval);
-        presenceService.updatePresence(user.id, 'offline');
-      };
+    if (isMobile) {
+      setShowConversationList(true);
+      setShowMobileChat(false);
+    } else {
+      setShowConversationList(true);
+      setShowMobileChat(true);
     }
-  }, [user]);
+  }, [isMobile]);
+useEffect(() => {
+  loadConversations();
+
+  if (user?.id) {
+    // Initialize and update presence
+    presenceService.initializePresence(user.id);
+    
+    // Update presence every 30 seconds to stay online
+    const interval = setInterval(() => {
+      presenceService.updatePresence(user.id, 'online');
+    }, 30000);
+
+    return () => {
+      clearInterval(interval);
+      // Set offline status when leaving
+      presenceService.updatePresence(user.id, 'offline');
+      presenceService.cleanup();
+    };
+  }
+}, [user]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -82,6 +100,7 @@ const ChatPage: React.FC = () => {
           const newMessage = payload.new as Message;
           if (selectedConversation && newMessage.conversation_id === selectedConversation.id) {
             setMessages((prev) => {
+              // Check if message already exists to prevent duplicates
               if (prev.find(m => m.id === newMessage.id)) return prev;
               return [...prev, newMessage];
             });
@@ -97,42 +116,68 @@ const ChatPage: React.FC = () => {
   }, [user, selectedConversation]);
 
   useEffect(() => {
-    if (selectedConversation && user) {
-      setMessages([]);
-      setHasMore(true);
-      loadMessages(selectedConversation.id);
+  if (selectedConversation && user) {
+    setMessages([]);
+    setHasMore(true);
+    loadMessages(selectedConversation.id);
 
-      const otherUserId = getOtherParticipantId(selectedConversation);
+    const otherUserId = getOtherParticipantId(selectedConversation);
 
-      presenceService.getPresence(otherUserId).then(presence => {
+    // Get initial presence with error handling
+    const loadInitialPresence = async () => {
+      try {
+        const presence = await presenceService.getPresence(otherUserId);
         setOtherUserStatus(presence?.status || 'offline');
-      });
+      } catch (error) {
+        console.error('Error getting initial presence:', error);
+        setOtherUserStatus('offline');
+      }
+    };
 
-      const presenceChannel = presenceService.subscribeToPresence(otherUserId, (status) => {
-        setOtherUserStatus(status);
-      });
+    loadInitialPresence();
 
-      const typingChannel = presenceService.subscribeToTyping(
-        selectedConversation.id,
-        user.id,
-        (isTyping) => {
-          setIsOtherUserTyping(isTyping);
+    // Subscribe to presence changes
+    const presenceChannel = presenceService.subscribeToPresence(otherUserId, (status) => {
+      console.log(`Presence update for ${otherUserId}:`, status);
+      setOtherUserStatus(status);
+    });
+
+    // Subscribe to typing indicators
+    const typingChannel = presenceService.subscribeToTyping(
+      selectedConversation.id,
+      user.id,
+      (isTyping) => {
+        console.log(`Typing update for conversation ${selectedConversation.id}:`, isTyping);
+        setIsOtherUserTyping(isTyping);
+      }
+    );
+
+    return () => {
+      try {
+        if (presenceChannel && typeof presenceChannel.unsubscribe === 'function') {
+          presenceChannel.unsubscribe();
         }
-      );
-
-      return () => {
-        presenceChannel.unsubscribe();
-        typingChannel.unsubscribe();
-      };
-    }
-  }, [selectedConversation, user]);
-
+        if (typingChannel && typeof typingChannel.unsubscribe === 'function') {
+          typingChannel.unsubscribe();
+        }
+      } catch (error) {
+        console.error('Error unsubscribing channels:', error);
+      }
+    };
+  } else {
+    // Reset status when no conversation is selected
+    setOtherUserStatus('offline');
+    setIsOtherUserTyping(false);
+  }
+}, [selectedConversation, user]);
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isOtherUserTyping]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   };
 
   const loadConversations = async () => {
@@ -209,7 +254,17 @@ const ChatPage: React.FC = () => {
       alert('You can only attach up to 5 files');
       return;
     }
-    setAttachments([...attachments, ...files]);
+    
+    // Validate file types and sizes
+    const validFiles = files.filter(file => {
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        alert(`File ${file.name} is too large. Maximum size is 10MB.`);
+        return false;
+      }
+      return true;
+    });
+
+    setAttachments([...attachments, ...validFiles]);
   };
 
   const removeAttachment = (index: number) => {
@@ -231,23 +286,55 @@ const ChatPage: React.FC = () => {
       }
       presenceService.setTyping(selectedConversation.id, user.id, false);
 
-      const formData = new FormData();
-      formData.append('conversationId', selectedConversation.id);
-      formData.append('content', messageContent);
+      // Create optimistic message
+      const optimisticMessage: Message = {
+        id: `optimistic-${Date.now()}`,
+        conversation_id: selectedConversation.id,
+        sender_id: user.id,
+        receiver_id: getOtherParticipantId(selectedConversation),
+        content: messageContent,
+        created_at: new Date().toISOString(),
+        seen: false,
+        metadata: attachments.length > 0 ? { 
+          attachments: attachments.map(file => ({
+            url: URL.createObjectURL(file),
+            original_filename: file.name,
+            resource_type: file.type.startsWith('image/') ? 'image' : 'file',
+            format: file.name.split('.').pop() || '',
+            size: file.size
+          }))
+        } : undefined
+      };
 
-      attachments.forEach((file) => {
-        formData.append('attachments', file);
-      });
-
-      await chatService.sendMessage(formData);
+      // Add optimistic message immediately
+      setMessages(prev => [...prev, optimisticMessage]);
       setMessageContent('');
+      const filesToUpload = [...attachments];
       setAttachments([]);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+
+      // Prepare form data for actual upload
+      const formData = new FormData();
+      formData.append('conversationId', selectedConversation.id);
+      formData.append('content', messageContent);
+
+      filesToUpload.forEach((file) => {
+        formData.append('attachments', file);
+      });
+
+      // Send actual message
+      await chatService.sendMessage(formData);
+      
+      // Reload messages to get the actual message with proper ID and file URLs
+      await loadMessages(selectedConversation.id);
+      
     } catch (error) {
       console.error('Failed to send message:', error);
       alert('Failed to send message');
+      // Remove optimistic message on error
+      setMessages(prev => prev.filter(msg => !msg.id.startsWith('optimistic-')));
     } finally {
       setSending(false);
     }
@@ -280,9 +367,29 @@ const ChatPage: React.FC = () => {
       await loadConversations();
       const newConv = response.conversation;
       setSelectedConversation(newConv);
+      
+      if (isMobile) {
+        setShowConversationList(false);
+        setShowMobileChat(true);
+      }
     } catch (error) {
       console.error('Failed to create conversation:', error);
       alert('Failed to start conversation');
+    }
+  };
+
+  const handleSelectConversation = (conversation: Conversation) => {
+    setSelectedConversation(conversation);
+    if (isMobile) {
+      setShowConversationList(false);
+      setShowMobileChat(true);
+    }
+  };
+
+  const handleBackToConversations = () => {
+    if (isMobile) {
+      setShowConversationList(true);
+      setShowMobileChat(false);
     }
   };
 
@@ -313,7 +420,7 @@ const ChatPage: React.FC = () => {
   };
 
   const renderAttachment = (attachment: any) => {
-    const isImage = attachment.resource_type === 'image' || ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(attachment.format);
+    const isImage = attachment.resource_type === 'image' || ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(attachment.format?.toLowerCase());
 
     if (isImage) {
       return (
@@ -322,6 +429,7 @@ const ChatPage: React.FC = () => {
             src={attachment.url}
             alt={attachment.original_filename}
             className="max-w-xs rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+            loading="lazy"
           />
         </a>
       );
@@ -353,16 +461,29 @@ const ChatPage: React.FC = () => {
   return (
     <Layout>
       <div className="flex h-[calc(100vh-8rem)] bg-white dark:bg-gray-900 rounded-lg shadow-lg overflow-hidden">
-        <div className="w-full md:w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+        {/* Conversations List - Hidden on mobile when chat is open */}
+        <div className={`${isMobile ? (showConversationList ? 'flex' : 'hidden') : 'flex'} w-full md:w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex-col`}>
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Messages</h2>
-            <button
-              onClick={() => setShowNewChatDialog(true)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary dark:bg-secondary text-white rounded-lg hover:opacity-90 transition-opacity"
-            >
-              <Plus className="w-5 h-5" />
-              New Chat
-            </button>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Messages</h2>
+              {isMobile && (
+                <button
+                  onClick={() => setShowNewChatDialog(true)}
+                  className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+            {!isMobile && (
+              <button
+                onClick={() => setShowNewChatDialog(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary dark:bg-secondary text-white rounded-lg hover:opacity-90 transition-opacity"
+              >
+                <Plus className="w-5 h-5" />
+                New Chat
+              </button>
+            )}
           </div>
 
           <div className="flex-1 overflow-y-auto">
@@ -379,14 +500,14 @@ const ChatPage: React.FC = () => {
                   return (
                     <button
                       key={conversation.id}
-                      onClick={() => setSelectedConversation(conversation)}
+                      onClick={() => handleSelectConversation(conversation)}
                       className={`w-full p-4 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 text-left transition-colors ${
                         isSelected ? 'bg-gray-100 dark:bg-gray-800' : ''
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <div className="relative flex-shrink-0">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold text-lg">
+                        <div className="relative shrink-0">
+                          <div className="w-12 h-12 rounded-full bg-linear-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold text-lg">
                             {otherProfile?.full_name?.charAt(0).toUpperCase() || '?'}
                           </div>
                           {conversation.unread_count! > 0 && (
@@ -401,7 +522,7 @@ const ChatPage: React.FC = () => {
                               {otherProfile?.full_name || 'Unknown User'}
                             </h3>
                             {conversation.last_message_at && (
-                              <span className="text-xs text-gray-500 dark:text-gray-400 ml-2 flex-shrink-0">
+                              <span className="text-xs text-gray-500 dark:text-gray-400 ml-2 shrink-0">
                                 {formatTime(conversation.last_message_at)}
                               </span>
                             )}
@@ -425,12 +546,21 @@ const ChatPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-950">
+        {/* Chat Area - Hidden on mobile when conversations list is open */}
+        <div className={`${isMobile ? (showMobileChat ? 'flex' : 'hidden') : 'flex'} flex-1 flex-col bg-gray-50 dark:bg-gray-950`}>
           {selectedConversation ? (
             <>
               <div className="p-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold">
+                  {isMobile && (
+                    <button
+                      onClick={handleBackToConversations}
+                      className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                    >
+                      <ArrowLeft className="w-5 h-5" />
+                    </button>
+                  )}
+                  <div className="w-10 h-10 rounded-full bg-linear-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold">
                     {getOtherParticipantProfile(selectedConversation)?.full_name?.charAt(0).toUpperCase() || '?'}
                   </div>
                   <div className="flex-1">
@@ -441,6 +571,7 @@ const ChatPage: React.FC = () => {
                       <div className={`w-2 h-2 rounded-full ${otherUserStatus === 'online' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
                       <span className="text-gray-600 dark:text-gray-400">
                         {otherUserStatus === 'online' ? 'online' : 'offline'}
+                        {isOtherUserTyping && ' • typing...'}
                       </span>
                     </div>
                   </div>
@@ -472,7 +603,7 @@ const ChatPage: React.FC = () => {
                       className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-1`}
                     >
                       <div
-                        className={`max-w-[70%] sm:max-w-md px-3 py-2 rounded-2xl shadow-sm ${
+                        className={`max-w-[85%] sm:max-w-md px-3 py-2 rounded-2xl shadow-sm ${
                           isOwn
                             ? 'bg-primary dark:bg-secondary text-white rounded-br-sm'
                             : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm'
@@ -486,7 +617,7 @@ const ChatPage: React.FC = () => {
                           </div>
                         )}
                         {message.content && (
-                          <p className="text-sm break-words">{message.content}</p>
+                          <p className="text-sm wrap-break-word">{message.content}</p>
                         )}
                         <p className={`text-[10px] mt-1 text-right ${isOwn ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'}`}>
                           {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -509,10 +640,14 @@ const ChatPage: React.FC = () => {
                 {attachments.length > 0 && (
                   <div className="flex gap-2 mb-2 overflow-x-auto pb-2">
                     {attachments.map((file, idx) => (
-                      <div key={idx} className="relative flex-shrink-0">
+                      <div key={idx} className="relative shrink-0">
                         <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center relative">
                           {file.type.startsWith('image/') ? (
-                            <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover rounded-lg" />
+                            <img 
+                              src={URL.createObjectURL(file)} 
+                              alt="" 
+                              className="w-full h-full object-cover rounded-lg" 
+                            />
                           ) : (
                             <File className="w-8 h-8 text-gray-400" />
                           )}
@@ -535,6 +670,7 @@ const ChatPage: React.FC = () => {
                     ref={fileInputRef}
                     onChange={handleFileSelect}
                     multiple
+                    accept="image/*,.pdf,.doc,.docx,.txt"
                     className="hidden"
                   />
                   <button
@@ -560,7 +696,11 @@ const ChatPage: React.FC = () => {
                     disabled={sending || (!messageContent.trim() && attachments.length === 0)}
                     className="bg-primary hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white p-3 rounded-full disabled:opacity-50 transition-all shrink-0 w-12 h-12 flex items-center justify-center"
                   >
-                    {sending ? '...' : <Send className="w-5 h-5" />}
+                    {sending ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <Send className="w-5 h-5" />
+                    )}
                   </button>
                 </div>
               </form>
@@ -626,7 +766,7 @@ const ChatPage: React.FC = () => {
                       onClick={() => handleStartChat(userProfile.id)}
                       className="w-full p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-3"
                     >
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold">
+                      <div className="w-10 h-10 rounded-full bg-linear-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold">
                         {userProfile.full_name.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 text-left">
