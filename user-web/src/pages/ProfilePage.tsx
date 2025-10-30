@@ -129,7 +129,7 @@ const ProfilePage: React.FC = () => {
 
         {/* Role Upgrade Section */}
         {profile.role === 'mother' && profile.role_status !== 'pending' && !showRoleUpgrade && (
-          <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+          <div className="mb-6 bg-blue-50 dark:bg-primary-900/20 rounded-lg p-4 border border-primary-200 dark:border-primary-800">
             <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
               Become a Professional
             </h3>
@@ -138,7 +138,7 @@ const ProfilePage: React.FC = () => {
             </p>
             <button
               onClick={() => setShowRoleUpgrade(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+              className="bg-primary-600 cursor-pointer hover:bg-primary-700 text-white px-4 py-2 rounded-lg transition-colors"
             >
               Request Role Upgrade
             </button>
