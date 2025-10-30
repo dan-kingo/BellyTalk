@@ -1,38 +1,9 @@
 import api from './api';
-
-export interface Hospital {
-  id: string;
-  name: string;
-  description?: string;
-  city?: string;
-  services?: string[];
-  address?: string;
-  phone?: string;
-  email?: string;
-  website?: string;
-  created_by: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface HospitalFilters {
-  city?: string;
-  service?: string;
-  query?: string;
-  page?: number;
-  limit?: number;
-}
+import { Hospital } from '../types';
 
 export const hospitalService = {
-  async getHospitals(filters: HospitalFilters = {}) {
-    const params = new URLSearchParams();
-    if (filters.city) params.append('city', filters.city);
-    if (filters.service) params.append('service', filters.service);
-    if (filters.query) params.append('query', filters.query);
-    if (filters.page) params.append('page', filters.page.toString());
-    if (filters.limit) params.append('limit', filters.limit.toString());
-
-    const response = await api.get(`/hospitals?${params.toString()}`);
+  async getHospitals(params?: { city?: string; service?: string; query?: string; page?: number; limit?: number }) {
+    const response = await api.get('/hospitals', { params });
     return response.data;
   },
 

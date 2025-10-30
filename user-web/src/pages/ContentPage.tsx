@@ -2,19 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/layout/Layout';
 import Dialog from '../components/common/Dialog';
-import { contentService, EducationalContent, ContentFilters } from '../services/content.service';
+import { contentService } from '../services/content.service';
+import { Content } from '../types';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 
 const ContentPage: React.FC = () => {
   const { profile } = useAuth();
-  const [contents, setContents] = useState<EducationalContent[]>([]);
+  const [contents, setContents] = useState<Content[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filters, setFilters] = useState<ContentFilters>({ page: 1, limit: 10 });
+  const [filters, setFilters] = useState<{ query?: string; lang?: string; page?: number; limit?: number }>({ page: 1, limit: 10 });
   const [showDialog, setShowDialog] = useState(false);
   const [dialogMode, setDialogMode] = useState<'add' | 'edit' | 'delete'>('add');
-  const [editingContent, setEditingContent] = useState<EducationalContent | null>(null);
-  const [deletingContent, setDeletingContent] = useState<EducationalContent | null>(null);
+  const [editingContent, setEditingContent] = useState<Content | null>(null);
+  const [deletingContent, setDeletingContent] = useState<Content | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     body: '',
@@ -53,9 +54,16 @@ const ContentPage: React.FC = () => {
       };
 
       if (editingContent) {
-        await contentService.updateContent(editingContent.id, contentData);
+        await contentService.updateContent(editingContent.id, contentData as any);
       } else {
-        await contentService.createContent(contentData);
+        const formData = new FormData();
+        formData.append('title', contentData.title);
+        formData.append('body', contentData.body);
+        formData.append('category', contentData.category);
+        formData.append('language', contentData.language);
+        formData.append('is_published', String(contentData.is_published));
+        contentData.tags.forEach((tag: string) => formData.append('tags', tag));
+        await contentService.createContent(formData);
       }
 
       resetForm();
@@ -80,7 +88,7 @@ const ContentPage: React.FC = () => {
     setShowDialog(true);
   };
 
-  const handleEdit = (content: EducationalContent) => {
+  const handleEdit = (content: Content) => {
     setEditingContent(content);
     setFormData({
       title: content.title,
@@ -94,7 +102,7 @@ const ContentPage: React.FC = () => {
     setShowDialog(true);
   };
 
-  const handleDeleteClick = (content: EducationalContent) => {
+  const handleDeleteClick = (content: Content) => {
     setDeletingContent(content);
     setDialogMode('delete');
     setShowDialog(true);

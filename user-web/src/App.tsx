@@ -11,6 +11,9 @@ import ProfilePage from './pages/ProfilePage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import HospitalsPage from './pages/HospitalsPage';
 import ContentPage from './pages/ContentPage';
+import ShopPage from './pages/ShopPage';
+import CartPage from './pages/CartPage';
+import ChatPage from './pages/ChatPage';
 
 const App: React.FC = () => {
   return (
@@ -55,6 +58,33 @@ const App: React.FC = () => {
               element={
                 <PrivateRoute>
                   <ContentPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/shop"
+              element={
+                <PrivateRoute>
+                  <ShopPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/cart"
+              element={
+                <PrivateRoute>
+                  <CartPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/chat"
+              element={
+                <PrivateRoute>
+                  <ChatPage />
                 </PrivateRoute>
               }
             />

@@ -3,14 +3,15 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import { contentService, EducationalContent } from '../services/content.service';
-import { hospitalService, Hospital } from '../services/hospital.service';
+import { contentService } from '../services/content.service';
+import { hospitalService } from '../services/hospital.service';
+import { Content, Hospital } from '../types';
 import { BookOpen, Building2, ArrowRight } from 'lucide-react';
 
 const DashboardPage: React.FC = () => {
   const { profile } = useAuth();
   const navigate = useNavigate();
-  const [contents, setContents] = useState<EducationalContent[]>([]);
+  const [contents, setContents] = useState<Content[]>([]);
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [loading, setLoading] = useState(true);
 

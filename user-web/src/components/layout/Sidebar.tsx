@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Building2, FileText, User, X } from 'lucide-react';
+import { Home, Building2, FileText, User, X, ShoppingCart, MessageSquare, ShoppingBag } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -9,14 +10,22 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const location = useLocation();
+  const { profile } = useAuth();
   const [showTitle, setShowTitle] = useState(false);
 
   const menuItems = [
-    { path: '/dashboard', icon: Home, label: 'Dashboard' },
-    { path: '/hospitals', icon: Building2, label: 'Hospitals' },
-    { path: '/content', icon: FileText, label: 'Content' },
-    { path: '/profile', icon: User, label: 'Profile' },
+    { path: '/dashboard', icon: Home, label: 'Dashboard', roles: ['mother', 'doctor', 'counselor', 'admin'] },
+    { path: '/content', icon: FileText, label: 'Content', roles: ['mother', 'doctor', 'counselor', 'admin'] },
+    { path: '/hospitals', icon: Building2, label: 'Hospitals', roles: ['mother', 'doctor', 'counselor', 'admin'] },
+    { path: '/shop', icon: ShoppingBag, label: 'Shop', roles: ['mother', 'doctor', 'counselor', 'admin'] },
+    { path: '/cart', icon: ShoppingCart, label: 'Cart', roles: ['mother', 'doctor', 'counselor', 'admin'] },
+    { path: '/chat', icon: MessageSquare, label: 'Messages', roles: ['mother', 'doctor', 'counselor', 'admin'] },
+    { path: '/profile', icon: User, label: 'Profile', roles: ['mother', 'doctor', 'counselor', 'admin'] },
   ];
+
+  const filteredMenuItems = menuItems.filter(item =>
+    !profile || item.roles.includes(profile.role)
+  );
 
   // 🔹 Detect scroll position
   useEffect(() => {
@@ -63,7 +72,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           </div>
 
           <nav className="space-y-2">
-            {menuItems.map((item) => {
+            {filteredMenuItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
 

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/layout/Layout';
 import Dialog from '../components/common/Dialog';
-import { hospitalService, Hospital, HospitalFilters } from '../services/hospital.service';
+import { hospitalService } from '../services/hospital.service';
+import { Hospital } from '../types';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 
 const HospitalsPage: React.FC = () => {
@@ -10,7 +11,7 @@ const HospitalsPage: React.FC = () => {
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filters, setFilters] = useState<HospitalFilters>({ page: 1, limit: 10 });
+  const [filters, setFilters] = useState<{ city?: string; service?: string; query?: string; page?: number; limit?: number }>({ page: 1, limit: 10 });
   const [showDialog, setShowDialog] = useState(false);
   const [dialogMode, setDialogMode] = useState<'add' | 'edit' | 'delete'>('add');
   const [editingHospital, setEditingHospital] = useState<Hospital | null>(null);
