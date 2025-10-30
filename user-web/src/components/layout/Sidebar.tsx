@@ -45,7 +45,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (user && profile?.role === 'mother') {
       loadCounts();
-      const interval = setInterval(loadCounts, 30000);
+      const interval = setInterval(loadCounts, 3000);
       return () => clearInterval(interval);
     }
   }, [user, profile]);

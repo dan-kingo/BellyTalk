@@ -279,7 +279,7 @@ const ChatPage: React.FC = () => {
                           : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-bl-sm'
                       }`}
                     >
-                      <p className="text-sm break-words">{message.content}</p>
+                      <p className="text-sm wrap-break-word">{message.content}</p>
                       <p className={`text-[10px] mt-1 text-right ${isOwn ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'}`}>
                         {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
@@ -313,7 +313,7 @@ const ChatPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={sending || !messageContent.trim()}
-                  className="bg-primary hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white p-3 rounded-full disabled:opacity-50 transition-all flex-shrink-0 w-12 h-12 flex items-center justify-center"
+                  className="bg-primary hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white p-3 rounded-full disabled:opacity-50 transition-all shrink-0 w-12 h-12 flex items-center justify-center"
                 >
                   {sending ? '...' : '➤'}
                 </button>

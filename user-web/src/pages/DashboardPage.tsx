@@ -7,6 +7,7 @@ import { contentService } from '../services/content.service';
 import { hospitalService } from '../services/hospital.service';
 import { Content, Hospital } from '../types';
 import { BookOpen, Building2, ArrowRight } from 'lucide-react';
+import Dialog from '../components/common/Dialog';
 
 const DashboardPage: React.FC = () => {
   const { profile } = useAuth();
@@ -14,10 +15,20 @@ const DashboardPage: React.FC = () => {
   const [contents, setContents] = useState<Content[]>([]);
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [loading, setLoading] = useState(true);
+const [viewingContent, setViewingContent] = useState<Content | null>(null);
+  const [dialogMode, setDialogMode] = useState<'add' | 'edit' | 'delete' | 'view'>('add');
+  const [showDialog, setShowDialog] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
   }, []);
+
+  const handleViewContent = (content: Content) => {
+      setViewingContent(content);
+      setDialogMode('view');
+      setShowDialog(true);
+    };
+    
 
   const loadDashboardData = async () => {
     try {
@@ -69,6 +80,52 @@ const DashboardPage: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+             <Dialog
+          isOpen={showDialog && dialogMode === 'view'}
+          onClose={() => setShowDialog(false)}
+          title={viewingContent?.title || 'Content Details'}
+        >
+          {viewingContent && (
+            <div className="space-y-4">
+              {viewingContent.cover_url && (
+                <img
+                  src={viewingContent.cover_url}
+                  alt={viewingContent.title}
+                  className="w-full h-64 object-cover rounded-lg"
+                />
+              )}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Description</h3>
+                <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{viewingContent.body}</p>
+              </div>
+              {viewingContent.category && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Category</h3>
+                  <p className="text-gray-600 dark:text-gray-400">{viewingContent.category}</p>
+                </div>
+              )}
+              {viewingContent.tags && viewingContent.tags.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Tags</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {viewingContent.tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 text-xs font-medium rounded-full bg-primary/10 dark:bg-secondary/10 text-primary dark:text-secondary"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Language</h3>
+                <p className="text-gray-600 dark:text-gray-400">{viewingContent.language.toUpperCase()}</p>
+              </div>
+            </div>
+          )}
+        </Dialog>
              {contents.map((content) => (
               <div
                 key={content.id}
@@ -92,6 +149,14 @@ const DashboardPage: React.FC = () => {
                 <p className="text-gray-700 dark:text-gray-300 mb-4 line-clamp-4">
                   {content.body}
                 </p>
+                  {content.body.length > 150 && (
+                  <button
+                    onClick={() => handleViewContent(content)}
+                    className="text-sm text-primary dark:text-secondary hover:underline mb-3"
+                  >
+                    See more
+                  </button>
+                )}
 
                 {content.category && (
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
