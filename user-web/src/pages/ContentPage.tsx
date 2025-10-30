@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/layout/Layout';
+import Dialog from '../components/common/Dialog';
 import { contentService, EducationalContent, ContentFilters } from '../services/content.service';
+import { Plus, Edit, Trash2 } from 'lucide-react';
 
 const ContentPage: React.FC = () => {
   const { profile } = useAuth();
@@ -9,8 +11,10 @@ const ContentPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filters, setFilters] = useState<ContentFilters>({ page: 1, limit: 10 });
-  const [showForm, setShowForm] = useState(false);
+  const [showDialog, setShowDialog] = useState(false);
+  const [dialogMode, setDialogMode] = useState<'add' | 'edit' | 'delete'>('add');
   const [editingContent, setEditingContent] = useState<EducationalContent | null>(null);
+  const [deletingContent, setDeletingContent] = useState<EducationalContent | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     body: '',
@@ -56,9 +60,24 @@ const ContentPage: React.FC = () => {
 
       resetForm();
       loadContent();
+      setShowDialog(false);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to save content');
     }
+  };
+
+  const handleAdd = () => {
+    setEditingContent(null);
+    setFormData({
+      title: '',
+      body: '',
+      category: '',
+      tags: '',
+      language: 'en',
+      is_published: false,
+    });
+    setDialogMode('add');
+    setShowDialog(true);
   };
 
   const handleEdit = (content: EducationalContent) => {
@@ -71,15 +90,24 @@ const ContentPage: React.FC = () => {
       language: content.language,
       is_published: content.is_published,
     });
-    setShowForm(true);
+    setDialogMode('edit');
+    setShowDialog(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this content?')) return;
+  const handleDeleteClick = (content: EducationalContent) => {
+    setDeletingContent(content);
+    setDialogMode('delete');
+    setShowDialog(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingContent) return;
 
     try {
-      await contentService.deleteContent(id);
+      await contentService.deleteContent(deletingContent.id);
       loadContent();
+      setShowDialog(false);
+      setDeletingContent(null);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete content');
     }
@@ -95,20 +123,22 @@ const ContentPage: React.FC = () => {
       is_published: false,
     });
     setEditingContent(null);
-    setShowForm(false);
+    setDeletingContent(null);
+    setShowDialog(false);
   };
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Educational Content</h1>
           {canManageContent && (
             <button
-              onClick={() => setShowForm(!showForm)}
-              className="w-full sm:w-auto bg-primary hover:bg-primary-700 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-6 py-2 rounded-lg font-medium transition"
+              onClick={handleAdd}
+              className="w-full sm:w-auto bg-primary hover:bg-primary-700 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-6 py-2 rounded-lg font-medium transition flex items-center gap-2 justify-center"
             >
-              {showForm ? 'Cancel' : 'Add Content'}
+              <Plus className="w-5 h-5" />
+              Add Content
             </button>
           )}
         </div>
@@ -119,12 +149,12 @@ const ContentPage: React.FC = () => {
             placeholder="Search content..."
             value={filters.query || ''}
             onChange={(e) => setFilters({ ...filters, query: e.target.value, page: 1 })}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary"
+            className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
           />
           <select
             value={filters.lang || ''}
             onChange={(e) => setFilters({ ...filters, lang: e.target.value, page: 1 })}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary"
+            className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
           >
             <option value="">All Languages</option>
             <option value="en">English</option>
@@ -140,113 +170,140 @@ const ContentPage: React.FC = () => {
           </div>
         )}
 
-        {showForm && canManageContent && (
-          <div className="mb-8 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-              {editingContent ? 'Edit Content' : 'Add New Content'}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+        <Dialog
+          isOpen={showDialog && dialogMode !== 'delete'}
+          onClose={resetForm}
+          title={editingContent ? 'Edit Content' : 'Add New Content'}
+        >
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Title *
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Body *
+              </label>
+              <textarea
+                required
+                value={formData.body}
+                onChange={(e) => setFormData({ ...formData, body: e.target.value })}
+                rows={8}
+                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Title *
+                  Category
                 </label>
                 <input
                   type="text"
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary"
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  placeholder="e.g., Pregnancy, Nutrition"
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Body *
+                  Language *
                 </label>
-                <textarea
+                <select
                   required
-                  value={formData.body}
-                  onChange={(e) => setFormData({ ...formData, body: e.target.value })}
-                  rows={8}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Category
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    placeholder="e.g., Pregnancy, Nutrition"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Language *
-                  </label>
-                  <select
-                    required
-                    value={formData.language}
-                    onChange={(e) => setFormData({ ...formData, language: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary"
-                  >
-                    <option value="en">English</option>
-                    <option value="ar">Arabic</option>
-                    <option value="es">Spanish</option>
-                    <option value="fr">French</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Tags (comma-separated)
-                </label>
-                <input
-                  type="text"
-                  value={formData.tags}
-                  onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                  placeholder="e.g., health, pregnancy, tips"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary"
-                />
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="is_published"
-                  checked={formData.is_published}
-                  onChange={(e) => setFormData({ ...formData, is_published: e.target.checked })}
-                  className="h-4 w-4 text-primary dark:text-secondary focus:ring-primary dark:focus:ring-secondary border-gray-300 dark:border-gray-600 rounded"
-                />
-                <label htmlFor="is_published" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                  Publish immediately
-                </label>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 bg-primary hover:bg-primary-700 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-6 py-2 rounded-lg font-medium transition"
+                  value={formData.language}
+                  onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
                 >
-                  {editingContent ? 'Update Content' : 'Create Content'}
-                </button>
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition"
-                >
-                  Cancel
-                </button>
+                  <option value="en">English</option>
+                  <option value="ar">Arabic</option>
+                  <option value="es">Spanish</option>
+                  <option value="fr">French</option>
+                </select>
               </div>
-            </form>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Tags (comma-separated)
+              </label>
+              <input
+                type="text"
+                value={formData.tags}
+                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                placeholder="e.g., health, pregnancy, tips"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="is_published"
+                checked={formData.is_published}
+                onChange={(e) => setFormData({ ...formData, is_published: e.target.checked })}
+                className="h-4 w-4 text-primary dark:text-secondary focus:ring-primary dark:focus:ring-secondary border-gray-300 dark:border-gray-600 rounded"
+              />
+              <label htmlFor="is_published" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                Publish immediately
+              </label>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <button
+                type="submit"
+                className="flex-1 bg-primary hover:bg-primary-700 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-6 py-2 rounded-lg font-medium transition"
+              >
+                {editingContent ? 'Update Content' : 'Create Content'}
+              </button>
+              <button
+                type="button"
+                onClick={resetForm}
+                className="px-6 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </Dialog>
+
+        <Dialog
+          isOpen={showDialog && dialogMode === 'delete'}
+          onClose={resetForm}
+          title="Delete Content"
+        >
+          <div className="space-y-4">
+            <p className="text-gray-700 dark:text-gray-300">
+              Are you sure you want to delete <strong>{deletingContent?.title}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex gap-3 pt-4">
+              <button
+                type="button"
+                onClick={handleDeleteConfirm}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition"
+              >
+                Delete
+              </button>
+              <button
+                type="button"
+                onClick={resetForm}
+                className="flex-1 px-6 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
-        )}
+        </Dialog>
 
         {loading ? (
           <div className="text-center py-12">
@@ -261,7 +318,7 @@ const ContentPage: React.FC = () => {
             {contents.map((content) => (
               <div
                 key={content.id}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition p-6"
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-xl transition p-6 border border-gray-100 dark:border-gray-700"
               >
                 <div className="flex items-start justify-between mb-3">
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white flex-1">
@@ -309,14 +366,16 @@ const ContentPage: React.FC = () => {
                   <div className="flex gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
                     <button
                       onClick={() => handleEdit(content)}
-                      className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md text-sm font-medium transition"
+                      className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2"
                     >
+                      <Edit className="w-4 h-4" />
                       Edit
                     </button>
                     <button
-                      onClick={() => handleDelete(content.id)}
-                      className="flex-1 px-3 py-2 bg-red-100 dark:bg-red-900/20 hover:bg-red-200 dark:hover:bg-red-900/40 text-red-700 dark:text-red-400 rounded-md text-sm font-medium transition"
+                      onClick={() => handleDeleteClick(content)}
+                      className="flex-1 px-3 py-2 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-700 dark:text-red-400 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2"
                     >
+                      <Trash2 className="w-4 h-4" />
                       Delete
                     </button>
                   </div>

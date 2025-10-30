@@ -1,10 +1,38 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { contentService, EducationalContent } from '../services/content.service';
+import { hospitalService, Hospital } from '../services/hospital.service';
+import { BookOpen, Building2, ArrowRight } from 'lucide-react';
 
 const DashboardPage: React.FC = () => {
   const { profile } = useAuth();
+  const navigate = useNavigate();
+  const [contents, setContents] = useState<EducationalContent[]>([]);
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [contentRes, hospitalRes] = await Promise.all([
+        contentService.getAllContent({ limit: 3 }),
+        hospitalService.getHospitals({ limit: 3 }),
+      ]);
+      setContents(contentRes.data || []);
+      setHospitals(hospitalRes.data || []);
+    } catch (error) {
+      console.error('Failed to load dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!profile) {
     return (
@@ -15,127 +43,119 @@ const DashboardPage: React.FC = () => {
   }
 
   const renderMotherDashboard = () => (
-    <div className="space-y-6">
-      <div className="bg-linear-to-r from-primary-500 to-primary-600 rounded-lg shadow-lg p-6 text-white">
-        <h2 className="text-2xl font-bold mb-2">Welcome back, {profile.full_name}!</h2>
-        <p className="text-primary-100">Track your pregnancy journey and stay connected with your care team.</p>
+    <div className="space-y-8">
+      <div className="bg-gradient-to-r from-primary to-primary-600 dark:from-secondary dark:to-secondary/80 rounded-xl shadow-lg p-8 text-white">
+        <h2 className="text-3xl font-bold mb-2">Welcome back, {profile.full_name}!</h2>
+        <p className="text-white/90">Track your pregnancy journey and stay connected with your care team.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">My Appointments</h3>
-            <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
+      <section>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <BookOpen className="w-6 h-6 text-primary dark:text-secondary" />
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Educational Content</h3>
           </div>
-          <p className="text-gray-600 text-sm">View and manage your upcoming appointments with doctors and counselors.</p>
+          <button
+            onClick={() => navigate('/content')}
+            className="flex items-center gap-2 text-primary dark:text-secondary hover:gap-3 transition-all"
+          >
+            View All <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
+        {loading ? (
+          <div className="text-center py-8">
+            <LoadingSpinner />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {contents.map((content) => (
+              <div
+                key={content.id}
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-xl transition p-6 border border-gray-100 dark:border-gray-700"
+              >
+                <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-3">
+                  {content.title}
+                </h4>
+                <p className="text-gray-600 dark:text-gray-300 text-sm line-clamp-3 mb-4">
+                  {content.body}
+                </p>
+                {content.tags && content.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {content.tags.slice(0, 2).map((tag, index) => (
+                      <span
+                        key={index}
+                        className="px-2 py-1 text-xs font-medium rounded-full bg-primary/10 dark:bg-secondary/10 text-primary dark:text-secondary"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Educational Content</h3>
-            <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
+      <section>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <Building2 className="w-6 h-6 text-primary dark:text-secondary" />
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Hospitals</h3>
           </div>
-          <p className="text-gray-600 text-sm">Access articles, videos, and resources about pregnancy and childcare.</p>
+          <button
+            onClick={() => navigate('/hospitals')}
+            className="flex items-center gap-2 text-primary dark:text-secondary hover:gap-3 transition-all"
+          >
+            View All <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Community Chat</h3>
-            <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
+        {loading ? (
+          <div className="text-center py-8">
+            <LoadingSpinner />
           </div>
-          <p className="text-gray-600 text-sm">Connect with other mothers and share experiences.</p>
-        </div>
-      </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {hospitals.map((hospital) => (
+              <div
+                key={hospital.id}
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-xl transition p-6 border border-gray-100 dark:border-gray-700"
+              >
+                <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                  {hospital.name}
+                </h4>
+                {hospital.city && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    {hospital.city}
+                  </p>
+                )}
+                {hospital.description && (
+                  <p className="text-gray-600 dark:text-gray-300 text-sm line-clamp-2 mb-4">
+                    {hospital.description}
+                  </p>
+                )}
+                {hospital.services && hospital.services.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {hospital.services.slice(0, 2).map((service, index) => (
+                      <span
+                        key={index}
+                        className="px-2 py-1 text-xs font-medium rounded-full bg-primary/10 dark:bg-secondary/10 text-primary dark:text-secondary"
+                      >
+                        {service}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 
-  const renderCounselorDashboard = () => (
-    <div className="space-y-6">
-      <div className="bg-linear-to-r from-primary-500 to-primary-600 rounded-lg shadow-lg p-6 text-white">
-        <h2 className="text-2xl font-bold mb-2">Welcome, {profile.full_name}!</h2>
-        <p className="text-green-100">Manage your consultations and support mothers on their journey.</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Active Clients</h3>
-            <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          </div>
-          <p className="text-gray-600 text-sm">View and manage your active client relationships.</p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Video Sessions</h3>
-            <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <p className="text-gray-600 text-sm">Schedule and conduct video consultations with clients.</p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Messages</h3>
-            <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <p className="text-gray-600 text-sm">Respond to client messages and provide support.</p>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderDoctorDashboard = () => (
-    <div className="space-y-6">
-      <div className="bg-linear-to-r from-primary-800 to-primary-700 rounded-lg shadow-lg p-6 text-white">
-        <h2 className="text-2xl font-bold mb-2">Welcome, Dr. {profile.full_name}!</h2>
-        <p className="text-blue-100">Manage your patients and provide expert medical care.</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Patient Records</h3>
-            <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <p className="text-gray-600 text-sm">Access and update patient medical records securely.</p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Consultations</h3>
-            <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <p className="text-gray-600 text-sm">Schedule and manage patient consultations.</p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Hospital Network</h3>
-            <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-          </div>
-          <p className="text-gray-600 text-sm">View and manage hospital affiliations.</p>
-        </div>
-      </div>
-    </div>
-  );
+  const renderCounselorDashboard = () => renderMotherDashboard();
+  const renderDoctorDashboard = () => renderMotherDashboard();
 
   const renderDashboardContent = () => {
     switch (profile.role) {
