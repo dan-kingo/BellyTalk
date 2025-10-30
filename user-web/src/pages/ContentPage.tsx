@@ -158,9 +158,8 @@ const ContentPage: React.FC = () => {
           >
             <option value="">All Languages</option>
             <option value="en">English</option>
-            <option value="ar">Arabic</option>
-            <option value="es">Spanish</option>
-            <option value="fr">French</option>
+            <option value="am">Amharic</option>
+            <option value="om">Afan Oromo</option>
           </select>
         </div>
 

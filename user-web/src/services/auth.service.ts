@@ -1,5 +1,6 @@
 import api from './api';
 import { UserRole } from '../types';
+import { supabase } from './supabase';
 
 export const authService = {
   async login(email: string, password: string) {
@@ -26,10 +27,12 @@ export const authService = {
   },
 
   async logout() {
-    await api.post('/auth/logout');
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-  },
+  await api.post('/auth/logout').catch(() => {}); // optional, ignore if backend handles it
+  await supabase.auth.signOut(); // ✅ clear Supabase session
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+},
+
 
   async getProfile() {
     const response = await api.get('/profile/me');
