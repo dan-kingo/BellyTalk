@@ -17,8 +17,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { path: '/dashboard', icon: Home, label: 'Dashboard', roles: ['mother', 'doctor', 'counselor', 'admin'] },
     { path: '/content', icon: FileText, label: 'Content', roles: ['mother', 'doctor', 'counselor', 'admin'] },
     { path: '/hospitals', icon: Building2, label: 'Hospitals', roles: ['mother', 'doctor', 'counselor', 'admin'] },
-    { path: '/shop', icon: ShoppingBag, label: 'Shop', roles: ['mother', 'doctor', 'counselor', 'admin'] },
-    { path: '/cart', icon: ShoppingCart, label: 'Cart', roles: ['mother', 'doctor', 'counselor', 'admin'] },
+    { path: '/shop', icon: ShoppingBag, label: 'Shop', roles: ['mother'] },
+    { path: '/cart', icon: ShoppingCart, label: 'Cart', roles: ['mother'] },
+    { path: '/orders', icon: ShoppingCart, label: 'Orders', roles: ['mother'] },
     { path: '/chat', icon: MessageSquare, label: 'Messages', roles: ['mother', 'doctor', 'counselor', 'admin'] },
     { path: '/profile', icon: User, label: 'Profile', roles: ['mother', 'doctor', 'counselor', 'admin'] },
   ];

@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { chatService } from '../services/chat.service';
+import { presenceService } from '../services/presence.service';
 import { Conversation, Message } from '../types';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import Layout from '../components/layout/Layout';
+import TypingIndicator from '../components/chat/TypingIndicator';
 
 const ChatPage: React.FC = () => {
   const { user } = useAuth();
@@ -12,17 +15,56 @@ const ChatPage: React.FC = () => {
   const [messageContent, setMessageContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [otherUserStatus, setOtherUserStatus] = useState<string>('offline');
+  const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadConversations();
-  }, []);
+
+    if (user?.id) {
+      presenceService.updatePresence(user.id, 'online');
+
+      const interval = setInterval(() => {
+        presenceService.updatePresence(user.id, 'online');
+      }, 30000);
+
+      return () => {
+        clearInterval(interval);
+        presenceService.updatePresence(user.id, 'offline');
+      };
+    }
+  }, [user]);
 
   useEffect(() => {
-    if (selectedConversation) {
+    if (selectedConversation && user) {
       loadMessages(selectedConversation.id);
+
+      const otherUserId = getOtherParticipantId(selectedConversation);
+
+      presenceService.getPresence(otherUserId).then(presence => {
+        setOtherUserStatus(presence?.status || 'offline');
+      });
+
+      const presenceChannel = presenceService.subscribeToPresence(otherUserId, (status) => {
+        setOtherUserStatus(status);
+      });
+
+      const typingChannel = presenceService.subscribeToTyping(
+        selectedConversation.id,
+        user.id,
+        (isTyping) => {
+          setIsOtherUserTyping(isTyping);
+        }
+      );
+
+      return () => {
+        presenceChannel.unsubscribe();
+        typingChannel.unsubscribe();
+      };
     }
-  }, [selectedConversation]);
+  }, [selectedConversation, user]);
 
   useEffect(() => {
     scrollToBottom();
@@ -54,6 +96,20 @@ const ChatPage: React.FC = () => {
     }
   };
 
+  const handleTyping = () => {
+    if (!selectedConversation || !user) return;
+
+    presenceService.setTyping(selectedConversation.id, user.id, true);
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      presenceService.setTyping(selectedConversation.id, user.id, false);
+    }, 3000);
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -63,6 +119,12 @@ const ChatPage: React.FC = () => {
 
     try {
       setSending(true);
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      presenceService.setTyping(selectedConversation.id, user.id, false);
+
       const formData = new FormData();
       formData.append('conversationId', selectedConversation.id);
       formData.append('content', messageContent);
@@ -86,14 +148,17 @@ const ChatPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <LoadingSpinner />
-      </div>
+      <Layout>
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <LoadingSpinner />
+        </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-gray-100 dark:bg-gray-900">
+    <Layout>
+      <div className="flex h-[calc(100vh-12rem)] bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
       <div className="w-full md:w-80 bg-white dark:bg-gray-800 border-r border-gray-300 dark:border-gray-700 overflow-y-auto">
         <div className="p-4 border-b border-gray-300 dark:border-gray-700">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">Messages</h2>
@@ -135,12 +200,20 @@ const ChatPage: React.FC = () => {
         {selectedConversation ? (
           <>
             <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Chat
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Chat
+                </h3>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${otherUserStatus === 'online' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {otherUserStatus}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900">
               {messages.map((message) => {
                 const isOwn = message.sender_id === user?.id;
                 return (
@@ -163,6 +236,13 @@ const ChatPage: React.FC = () => {
                   </div>
                 );
               })}
+              {isOtherUserTyping && (
+                <div className="flex justify-start">
+                  <div className="bg-gray-200 dark:bg-gray-700 rounded-lg px-4 py-2">
+                    <TypingIndicator />
+                  </div>
+                </div>
+              )}
               <div ref={messagesEndRef} />
             </div>
 
@@ -171,7 +251,10 @@ const ChatPage: React.FC = () => {
                 <input
                   type="text"
                   value={messageContent}
-                  onChange={(e) => setMessageContent(e.target.value)}
+                  onChange={(e) => {
+                    setMessageContent(e.target.value);
+                    handleTyping();
+                  }}
                   placeholder="Type a message..."
                   disabled={sending}
                   className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white disabled:opacity-50"
@@ -192,7 +275,8 @@ const ChatPage: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </Layout>
   );
 };
 

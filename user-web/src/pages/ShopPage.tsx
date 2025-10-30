@@ -4,6 +4,7 @@ import { shopService } from '../services/shop.service';
 import { Product } from '../types';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
+import Layout from '../components/layout/Layout';
 
 const ShopPage: React.FC = () => {
   const { user } = useAuth();
@@ -52,14 +53,17 @@ const ShopPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <LoadingSpinner />
-      </div>
+      <Layout>
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <LoadingSpinner />
+        </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <Layout>
+      <div className="max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Shop</h1>
         {user && (
@@ -144,7 +148,8 @@ const ShopPage: React.FC = () => {
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </Layout>
   );
 };
 

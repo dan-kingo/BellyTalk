@@ -14,6 +14,8 @@ import ContentPage from './pages/ContentPage';
 import ShopPage from './pages/ShopPage';
 import CartPage from './pages/CartPage';
 import ChatPage from './pages/ChatPage';
+import OrdersPage from './pages/OrdersPage';
+import CheckoutPage from './pages/CheckoutPage';
 
 const App: React.FC = () => {
   return (
@@ -76,6 +78,24 @@ const App: React.FC = () => {
               element={
                 <PrivateRoute>
                   <CartPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/orders"
+              element={
+                <PrivateRoute>
+                  <OrdersPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/checkout"
+              element={
+                <PrivateRoute>
+                  <CheckoutPage />
                 </PrivateRoute>
               }
             />

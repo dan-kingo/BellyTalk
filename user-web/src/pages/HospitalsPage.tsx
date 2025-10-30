@@ -28,6 +28,7 @@ const HospitalsPage: React.FC = () => {
   });
 
   const canManageHospitals = profile?.role === 'doctor' || profile?.role === 'counselor' || profile?.role === 'admin';
+  const isUserRole = profile?.role === 'mother';
 
   useEffect(() => {
     loadHospitals();
@@ -388,7 +389,7 @@ const HospitalsPage: React.FC = () => {
                     </a>
                   )}
                 </div>
-                {canManageHospitals && (
+                {canManageHospitals && !isUserRole && (
                   <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                     <button
                       onClick={() => handleEdit(hospital)}

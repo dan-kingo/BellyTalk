@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { shopService } from '../services/shop.service';
 import { Cart, CartItem } from '../types';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import Layout from '../components/layout/Layout';
 
 const CartPage: React.FC = () => {
+  const navigate = useNavigate();
   const [, setCart] = useState<Cart | null>(null);
   const [items, setItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,33 +49,23 @@ const CartPage: React.FC = () => {
     }, 0);
   };
 
-  const handleCheckout = async () => {
-    try {
-      const orderItems = items.map(item => ({
-        product_id: item.product_id,
-        quantity: item.quantity,
-        price: item.products?.price || 0
-      }));
-
-      await shopService.createOrder({ items: orderItems });
-      alert('Order placed successfully!');
-      setItems([]);
-    } catch (error) {
-      console.error('Failed to create order:', error);
-      alert('Failed to place order');
-    }
+  const handleCheckout = () => {
+    navigate('/checkout', { state: { cartItems: items, total: calculateTotal() } });
   };
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <LoadingSpinner />
-      </div>
+      <Layout>
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <LoadingSpinner />
+        </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <Layout>
+      <div className="max-w-5xl mx-auto">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Shopping Cart</h1>
         <Link
@@ -162,7 +154,8 @@ const CartPage: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </Layout>
   );
 };
 

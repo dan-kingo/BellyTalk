@@ -26,6 +26,7 @@ const ContentPage: React.FC = () => {
   });
 
   const canManageContent = profile?.role === 'doctor' || profile?.role === 'counselor' || profile?.role === 'admin';
+  const isUserRole = profile?.role === 'mother';
 
   useEffect(() => {
     loadContent();
@@ -369,7 +370,7 @@ const ContentPage: React.FC = () => {
                   Language: {content.language.toUpperCase()}
                 </p>
 
-                {canManageContent && (
+                {canManageContent && !isUserRole && (
                   <div className="flex gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
                     <button
                       onClick={() => handleEdit(content)}
