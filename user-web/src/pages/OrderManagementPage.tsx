@@ -82,9 +82,9 @@ const OrderManagementPage: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
-        return 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-300 dark:border-yellow-700';
+        return 'bg-yellow-100  dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-300 dark:border-yellow-700';
       case 'confirmed':
-        return 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700';
+        return 'bg-primary-100 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 border-primary-300 dark:border-primary-700';
       case 'shipped':
         return 'bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-300 dark:border-purple-700';
       case 'delivered':
@@ -139,7 +139,7 @@ const OrderManagementPage: React.FC = () => {
       <div className="max-w-7xl mx-auto py-8">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <Package className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+            <Package className="w-8 h-8 text-primary-600 dark:text-primary-400" />
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Order Management</h1>
           </div>
         </div>
@@ -149,9 +149,9 @@ const OrderManagementPage: React.FC = () => {
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
+              className={`px-4 py-2 rounded-lg cursor-pointer font-medium transition ${
                 statusFilter === status
-                  ? 'bg-blue-600 dark:bg-blue-500 text-white'
+                  ? 'bg-primary-600 cursor-pointer dark:bg-primary-500 text-white'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
             >
@@ -214,13 +214,13 @@ const OrderManagementPage: React.FC = () => {
                       </span>
                       <div className="text-right">
                         <p className="text-sm text-gray-600 dark:text-gray-400">Total</p>
-                        <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                        <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">
                           ${order.total_price.toFixed(2)}
                         </p>
                       </div>
                       <button
                         onClick={() => openUpdateDialog(order)}
-                        className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition font-medium"
+                        className="bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white px-4 py-2 rounded-lg transition font-medium cursor-pointer"
                       >
                         Update Status
                       </button>
@@ -316,7 +316,7 @@ const OrderManagementPage: React.FC = () => {
                   )}
 
                   {order.notes && (
-                    <div className="mt-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                    <div className="mt-4 p-4 rounded-lg bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800">
                       <h5 className="font-semibold text-gray-900 dark:text-white mb-1">Order Notes</h5>
                       <p className="text-sm text-gray-700 dark:text-gray-300">{order.notes}</p>
                     </div>
@@ -344,7 +344,7 @@ const OrderManagementPage: React.FC = () => {
                 value={updateData.status}
                 onChange={(e) => setUpdateData({ ...updateData, status: e.target.value })}
                 required
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent"
               >
                 <option value="pending">Pending</option>
                 <option value="confirmed">Confirmed</option>
@@ -363,7 +363,7 @@ const OrderManagementPage: React.FC = () => {
                 value={updateData.tracking_number}
                 onChange={(e) => setUpdateData({ ...updateData, tracking_number: e.target.value })}
                 placeholder="Enter tracking number"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent"
               />
             </div>
 
@@ -376,7 +376,7 @@ const OrderManagementPage: React.FC = () => {
                 onChange={(e) => setUpdateData({ ...updateData, notes: e.target.value })}
                 placeholder="Add notes about this order..."
                 rows={3}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent"
               />
             </div>
 
@@ -387,13 +387,13 @@ const OrderManagementPage: React.FC = () => {
                   setShowDialog(false);
                   setSelectedOrder(null);
                 }}
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-lg transition font-medium"
+                className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white rounded-lg transition font-medium cursor-pointer"
               >
                 Update Order
               </button>
