@@ -122,10 +122,10 @@ const ShopPage: React.FC = () => {
           className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
         >
           <option value="">All Categories</option>
-          <option value="maternity">Maternity</option>
-          <option value="baby">Baby</option>
-          <option value="health">Health</option>
-          <option value="supplements">Supplements</option>
+          <option value="Nutrition">Nutrition</option>
+          <option value="Baby">Baby</option>
+          <option value="Health">Health</option>
+          <option value="Supplements">Supplements</option>
         </select>
       </div>
 
@@ -134,7 +134,7 @@ const ShopPage: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-400">No products found</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
           {products.map((product) => (
             <div
               key={product.id}
@@ -156,6 +156,11 @@ const ShopPage: React.FC = () => {
                     {product.description}
                   </p>
                 )}
+                 {product.category && (
+                  <p className="px-2 py-1 my-3 w-fit text-xs font-medium rounded-full bg-primary/10 dark:bg-secondary/10 text-primary dark:text-secondary border border-primary/20 dark:border-secondary/20">
+                    {product.category}
+                  </p>
+                )}
                 <div className="flex justify-between items-center">
                   <span className="text-xl font-bold text-primary-600 dark:text-primary-400">
                     ${product.price.toFixed(2)}
@@ -166,14 +171,14 @@ const ShopPage: React.FC = () => {
                         <button
                           onClick={() => updateCartQuantity(product.id, cartItems[product.id] - 1)}
                           disabled={updatingCart === product.id}
-                          className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white w-8 h-8 rounded-lg text-lg font-bold disabled:opacity-50 transition-colors flex items-center justify-center"
+                          className="bg-gray-200 cursor-pointer dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white w-8 h-8 rounded-lg text-lg font-bold disabled:opacity-50 transition-colors flex items-center justify-center"
                         >
                           -
                         </button>
                         <input
-                          type="number"
-                          min="0"
-                          max="99"
+                          type="text"
+                          pattern="[0-9]*"
+                          inputMode="numeric"
                           value={cartItems[product.id]}
                           onChange={(e) => handleQuantityChange(product.id, e.target.value)}
                           disabled={updatingCart === product.id}
@@ -182,7 +187,7 @@ const ShopPage: React.FC = () => {
                         <button
                           onClick={() => updateCartQuantity(product.id, cartItems[product.id] + 1)}
                           disabled={updatingCart === product.id}
-                          className="bg-primary hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white w-8 h-8 rounded-lg text-lg font-bold disabled:opacity-50 transition-colors flex items-center justify-center"
+                          className="bg-primary cursor-pointer hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white w-8 h-8 rounded-lg text-lg font-bold disabled:opacity-50 transition-colors flex items-center justify-center"
                         >
                           +
                         </button>
@@ -191,7 +196,7 @@ const ShopPage: React.FC = () => {
                       <button
                         onClick={() => updateCartQuantity(product.id, 1)}
                         disabled={updatingCart === product.id}
-                        className="bg-primary hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50 transition-colors"
+                        className="bg-primary cursor-pointer hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50 transition-colors"
                       >
                         {updatingCart === product.id ? 'Adding...' : 'Add to Cart'}
                       </button>
