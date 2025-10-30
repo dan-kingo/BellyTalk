@@ -16,6 +16,8 @@ import CartPage from './pages/CartPage';
 import ChatPage from './pages/ChatPage';
 import OrdersPage from './pages/OrdersPage';
 import CheckoutPage from './pages/CheckoutPage';
+import ProductManagementPage from './pages/ProductManagementPage';
+import OrderManagementPage from './pages/OrderManagementPage';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
 const App: React.FC = () => {
@@ -108,6 +110,24 @@ const App: React.FC = () => {
                   <ErrorBoundary>
                     <ChatPage />
                   </ErrorBoundary>
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/manage/products"
+              element={
+                <PrivateRoute>
+                  <ProductManagementPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/manage/orders"
+              element={
+                <PrivateRoute>
+                  <OrderManagementPage />
                 </PrivateRoute>
               }
             />

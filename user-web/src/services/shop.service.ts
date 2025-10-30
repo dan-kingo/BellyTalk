@@ -45,7 +45,11 @@ export const shopService = {
     return response.data;
   },
 
-  async createOrder(data: { items: { product_id: string; quantity: number; price: number }[] }) {
+  async createOrder(data: {
+    items?: { product_id: string; quantity: number; price: number }[];
+    shipping_address?: any;
+    notes?: string;
+  }) {
     const response = await api.post('/shop/orders', data);
     return response.data;
   },
@@ -57,6 +61,15 @@ export const shopService = {
 
   async getOrder(id: string) {
     const response = await api.get(`/shop/orders/${id}`);
+    return response.data;
+  },
+
+  async updateOrderStatus(id: string, data: {
+    status?: string;
+    tracking_number?: string;
+    notes?: string;
+  }) {
+    const response = await api.patch(`/shop/orders/${id}/status`, data);
     return response.data;
   },
 };

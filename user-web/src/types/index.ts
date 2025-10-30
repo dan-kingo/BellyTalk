@@ -70,8 +70,11 @@ export interface Product {
   price: number;
   category?: string;
   image_url?: string;
-  stock?: number;
+  stock: number;
+  created_by?: string;
+  is_active?: boolean;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface CartItem {
@@ -88,6 +91,48 @@ export interface Cart {
   user_id: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface OrderItem {
+  id: string;
+  order_id: string;
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+  products?: {
+    title: string;
+    image_url?: string;
+    price: number;
+  };
+  created_at: string;
+}
+
+export interface ShippingAddress {
+  address: string;
+  city: string;
+  zipCode: string;
+  country: string;
+  phone?: string;
+}
+
+export interface Order {
+  id: string;
+  user_id: string;
+  total_price: number;
+  status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+  payment_status: 'pending' | 'paid' | 'failed';
+  payment_reference?: string;
+  shipping_address?: ShippingAddress;
+  tracking_number?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  order_items?: OrderItem[];
+  profiles?: {
+    full_name: string;
+    email: string;
+    phone?: string;
+  };
 }
 
 export interface Conversation {

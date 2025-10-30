@@ -48,6 +48,7 @@ router.delete("/cart/items/:itemId", requireAuth, CartCtrl.removeFromCart);
 router.post("/orders", requireAuth, validate(createOrderSchema), OrderCtrl.createOrder);
 router.get("/orders", requireAuth, OrderCtrl.listOrders);
 router.get("/orders/:id", requireAuth, OrderCtrl.getOrder);
+router.patch("/orders/:id/status", requireAuth, requireRole(["doctor", "admin"]), OrderCtrl.updateOrderStatus);
 
 /* Mock Payments */
 router.post("/payments/mock", requireAuth, validate(mockPaymentSchema), PaymentCtrl.simulatePayment);
