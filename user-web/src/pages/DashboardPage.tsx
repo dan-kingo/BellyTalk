@@ -68,20 +68,39 @@ const DashboardPage: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {contents.map((content) => (
+             {contents.map((content) => (
               <div
                 key={content.id}
                 className="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-xl transition p-6 border border-gray-100 dark:border-gray-700"
               >
-                <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-3">
-                  {content.title}
-                </h4>
-                <p className="text-gray-600 dark:text-gray-300 text-sm line-clamp-3 mb-4">
+                <div className="flex items-start justify-between mb-3">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white flex-1">
+                    {content.title}
+                  </h3>
+                  {content.is_published ? (
+                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400">
+                      Published
+                    </span>
+                  ) : (
+                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400">
+                      Draft
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-gray-700 dark:text-gray-300 mb-4 line-clamp-4">
                   {content.body}
                 </p>
+
+                {content.category && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    Category: <span className="font-medium">{content.category}</span>
+                  </p>
+                )}
+
                 {content.tags && content.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {content.tags.slice(0, 2).map((tag, index) => (
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    {content.tags.map((tag, index) => (
                       <span
                         key={index}
                         className="px-2 py-1 text-xs font-medium rounded-full bg-primary/10 dark:bg-secondary/10 text-primary dark:text-secondary"
@@ -91,6 +110,12 @@ const DashboardPage: React.FC = () => {
                     ))}
                   </div>
                 )}
+
+                <p className="text-xs text-gray-500 dark:text-gray-500 mb-4">
+                  Language: {content.language.toUpperCase()}
+                </p>
+
+              
               </div>
             ))}
           </div>
@@ -121,22 +146,22 @@ const DashboardPage: React.FC = () => {
                 key={hospital.id}
                 className="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-xl transition p-6 border border-gray-100 dark:border-gray-700"
               >
-                <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                   {hospital.name}
-                </h4>
+                </h3>
                 {hospital.city && (
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                     {hospital.city}
                   </p>
                 )}
                 {hospital.description && (
-                  <p className="text-gray-600 dark:text-gray-300 text-sm line-clamp-2 mb-4">
+                  <p className="text-gray-700 dark:text-gray-300 mb-4 line-clamp-3">
                     {hospital.description}
                   </p>
                 )}
                 {hospital.services && hospital.services.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {hospital.services.slice(0, 2).map((service, index) => (
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    {hospital.services.map((service, index) => (
                       <span
                         key={index}
                         className="px-2 py-1 text-xs font-medium rounded-full bg-primary/10 dark:bg-secondary/10 text-primary dark:text-secondary"
@@ -146,6 +171,22 @@ const DashboardPage: React.FC = () => {
                     ))}
                   </div>
                 )}
+                <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                  {hospital.address && <p>{hospital.address}</p>}
+                  {hospital.phone && <p>{hospital.phone}</p>}
+                  {hospital.email && <p>{hospital.email}</p>}
+                  {hospital.website && (
+                    <a
+                      href={hospital.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary dark:text-secondary hover:underline"
+                    >
+                      Visit Website
+                    </a>
+                  )}
+                </div>
+               
               </div>
             ))}
           </div>
