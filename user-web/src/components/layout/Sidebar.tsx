@@ -52,15 +52,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const loadCounts = async () => {
     try {
-      const [cartRes, ordersRes, conversationsRes] = await Promise.all([
+      const [cartRes, ordersRes, unreadRes] = await Promise.all([
         shopService.getCart().catch(() => ({ items: [] })),
         shopService.getOrders().catch(() => ({ orders: [] })),
-        chatService.listConversations().catch(() => ({ conversations: [] }))
+        chatService.getUnreadCount().catch(() => ({ unread_count: 0 }))
       ]);
 
       setCartCount(cartRes.items?.length || 0);
       setOrderCount(ordersRes.orders?.length || 0);
-      setMessageCount(conversationsRes.conversations?.length || 0);
+      setMessageCount(unreadRes.unread_count || 0);
     } catch (error) {
       console.error('Failed to load counts:', error);
     }

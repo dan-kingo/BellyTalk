@@ -97,6 +97,19 @@ export interface Conversation {
   last_message?: string;
   last_message_at?: string;
   created_at: string;
+  participant_a_profile?: {
+    id: string;
+    full_name: string;
+    avatar_url?: string;
+    role: string;
+  };
+  participant_b_profile?: {
+    id: string;
+    full_name: string;
+    avatar_url?: string;
+    role: string;
+  };
+  unread_count?: number;
 }
 
 export interface Message {

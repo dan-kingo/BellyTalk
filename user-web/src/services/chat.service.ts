@@ -19,12 +19,22 @@ export const chatService = {
   },
 
   async getMessages(conversationId: string, params?: { limit?: number; before?: string; after?: string }) {
-    const response = await api.get(`/chat/messages/${conversationId}`, { params });
+    const response = await api.get(`/chat/conversations/${conversationId}/messages`, { params });
     return response.data;
   },
 
   async markMessagesSeen(conversationId: string) {
-    const response = await api.put(`/chat/messages/${conversationId}/seen`);
+    const response = await api.post(`/chat/conversations/${conversationId}/seen`);
+    return response.data;
+  },
+
+  async getUnreadCount() {
+    const response = await api.get('/chat/unread-count');
+    return response.data;
+  },
+
+  async searchUsers(query?: string) {
+    const response = await api.get('/chat/users/search', { params: { query } });
     return response.data;
   },
 };

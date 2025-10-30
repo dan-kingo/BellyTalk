@@ -44,7 +44,7 @@ export const createConversation = async (req: AuthRequest, res: Response) => {
 };
 
 /**
- * List conversations for current user
+ * List conversations for current user with participant profiles and unread counts
  */
 export const listConversations = async (req: AuthRequest, res: Response) => {
   try {
@@ -52,13 +52,39 @@ export const listConversations = async (req: AuthRequest, res: Response) => {
 
     const { data, error } = await supabaseAdmin
       .from("conversations")
-      .select("id, participant_a, participant_b, last_message, last_message_at, created_at")
+      .select(`
+        id,
+        participant_a,
+        participant_b,
+        last_message,
+        last_message_at,
+        created_at,
+        participant_a_profile:profiles!conversations_participant_a_fkey(id, full_name, avatar_url, role),
+        participant_b_profile:profiles!conversations_participant_b_fkey(id, full_name, avatar_url, role)
+      `)
       .or(`participant_a.eq.${userId},participant_b.eq.${userId}`)
-      .order("last_message_at", { ascending: false });
+      .order("last_message_at", { ascending: false, nullsFirst: false });
 
     if (error) throw error;
 
-    res.json({ conversations: data });
+    // Get unread counts for each conversation
+    const conversationsWithCounts = await Promise.all(
+      (data || []).map(async (conv: any) => {
+        const { count } = await supabaseAdmin
+          .from("messages")
+          .select("*", { count: "exact", head: true })
+          .eq("conversation_id", conv.id)
+          .eq("receiver_id", userId)
+          .eq("seen", false);
+
+        return {
+          ...conv,
+          unread_count: count || 0
+        };
+      })
+    );
+
+    res.json({ conversations: conversationsWithCounts });
   } catch (err: any) {
     console.error("listConversations error:", err);
     res.status(500).json({ error: err.message || "Server error" });
@@ -260,11 +286,62 @@ export const markMessagesSeen = async (req: AuthRequest, res: Response) => {
       .update({ seen: true })
       .eq("conversation_id", conversationId)
       .eq("receiver_id", userId)
-      .is("seen", false);
+      .eq("seen", false);
 
     res.json({ message: "Marked as seen" });
   } catch (err: any) {
     console.error("markMessagesSeen error:", err);
+    res.status(500).json({ error: err.message || "Server error" });
+  }
+};
+
+/**
+ * Get total unread message count for current user
+ */
+export const getUnreadCount = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    const { count, error } = await supabaseAdmin
+      .from("messages")
+      .select("*", { count: "exact", head: true })
+      .eq("receiver_id", userId)
+      .eq("seen", false);
+
+    if (error) throw error;
+
+    res.json({ unread_count: count || 0 });
+  } catch (err: any) {
+    console.error("getUnreadCount error:", err);
+    res.status(500).json({ error: err.message || "Server error" });
+  }
+};
+
+/**
+ * Search users to start a new conversation
+ */
+export const searchUsers = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { query } = req.query;
+
+    let dbQuery = supabaseAdmin
+      .from("profiles")
+      .select("id, full_name, email, avatar_url, role")
+      .neq("id", userId)
+      .limit(20);
+
+    if (query && typeof query === "string") {
+      dbQuery = dbQuery.or(`full_name.ilike.%${query}%,email.ilike.%${query}%`);
+    }
+
+    const { data, error } = await dbQuery;
+
+    if (error) throw error;
+
+    res.json({ users: data || [] });
+  } catch (err: any) {
+    console.error("searchUsers error:", err);
     res.status(500).json({ error: err.message || "Server error" });
   }
 };
