@@ -35,76 +35,74 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfile(null);
   };
 
-  useEffect(() => {
-    let mounted = true;
+ useEffect(() => {
+  let mounted = true;
 
-    const initAuth = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+  const initAuth = async () => {
+    try {
+      // 🔹 1. Try Supabase session first
+      let { data: { session } } = await supabase.auth.getSession();
 
-        if (error) {
-          console.error('Error getting session:', error);
-          if (mounted) {
-            setLoading(false);
-          }
-          return;
-        }
+      // 🔹 2. If no session, but local tokens exist, restore it manually
+      if (!session) {
+        const access_token = localStorage.getItem('access_token');
+        const refresh_token = localStorage.getItem('refresh_token');
 
-        if (session?.access_token && mounted) {
-          localStorage.setItem('access_token', session.access_token);
-          if (session.refresh_token) {
-            localStorage.setItem('refresh_token', session.refresh_token);
-          }
-          setUser(session.user as User);
-          await refreshProfile();
-        } else if (mounted) {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          setUser(null);
-          setProfile(null);
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error);
-        if (mounted) {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          setUser(null);
-          setProfile(null);
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
+        if (access_token && refresh_token) {
+          const { data, error } = await supabase.auth.setSession({
+            access_token,
+            refresh_token,
+          });
+
+          if (error) console.error('Error restoring session:', error);
+          session = data?.session;
         }
       }
-    };
 
-    initAuth();
+      // 🔹 3. Set user if session exists
+      if (session && mounted) {
+        setUser(session.user as User);
+        await refreshProfile();
+      } else if (mounted) {
+        setUser(null);
+        setProfile(null);
+      }
+    } catch (error) {
+      console.error('Error initializing auth:', error);
+      if (mounted) {
+        setUser(null);
+        setProfile(null);
+      }
+    } finally {
+      if (mounted) setLoading(false);
+    }
+  };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
+  initAuth();
 
-      (async () => {
-        if (session) {
-          localStorage.setItem('access_token', session.access_token);
-          if (session.refresh_token) {
-            localStorage.setItem('refresh_token', session.refresh_token);
-          }
-          setUser(session.user as User);
-          await refreshProfile();
-        } else {
-          setUser(null);
-          setProfile(null);
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    (async () => {
+      if (session) {
+        localStorage.setItem('access_token', session.access_token);
+        if (session.refresh_token) {
+          localStorage.setItem('refresh_token', session.refresh_token);
         }
-      })();
-    });
+        setUser(session.user as User);
+        await refreshProfile();
+      } else {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        setUser(null);
+        setProfile(null);
+      }
+    })();
+  });
 
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
+  return () => {
+    mounted = false;
+    subscription.unsubscribe();
+  };
+}, []);
 
   return (
     <AuthContext.Provider value={{ user, profile, loading, login, register, logout, refreshProfile }}>

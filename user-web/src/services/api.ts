@@ -18,11 +18,14 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
+   if (error.response?.status === 401) {
+  // wait a moment to ensure rehydration is not happening
+  setTimeout(() => {
+    if (!localStorage.getItem('access_token')) {
       window.location.href = '/login';
     }
+  },500);
+}
     return Promise.reject(error);
   }
 );
