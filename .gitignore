@@ -10,3 +10,4 @@ user-web/dist/
 *.log
 *.tmp
 .env
+supabase
