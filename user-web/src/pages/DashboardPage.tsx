@@ -44,7 +44,7 @@ const DashboardPage: React.FC = () => {
 
   const renderMotherDashboard = () => (
     <div className="space-y-8">
-      <div className="bg-gradient-to-r from-primary to-primary-600 dark:from-secondary dark:to-secondary/80 rounded-xl shadow-lg p-8 text-white">
+      <div className="bg-linear-to-r from-primary to-primary-600 dark:from-secondary dark:to-secondary/80 rounded-xl shadow-lg p-8 text-white">
         <h2 className="text-3xl font-bold mb-2">Welcome back, {profile.full_name}!</h2>
         <p className="text-white/90">Track your pregnancy journey and stay connected with your care team.</p>
       </div>
@@ -57,7 +57,7 @@ const DashboardPage: React.FC = () => {
           </div>
           <button
             onClick={() => navigate('/content')}
-            className="flex items-center gap-2 text-primary dark:text-secondary hover:gap-3 transition-all"
+            className="flex cursor-pointer items-center gap-2 text-primary dark:text-secondary hover:gap-3 transition-all"
           >
             View All <ArrowRight className="w-4 h-4" />
           </button>
@@ -105,7 +105,7 @@ const DashboardPage: React.FC = () => {
           </div>
           <button
             onClick={() => navigate('/hospitals')}
-            className="flex items-center gap-2 text-primary dark:text-secondary hover:gap-3 transition-all"
+            className="flex cursor-pointer items-center gap-2 text-primary dark:text-secondary hover:gap-3 transition-all"
           >
             View All <ArrowRight className="w-4 h-4" />
           </button>

@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/layout/Layout';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { authService } from '../services/auth.service';
+import { Edit2, X } from 'lucide-react';
 
 const ProfilePage: React.FC = () => {
   const { profile, refreshProfile } = useAuth();
@@ -64,154 +65,169 @@ const ProfilePage: React.FC = () => {
 
   return (
     <Layout>
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-            <div className="flex justify-between items-center">
+      <div className="max-w-4xl mx-auto">
+        {/* Page header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+          <div>
+
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Profile Information</h1>
+          </div>
+          {!editing && (
+            <button
+              onClick={() => setEditing(true)}
+              className="flex items-center gap-2 w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary-700 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-6 py-2 rounded-lg font-medium transition"
+            >
+              <Edit2 className="w-5 h-5" />
+              Edit Profile
+            </button>
+          )}
+        </div>
+
+        {/* Alerts */}
+        {success && (
+          <div className="mb-6 rounded-lg bg-green-50 dark:bg-green-900/20 p-4">
+            <p className="text-sm text-green-800 dark:text-green-300">{success}</p>
+          </div>
+        )}
+        {error && (
+          <div className="mb-6 rounded-lg bg-red-50 dark:bg-red-900/20 p-4">
+            <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
+          </div>
+        )}
+
+        {/* Profile Card */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-xl transition p-6 border border-gray-100 dark:border-gray-700">
+          {editing ? (
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <h3 className="text-lg leading-6 font-medium text-gray-900">Profile Information</h3>
-                <p className="mt-1 max-w-2xl text-sm text-gray-500">Personal details and settings</p>
+                <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  name="full_name"
+                  id="full_name"
+                  value={formData.full_name}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
+                />
               </div>
-              {!editing && (
+
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  id="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Location
+                </label>
+                <input
+                  type="text"
+                  name="location"
+                  id="location"
+                  value={formData.location}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="bio" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Bio
+                </label>
+                <textarea
+                  name="bio"
+                  id="bio"
+                  rows={4}
+                  value={formData.bio}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
                 <button
-                  onClick={() => setEditing(true)}
-                  className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium transition"
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 cursor-pointer bg-primary hover:bg-primary-700 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-6 py-2 rounded-lg font-medium transition disabled:opacity-50"
                 >
-                  Edit Profile
+                  {loading ? 'Saving...' : 'Save Changes'}
                 </button>
-              )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditing(false);
+                    setError('');
+                    setSuccess('');
+                  }}
+                  className="flex-1 cursor-pointer px-6 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition flex items-center justify-center gap-2"
+                >
+                  <X className="w-4 h-4" />
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Full Name</p>
+                <p className="text-base text-gray-900 dark:text-white font-medium">
+                  {profile.full_name || 'Not provided'}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Email Address</p>
+                <p className="text-base text-gray-900 dark:text-white font-medium">{profile.email}</p>
+              </div>
+
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Phone Number</p>
+                <p className="text-base text-gray-900 dark:text-white font-medium">
+                  {profile.phone || 'Not provided'}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Role</p>
+                <span className="inline-block px-2 py-1 mt-1 text-xs font-medium rounded-full bg-primary/10 dark:bg-secondary/10 text-primary dark:text-secondary">
+                  {profile.role}
+                </span>
+              </div>
+
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Location</p>
+                <p className="text-base text-gray-900 dark:text-white font-medium">
+                  {profile.location || 'Not provided'}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Language</p>
+                <p className="text-base text-gray-900 dark:text-white font-medium">
+                  {profile.language || 'Not set'}
+                </p>
+              </div>
+
+              <div className="md:col-span-2">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Bio</p>
+                <p className="text-base text-gray-900 dark:text-white font-medium whitespace-pre-wrap">
+                  {profile.bio || 'Not provided'}
+                </p>
+              </div>
             </div>
-          </div>
-
-          <div className="px-4 py-5 sm:p-6">
-            {success && (
-              <div className="mb-4 rounded-md bg-green-50 p-4">
-                <p className="text-sm text-green-800">{success}</p>
-              </div>
-            )}
-
-            {error && (
-              <div className="mb-4 rounded-md bg-red-50 p-4">
-                <p className="text-sm text-red-800">{error}</p>
-              </div>
-            )}
-
-            {editing ? (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                  <label htmlFor="full_name" className="block text-sm font-medium text-gray-700">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    name="full_name"
-                    id="full_name"
-                    value={formData.full_name}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    id="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="location" className="block text-sm font-medium text-gray-700">
-                    Location
-                  </label>
-                  <input
-                    type="text"
-                    name="location"
-                    id="location"
-                    value={formData.location}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="bio" className="block text-sm font-medium text-gray-700">
-                    Bio
-                  </label>
-                  <textarea
-                    name="bio"
-                    id="bio"
-                    rows={4}
-                    value={formData.bio}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                  />
-                </div>
-
-                <div className="flex space-x-3">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium transition disabled:opacity-50"
-                  >
-                    {loading ? 'Saving...' : 'Save Changes'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditing(false);
-                      setError('');
-                      setSuccess('');
-                    }}
-                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md text-sm font-medium transition"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-                <div className="sm:col-span-1">
-                  <dt className="text-sm font-medium text-gray-500">Full name</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{profile.full_name || 'Not provided'}</dd>
-                </div>
-                <div className="sm:col-span-1">
-                  <dt className="text-sm font-medium text-gray-500">Email address</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{profile.email}</dd>
-                </div>
-                <div className="sm:col-span-1">
-                  <dt className="text-sm font-medium text-gray-500">Phone number</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{profile.phone || 'Not provided'}</dd>
-                </div>
-                <div className="sm:col-span-1">
-                  <dt className="text-sm font-medium text-gray-500">Role</dt>
-                  <dd className="mt-1">
-                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-primary-100 text-primary-700">
-                      {profile.role}
-                    </span>
-                  </dd>
-                </div>
-                <div className="sm:col-span-1">
-                  <dt className="text-sm font-medium text-gray-500">Location</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{profile.location || 'Not provided'}</dd>
-                </div>
-                <div className="sm:col-span-1">
-                  <dt className="text-sm font-medium text-gray-500">Language</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{profile.language}</dd>
-                </div>
-                <div className="sm:col-span-2">
-                  <dt className="text-sm font-medium text-gray-500">Bio</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{profile.bio || 'Not provided'}</dd>
-                </div>
-              </dl>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </Layout>

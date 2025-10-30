@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Building2, FileText, User, X } from 'lucide-react';
 
@@ -9,6 +9,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const location = useLocation();
+  const [showTitle, setShowTitle] = useState(false);
 
   const menuItems = [
     { path: '/dashboard', icon: Home, label: 'Dashboard' },
@@ -16,6 +17,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { path: '/content', icon: FileText, label: 'Content' },
     { path: '/profile', icon: User, label: 'Profile' },
   ];
+
+  // 🔹 Detect scroll position
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowTitle(window.scrollY > 40);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
     <>
@@ -31,9 +42,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className="h-full px-4 py-6 overflow-y-auto bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 w-64">
-          <div className="flex items-center justify-between mb-8 px-2">
-            <h2 className="text-xl font-bold text-primary dark:text-secondary">BellyTalk</h2>
+        <div className="h-full px-4 py-1 overflow-y-auto bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 w-64">
+          <div className="flex items-center justify-between  px-2">
+            {/* 🔹 Title fades in after scroll > 40px */}
+            <h2
+              className={`text-2xl ml-3 font-bold text-primary dark:text-secondary transition-opacity duration-500 ${
+                showTitle ? 'opacity-100 m-4' : 'opacity-0'
+              }`}
+            >
+              BellyTalk
+            </h2>
+
             <button
               onClick={onClose}
               className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
