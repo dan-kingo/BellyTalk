@@ -13,9 +13,10 @@ const ContentPage: React.FC = () => {
   const [error, setError] = useState('');
   const [filters, setFilters] = useState<{ query?: string; lang?: string; page?: number; limit?: number }>({ page: 1, limit: 10 });
   const [showDialog, setShowDialog] = useState(false);
-  const [dialogMode, setDialogMode] = useState<'add' | 'edit' | 'delete'>('add');
+  const [dialogMode, setDialogMode] = useState<'add' | 'edit' | 'delete' | 'view'>('add');
   const [editingContent, setEditingContent] = useState<Content | null>(null);
   const [deletingContent, setDeletingContent] = useState<Content | null>(null);
+  const [viewingContent, setViewingContent] = useState<Content | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     body: '',
@@ -122,6 +123,12 @@ const ContentPage: React.FC = () => {
     }
   };
 
+  const handleViewContent = (content: Content) => {
+    setViewingContent(content);
+    setDialogMode('view');
+    setShowDialog(true);
+  };
+
   const resetForm = () => {
     setFormData({
       title: '',
@@ -133,6 +140,7 @@ const ContentPage: React.FC = () => {
     });
     setEditingContent(null);
     setDeletingContent(null);
+    setViewingContent(null);
     setShowDialog(false);
   };
 
@@ -179,7 +187,7 @@ const ContentPage: React.FC = () => {
         )}
 
         <Dialog
-          isOpen={showDialog && dialogMode !== 'delete'}
+          isOpen={showDialog && dialogMode !== 'delete' && dialogMode !== 'view'}
           onClose={resetForm}
           title={editingContent ? 'Edit Content' : 'Add New Content'}
         >
@@ -286,6 +294,53 @@ const ContentPage: React.FC = () => {
         </Dialog>
 
         <Dialog
+          isOpen={showDialog && dialogMode === 'view'}
+          onClose={resetForm}
+          title={viewingContent?.title || 'Content Details'}
+        >
+          {viewingContent && (
+            <div className="space-y-4">
+              {viewingContent.cover_url && (
+                <img
+                  src={viewingContent.cover_url}
+                  alt={viewingContent.title}
+                  className="w-full h-64 object-cover rounded-lg"
+                />
+              )}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Description</h3>
+                <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{viewingContent.body}</p>
+              </div>
+              {viewingContent.category && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Category</h3>
+                  <p className="text-gray-600 dark:text-gray-400">{viewingContent.category}</p>
+                </div>
+              )}
+              {viewingContent.tags && viewingContent.tags.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Tags</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {viewingContent.tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 text-xs font-medium rounded-full bg-primary/10 dark:bg-secondary/10 text-primary dark:text-secondary"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Language</h3>
+                <p className="text-gray-600 dark:text-gray-400">{viewingContent.language.toUpperCase()}</p>
+              </div>
+            </div>
+          )}
+        </Dialog>
+
+        <Dialog
           isOpen={showDialog && dialogMode === 'delete'}
           onClose={resetForm}
           title="Delete Content"
@@ -343,9 +398,17 @@ const ContentPage: React.FC = () => {
                   )}
                 </div>
 
-                <p className="text-gray-700 dark:text-gray-300 mb-4 line-clamp-4">
-                  {content.body}
+                <p className="text-gray-700 dark:text-gray-300 mb-3">
+                  {content.body.length > 150 ? `${content.body.substring(0, 150)}...` : content.body}
                 </p>
+                {content.body.length > 150 && (
+                  <button
+                    onClick={() => handleViewContent(content)}
+                    className="text-sm text-primary dark:text-secondary hover:underline mb-3"
+                  >
+                    See more
+                  </button>
+                )}
 
                 {content.category && (
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">

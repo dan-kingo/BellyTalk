@@ -7,10 +7,11 @@ import { Package } from 'lucide-react';
 interface OrderItem {
   product_id: string;
   quantity: number;
-  price: number;
+  unit_price: number;
   products?: {
     title: string;
     image_url?: string;
+    price: number;
   };
 }
 
@@ -22,7 +23,7 @@ interface Order {
   payment_status: string;
   shipping_address?: any;
   created_at: string;
-  items?: OrderItem[];
+  order_items?: OrderItem[];
 }
 
 const OrdersPage: React.FC = () => {
@@ -107,9 +108,9 @@ const OrdersPage: React.FC = () => {
                   </div>
                 </div>
 
-                {order.items && order.items.length > 0 && (
+                {order.order_items && order.order_items.length > 0 && (
                   <div className="space-y-3 mb-4">
-                    {order.items.map((item, index) => (
+                    {order.order_items.map((item, index) => (
                       <div key={index} className="flex items-center gap-4 py-2 border-t border-gray-200 dark:border-gray-700">
                         {item.products?.image_url && (
                           <img
@@ -127,7 +128,7 @@ const OrdersPage: React.FC = () => {
                           </p>
                         </div>
                         <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                          ${(item.price * item.quantity).toFixed(2)}
+                          ${(item.unit_price * item.quantity).toFixed(2)}
                         </p>
                       </div>
                     ))}

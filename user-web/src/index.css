@@ -61,3 +61,12 @@ code {
   --color-accent: #FFC69D;
   --color-accent-light: #FFE6D4;
 }
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

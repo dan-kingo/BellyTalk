@@ -63,7 +63,21 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
 export const listOrders = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { data, error } = await supabaseAdmin.from("orders").select("*, order_items(*)").eq("user_id", userId).order("created_at", { ascending: false });
+    const { data, error } = await supabaseAdmin
+      .from("orders")
+      .select(`
+        *,
+        order_items (
+          *,
+          products (
+            title,
+            image_url,
+            price
+          )
+        )
+      `)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
     if (error) throw error;
     res.json({ orders: data });
   } catch (err: any) {
@@ -76,7 +90,21 @@ export const getOrder = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const { id } = req.params;
-    const { data, error } = await supabaseAdmin.from("orders").select("*, order_items(*)").eq("id", id).maybeSingle();
+    const { data, error } = await supabaseAdmin
+      .from("orders")
+      .select(`
+        *,
+        order_items (
+          *,
+          products (
+            title,
+            image_url,
+            price
+          )
+        )
+      `)
+      .eq("id", id)
+      .maybeSingle();
     if (error) throw error;
     if (!data) return res.status(404).json({ error: "Order not found" });
     if (data.user_id !== userId) return res.status(403).json({ error: "Forbidden" });

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Building2, FileText, User, X, ShoppingCart, MessageSquare, ShoppingBag } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { shopService } from '../../services/shop.service';
+import { chatService } from '../../services/chat.service';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -10,8 +12,11 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const location = useLocation();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const [showTitle, setShowTitle] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
+  const [orderCount, setOrderCount] = useState(0);
+  const [messageCount, setMessageCount] = useState(0);
 
   const menuItems = [
     { path: '/dashboard', icon: Home, label: 'Dashboard', roles: ['mother', 'doctor', 'counselor', 'admin'] },
@@ -28,7 +33,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     !profile || item.roles.includes(profile.role)
   );
 
-  // 🔹 Detect scroll position
   useEffect(() => {
     const handleScroll = () => {
       setShowTitle(window.scrollY > 40);
@@ -37,6 +41,30 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (user && profile?.role === 'mother') {
+      loadCounts();
+      const interval = setInterval(loadCounts, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user, profile]);
+
+  const loadCounts = async () => {
+    try {
+      const [cartRes, ordersRes, conversationsRes] = await Promise.all([
+        shopService.getCart().catch(() => ({ items: [] })),
+        shopService.getOrders().catch(() => ({ orders: [] })),
+        chatService.listConversations().catch(() => ({ conversations: [] }))
+      ]);
+
+      setCartCount(cartRes.items?.length || 0);
+      setOrderCount(ordersRes.orders?.length || 0);
+      setMessageCount(conversationsRes.conversations?.length || 0);
+    } catch (error) {
+      console.error('Failed to load counts:', error);
+    }
+  };
 
   return (
     <>
@@ -90,6 +118,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 >
                   <Icon className="w-5 h-5" />
                   <span className="font-medium">{item.label}</span>
+                  {item.path === '/cart' && cartCount > 0 && (
+                    <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {cartCount}
+                    </span>
+                  )}
+                  {item.path === '/orders' && orderCount > 0 && (
+                    <span className="ml-auto bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {orderCount}
+                    </span>
+                  )}
+                  {item.path === '/chat' && messageCount > 0 && (
+                    <span className="ml-auto bg-green-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {messageCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}

@@ -12,11 +12,15 @@ const ShopPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [category, setCategory] = useState('');
-  const [addingToCart, setAddingToCart] = useState<string | null>(null);
+  const [cartItems, setCartItems] = useState<{[key: string]: number}>({});
+  const [updatingCart, setUpdatingCart] = useState<string | null>(null);
 
   useEffect(() => {
     loadProducts();
-  }, [searchQuery, category]);
+    if (user) {
+      loadCart();
+    }
+  }, [searchQuery, category, user]);
 
   const loadProducts = async () => {
     try {
@@ -33,21 +37,49 @@ const ShopPage: React.FC = () => {
     }
   };
 
-  const handleAddToCart = async (productId: string) => {
+  const loadCart = async () => {
+    try {
+      const response = await shopService.getCart();
+      const items: {[key: string]: number} = {};
+      response.items?.forEach((item: any) => {
+        items[item.product_id] = item.quantity;
+      });
+      setCartItems(items);
+    } catch (error) {
+      console.error('Failed to load cart:', error);
+    }
+  };
+
+  const updateCartQuantity = async (productId: string, newQuantity: number) => {
     if (!user) {
       window.location.href = '/login';
       return;
     }
 
     try {
-      setAddingToCart(productId);
-      await shopService.addToCart(productId, 1);
-      alert('Product added to cart!');
+      setUpdatingCart(productId);
+      const currentQuantity = cartItems[productId] || 0;
+      const diff = newQuantity - currentQuantity;
+
+      if (diff > 0) {
+        await shopService.addToCart(productId, diff);
+      }
+
+      setCartItems(prev => ({
+        ...prev,
+        [productId]: newQuantity
+      }));
     } catch (error) {
-      console.error('Failed to add to cart:', error);
-      alert('Failed to add product to cart');
+      console.error('Failed to update cart:', error);
     } finally {
-      setAddingToCart(null);
+      setUpdatingCart(null);
+    }
+  };
+
+  const handleQuantityChange = (productId: string, value: string) => {
+    const num = parseInt(value) || 0;
+    if (num >= 0 && num <= 99) {
+      updateCartQuantity(productId, num);
     }
   };
 
@@ -129,13 +161,41 @@ const ShopPage: React.FC = () => {
                     ${product.price.toFixed(2)}
                   </span>
                   {user && (
-                    <button
-                      onClick={() => handleAddToCart(product.id)}
-                      disabled={addingToCart === product.id}
-                      className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50 transition-colors"
-                    >
-                      {addingToCart === product.id ? 'Adding...' : 'Add to Cart'}
-                    </button>
+                    cartItems[product.id] > 0 ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => updateCartQuantity(product.id, cartItems[product.id] - 1)}
+                          disabled={updatingCart === product.id}
+                          className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white w-8 h-8 rounded-lg text-lg font-bold disabled:opacity-50 transition-colors flex items-center justify-center"
+                        >
+                          -
+                        </button>
+                        <input
+                          type="number"
+                          min="0"
+                          max="99"
+                          value={cartItems[product.id]}
+                          onChange={(e) => handleQuantityChange(product.id, e.target.value)}
+                          disabled={updatingCart === product.id}
+                          className="w-12 text-center border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white py-1 disabled:opacity-50"
+                        />
+                        <button
+                          onClick={() => updateCartQuantity(product.id, cartItems[product.id] + 1)}
+                          disabled={updatingCart === product.id}
+                          className="bg-primary hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white w-8 h-8 rounded-lg text-lg font-bold disabled:opacity-50 transition-colors flex items-center justify-center"
+                        >
+                          +
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => updateCartQuantity(product.id, 1)}
+                        disabled={updatingCart === product.id}
+                        className="bg-primary hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50 transition-colors"
+                      >
+                        {updatingCart === product.id ? 'Adding...' : 'Add to Cart'}
+                      </button>
+                    )
                   )}
                 </div>
                 {product.stock !== undefined && (
