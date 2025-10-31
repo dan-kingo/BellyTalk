@@ -1,8 +1,11 @@
+import dotenv from "dotenv";
+
 import { Request, Response } from "express";
 import { supabaseAdmin } from "../configs/supabase.js";
 import { hmsService } from "../services/hms.service.js";
 import { AuthRequest } from "../middlewares/auth.middleware.js";
 import { sendMail } from "../services/email.service.js";
+dotenv.config();
 
 export const createVideoSession = async (req: AuthRequest, res: Response) => {
   try {
@@ -15,17 +18,20 @@ export const createVideoSession = async (req: AuthRequest, res: Response) => {
       room = await hmsService.createRoom({
         name: `video-${initiatorId}-${receiver_id}-${Date.now()}`,
         description: "BellyTalk video consultation",
-        template_id: process.env.HMS_VIDEO_TEMPLATE_ID,
-        region: region || "us",
-        recording: { auto_record: true },
+        template_id: process.env.HMS_VIDEO_TEMPLATE_ID!,
       });
-    } catch (hmsError: any) {
-      console.error("HMS createRoom error:", hmsError?.response?.data || hmsError.message);
-      return res.status(500).json({
-        error: "Failed to create video room. Please check HMS configuration.",
-        details: hmsError?.response?.data?.message || hmsError.message
-      });
-    }
+   } catch (hmsError: any) {
+  console.error("Full HMS createRoom error:", {
+    message: hmsError.message,
+    status: hmsError.response?.status,
+    data: hmsError.response?.data,
+    headers: hmsError.response?.headers,
+  });
+  return res.status(500).json({
+    error: "Failed to create video room. Please check HMS configuration.",
+    details: hmsError.response?.data || hmsError.message // This will now capture more info
+  });
+}
 
     const roomId = room?.id || room?.data?.id;
     if (!roomId) {
