@@ -81,11 +81,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       )}
 
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-40 h-screen transition-transform duration-300 ${
+        className={`fixed lg:sticky top-0 left-0 z-40 h-screen transition-transform  duration-300 ${
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className="h-full px-4 py-1 overflow-y-auto bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 w-64">
+        <div className="h-full px-4 py-1 overflow-y-auto scrollbar-hide bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 w-64">
           <div className="flex items-center justify-between  px-2">
             {/* 🔹 Title fades in after scroll > 40px */}
             <h2

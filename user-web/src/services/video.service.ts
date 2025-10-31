@@ -2,7 +2,7 @@ import api from './api';
 
 export const videoService = {
   async createSession(receiverId: string, region?: string) {
-    const response = await api.post('/video/sessions', { receiver_id: receiverId, region });
+    const response = await api.post('/video/create', { receiver_id: receiverId, region });
     return response.data;
   },
 
@@ -12,7 +12,7 @@ export const videoService = {
   },
 
   async endSession(sessionId: string, summary?: string) {
-    const response = await api.post(`/video/sessions/${sessionId}/end`, { summary });
+    const response = await api.post(`/video/end/${sessionId}`, { summary });
     return response.data;
   },
 };
