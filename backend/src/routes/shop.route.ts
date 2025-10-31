@@ -18,16 +18,17 @@ router.get("/products/:id", ProductCtrl.getProduct);
 router.post(
   "/products",
   requireAuth,
-  requireRole(["admin"]),
+  requireRole(["admin","doctor","counselor"]),
   uploadMiddleware.single("file"), // 👈 this allows product image upload
   validate(productCreateSchema),
   ProductCtrl.createProduct
 );
+router.get("/my-products", requireAuth, ProductCtrl.getMyProducts);
 
 router.put(
   "/products/:id",
   requireAuth,
-  requireRole(["admin"]),
+  requireRole(["admin","doctor","counselor"]),
   uploadMiddleware.single("file"),
   validate(productUpdateSchema),
   ProductCtrl.updateProduct
@@ -36,7 +37,7 @@ router.put(
 router.delete(
   "/products/:id",
   requireAuth,
-  requireRole(["admin"]),
+  requireRole(["admin","doctor","counselor"]),
   ProductCtrl.deleteProduct
 );
 /* Cart */

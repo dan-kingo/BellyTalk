@@ -146,3 +146,20 @@ export const deleteProduct = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const getMyProducts = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { data, error } = await supabaseAdmin
+      .from("products")
+      .select("*")
+      .eq("created_by", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    res.json({ products: data });
+  } catch (err: any) {
+    console.error("getMyProducts error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};

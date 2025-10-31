@@ -11,6 +11,11 @@ export const shopService = {
     return response.data;
   },
 
+  async getMyProducts() {
+    const response = await api.get('/shop/my-products');
+    return response.data;
+  },
+
   async createProduct(data: FormData) {
     const response = await api.post('/shop/products', data, {
       headers: { 'Content-Type': 'multipart/form-data' },
