@@ -133,12 +133,12 @@ const ProductManagementPage: React.FC = () => {
     product.category?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (profile?.role !== 'doctor' && profile?.role !== 'admin') {
+  if (profile?.role !== 'doctor' && profile?.role !== 'admin' && profile?.role !== 'counselor') {
     return (
       <Layout>
         <div className="max-w-4xl mx-auto py-12 text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Access Denied</h2>
-          <p className="text-gray-600 dark:text-gray-400">You need doctor or admin privileges to manage products.</p>
+          <p className="text-gray-600 dark:text-gray-400">You need doctor, counselor, or admin privileges to manage products.</p>
         </div>
       </Layout>
     );

@@ -18,6 +18,9 @@ import OrdersPage from './pages/OrdersPage';
 import CheckoutPage from './pages/CheckoutPage';
 import ProductManagementPage from './pages/ProductManagementPage';
 import OrderManagementPage from './pages/OrderManagementPage';
+import AudioCallPage from './pages/AudioCallPage';
+import VideoCallPage from './pages/VideoCallPage';
+import GroupChatPage from './pages/GroupChatPage';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
 const App: React.FC = () => {
@@ -128,6 +131,33 @@ const App: React.FC = () => {
               element={
                 <PrivateRoute>
                   <OrderManagementPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/audio-call"
+              element={
+                <PrivateRoute>
+                  <AudioCallPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/video-call"
+              element={
+                <PrivateRoute>
+                  <VideoCallPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/group-chat"
+              element={
+                <PrivateRoute>
+                  <GroupChatPage />
                 </PrivateRoute>
               }
             />

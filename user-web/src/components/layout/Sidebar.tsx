@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Building2, FileText, User, X, ShoppingCart, MessageSquare, ShoppingBag } from 'lucide-react';
+import { Home, Building2, FileText, User, X, ShoppingCart, MessageSquare, ShoppingBag, Phone, Video, Users } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { shopService } from '../../services/shop.service';
 import { chatService } from '../../services/chat.service';
@@ -28,6 +28,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { path: '/manage/products', icon: ShoppingBag, label: 'Manage Products', roles: ['admin', 'doctor', 'counselor'] },
     { path: '/manage/orders', icon: ShoppingCart, label: 'Manage Orders', roles: ['admin', 'doctor', 'counselor'] },
     { path: '/chat', icon: MessageSquare, label: 'Messages', roles: ['mother', 'doctor', 'counselor'] },
+    { path: '/audio-call', icon: Phone, label: 'Audio Call', roles: ['mother', 'doctor', 'counselor'] },
+    { path: '/video-call', icon: Video, label: 'Video Call', roles: ['mother', 'doctor', 'counselor'] },
+    { path: '/group-chat', icon: Users, label: 'Group Chat', roles: ['mother', 'doctor', 'counselor', 'admin'] },
     { path: '/profile', icon: User, label: 'Profile', roles: ['mother', 'doctor', 'counselor', 'admin'] },
   ];
 
