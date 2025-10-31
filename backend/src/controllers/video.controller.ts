@@ -10,16 +10,28 @@ export const createVideoSession = async (req: AuthRequest, res: Response) => {
     const { receiver_id, region } = req.body;
     if (!receiver_id) return res.status(400).json({ error: "receiver_id required" });
 
-    const room = await hmsService.createRoom({
-      name: `video-${initiatorId}-${receiver_id}-${Date.now()}`,
-      description: "BellyTalk video consultation",
-      template_id: process.env.HMS_VIDEO_TEMPLATE_ID,
-      region: region || "us",
-      recording: { auto_record: true },
-    });
+    let room;
+    try {
+      room = await hmsService.createRoom({
+        name: `video-${initiatorId}-${receiver_id}-${Date.now()}`,
+        description: "BellyTalk video consultation",
+        template_id: process.env.HMS_VIDEO_TEMPLATE_ID,
+        region: region || "us",
+        recording: { auto_record: true },
+      });
+    } catch (hmsError: any) {
+      console.error("HMS createRoom error:", hmsError?.response?.data || hmsError.message);
+      return res.status(500).json({
+        error: "Failed to create video room. Please check HMS configuration.",
+        details: hmsError?.response?.data?.message || hmsError.message
+      });
+    }
 
     const roomId = room?.id || room?.data?.id;
-    if (!roomId) throw new Error("Failed to create room");
+    if (!roomId) {
+      console.error("No room ID returned from HMS. Response:", room);
+      return res.status(500).json({ error: "Failed to create room: No room ID returned" });
+    }
 
     const { data, error } = await supabaseAdmin
       .from("video_sessions")
@@ -41,7 +53,7 @@ export const createVideoSession = async (req: AuthRequest, res: Response) => {
     res.status(201).json({ session: data });
   } catch (err: any) {
     console.error("createVideoSession error:", err?.response?.data || err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message || "Failed to create video session" });
   }
 };
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
+import { groupChatService } from '../services/groupchat.service';
 import Layout from '../components/layout/Layout';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import Dialog from '../components/common/Dialog';
@@ -68,13 +69,8 @@ const GroupChatPage: React.FC = () => {
   const loadGroups = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('group_rooms')
-        .select('*, profiles(full_name)')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setGroups(data || []);
+      const response = await groupChatService.listGroups();
+      setGroups(response.groups || []);
     } catch (error) {
       console.error('Failed to load groups:', error);
     } finally {
@@ -84,14 +80,8 @@ const GroupChatPage: React.FC = () => {
 
   const loadMessages = async (roomId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('group_messages')
-        .select('*, profiles(full_name, avatar_url)')
-        .eq('room_id', roomId)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      setMessages(data || []);
+      const response = await groupChatService.listMessages(roomId);
+      setMessages(response.messages || []);
     } catch (error) {
       console.error('Failed to load messages:', error);
     }
@@ -130,26 +120,12 @@ const GroupChatPage: React.FC = () => {
   const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const { data, error } = await supabase
-        .from('group_rooms')
-        .insert([{
-          name: newGroup.name,
-          description: newGroup.description,
-          created_by: user?.id,
-        }])
-        .select('*, profiles(full_name)')
-        .single();
+      const response = await groupChatService.createGroup(newGroup.name, newGroup.description);
+      const newGroupData = response.group;
 
-      if (error) throw error;
+      await groupChatService.joinGroup(newGroupData.id);
 
-      await supabase
-        .from('group_participants')
-        .insert([{
-          room_id: data.id,
-          user_id: user?.id,
-        }]);
-
-      setGroups([data, ...groups]);
+      await loadGroups();
       setNewGroup({ name: '', description: '' });
       setShowCreateDialog(false);
     } catch (error) {
@@ -160,17 +136,11 @@ const GroupChatPage: React.FC = () => {
 
   const handleJoinGroup = async (roomId: string) => {
     try {
-      const { error } = await supabase
-        .from('group_participants')
-        .insert([{
-          room_id: roomId,
-          user_id: user?.id,
-        }]);
-
-      if (error && error.code !== '23505') {
-        throw error;
+      await groupChatService.joinGroup(roomId);
+    } catch (error: any) {
+      if (error.response?.status === 409 || error.response?.data?.error?.includes('already')) {
+        return;
       }
-    } catch (error) {
       console.error('Failed to join group:', error);
     }
   };
@@ -181,15 +151,7 @@ const GroupChatPage: React.FC = () => {
 
     try {
       setSending(true);
-      const { error } = await supabase
-        .from('group_messages')
-        .insert([{
-          room_id: selectedGroup.id,
-          sender_id: user?.id,
-          message: messageContent,
-        }]);
-
-      if (error) throw error;
+      await groupChatService.sendMessage(selectedGroup.id, messageContent);
       setMessageContent('');
     } catch (error) {
       console.error('Failed to send message:', error);

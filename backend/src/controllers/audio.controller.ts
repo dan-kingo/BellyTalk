@@ -15,20 +15,31 @@ export const createSession = async (req: AuthRequest, res: Response) => {
     const { receiver_id, template_id, region } = req.body;
     if (!receiver_id) return res.status(400).json({ error: "receiver_id required" });
 
-    // Create a room in 100ms — include template if you have one
     const roomPayload: any = {
-      name: `session-${initiatorId}-${receiver_id}-${Date.now()}`,
+      name: `audio-${initiatorId}-${receiver_id}-${Date.now()}`,
       description: `1:1 audio between ${initiatorId} and ${receiver_id}`,
     };
     if (template_id) roomPayload.template_id = template_id;
     if (region) roomPayload.region = region;
 
-    const roomRes = await hmsService.createRoom(roomPayload);
-    // 100ms returns room object, roomRes.data or roomRes depending on API shape.
-    // Be defensive: try both common shapes
-    const roomId = (roomRes?.data?.id ?? roomRes?.id ?? roomRes?.name ?? roomRes) as string;
+    let roomRes;
+    try {
+      roomRes = await hmsService.createRoom(roomPayload);
+    } catch (hmsError: any) {
+      console.error("HMS createRoom error:", hmsError?.response?.data || hmsError.message);
+      return res.status(500).json({
+        error: "Failed to create audio room. Please check HMS configuration.",
+        details: hmsError?.response?.data?.message || hmsError.message
+      });
+    }
 
-    // create DB session
+    const roomId = (roomRes?.data?.id ?? roomRes?.id ?? roomRes?.name) as string;
+
+    if (!roomId) {
+      console.error("No room ID returned from HMS. Response:", roomRes);
+      return res.status(500).json({ error: "Failed to create room: No room ID returned" });
+    }
+
     const { data: session, error } = await supabaseAdmin
       .from("audio_sessions")
       .insert([

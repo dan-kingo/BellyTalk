@@ -5,13 +5,13 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const ACCESS_KEY = process.env.HMS_ACCESS_KEY!;
-const SECRET = process.env.HMS_SECRET!;
-const API_BASE = process.env.HMS_API_BASE ;
-const AUTH_TOKEN_TTL = Number(process.env.HMS_TOKEN_TTL); // seconds
+const ACCESS_KEY = process.env.HMS_ACCESS_KEY || '';
+const SECRET = process.env.HMS_SECRET || '';
+const API_BASE = process.env.HMS_API_BASE || 'https://api.100ms.live/v2';
+const AUTH_TOKEN_TTL = Number(process.env.HMS_TOKEN_TTL) || 86400;
 
 if (!ACCESS_KEY || !SECRET) {
-  console.warn("HMS_ACCESS_KEY or HMS_SECRET missing - 100ms integration will fail.");
+  console.warn("HMS_ACCESS_KEY or HMS_SECRET missing - 100ms integration will fail. Using mock mode.");
 }
 
 class HMSService {
@@ -38,6 +38,15 @@ class HMSService {
    * options aligns with 100ms Create Room API (name, description, template_id, region, size, large_room etc)
    */
   async createRoom(options: Record<string, any> = {}) {
+    if (!ACCESS_KEY || !SECRET) {
+      console.log('HMS not configured, using mock room');
+      return {
+        id: `mock-room-${Date.now()}`,
+        name: options.name || 'mock-room',
+        enabled: true,
+        description: options.description,
+      };
+    }
     return await this.apiRequest("post", "/rooms", options);
   }
 
