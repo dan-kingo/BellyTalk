@@ -1,3 +1,4 @@
+import { CreateOrderData, Order } from '@/types';
 import api from './api';
 
 export const shopService = {
@@ -49,32 +50,43 @@ export const shopService = {
     const response = await api.delete(`/shop/cart/items/${itemId}`);
     return response.data;
   },
-
-  async createOrder(data: {
-    items?: { product_id: string; quantity: number; price: number }[];
-    shipping_address?: any;
-    notes?: string;
-  }) {
-    const response = await api.post('/shop/orders', data);
+ async createOrder(orderData: CreateOrderData): Promise<{ order: Order }> {
+    const response = await api.post('/shop/orders', orderData);
     return response.data;
   },
 
-  async getOrders() {
+  async processPayment(orderId: string, paymentMethod?: string): Promise<{
+    success: boolean;
+    order: Order;
+    message: string;
+  }> {
+    const response = await api.post(`/shop/orders/${orderId}/payment`, {
+      paymentMethod
+    });
+    return response.data;
+  }
+,
+  async getOrders(): Promise<{ orders: Order[] }> {
     const response = await api.get('/shop/orders');
     return response.data;
   },
 
-  async getOrder(id: string) {
-    const response = await api.get(`/shop/orders/${id}`);
+  async getOrder(orderId: string): Promise<{ order: Order }> {
+    const response = await api.get(`/shop/orders/${orderId}`);
     return response.data;
-  },
-
-  async updateOrderStatus(id: string, data: {
-    status?: string;
+  }
+,
+  async updateOrderStatus(orderId: string, updates: {
+    order_status?: string;
     tracking_number?: string;
     notes?: string;
-  }) {
-    const response = await api.patch(`/shop/orders/${id}/status`, data);
+  }): Promise<{ order: Order; message: string }> {
+    const response = await api.put(`/shop/orders/${orderId}/status`, updates);
     return response.data;
-  },
+  }
+,
+  async cancelOrder(orderId: string, reason?: string): Promise<{ order: Order; message: string }> {
+    const response = await api.post(`/shop/orders/${orderId}/cancel`, { reason });
+    return response.data;
+  }
 };

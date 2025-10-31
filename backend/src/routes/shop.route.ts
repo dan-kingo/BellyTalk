@@ -46,10 +46,12 @@ router.post("/cart/items", requireAuth, validate(addToCartSchema), CartCtrl.addT
 router.delete("/cart/items/:itemId", requireAuth, CartCtrl.removeFromCart);
 
 /* Orders */
-router.post("/orders", requireAuth, validate(createOrderSchema), OrderCtrl.createOrder);
+router.post("/orders", requireAuth, OrderCtrl.createOrder);
+router.post("/orders/:orderId/payment", requireAuth, OrderCtrl.processPayment);
 router.get("/orders", requireAuth, OrderCtrl.listOrders);
 router.get("/orders/:id", requireAuth, OrderCtrl.getOrder);
-router.patch("/orders/:id/status", requireAuth, requireRole(["doctor", "admin"]), OrderCtrl.updateOrderStatus);
+router.put("/orders/:id/status", requireAuth, OrderCtrl.updateOrderStatus);
+router.post("/orders/:id/cancel", requireAuth, OrderCtrl.cancelOrder);
 
 /* Mock Payments */
 router.post("/payments/mock", requireAuth, validate(mockPaymentSchema), PaymentCtrl.simulatePayment);

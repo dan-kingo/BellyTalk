@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { shopService } from '../services/shop.service';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import Layout from '../components/layout/Layout';
-import { Package, Truck, CheckCircle, XCircle, Clock, MapPin } from 'lucide-react';
+import { Package, Truck, CheckCircle, XCircle, Clock, MapPin, CreditCard } from 'lucide-react';
 import { Order } from '../types';
 
 const OrdersPage: React.FC = () => {
@@ -72,6 +72,19 @@ const OrdersPage: React.FC = () => {
     }
   };
 
+  const getPaymentStatusIcon = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return <CheckCircle className="w-4 h-4" />;
+      case 'pending':
+        return <Clock className="w-4 h-4" />;
+      case 'failed':
+        return <XCircle className="w-4 h-4" />;
+      default:
+        return <CreditCard className="w-4 h-4" />;
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -110,9 +123,9 @@ const OrdersPage: React.FC = () => {
                         <h3 className="text-lg font-bold text-gray-900 dark:text-white">
                           Order #{order.id.substring(0, 8).toUpperCase()}
                         </h3>
-                        <div className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border ${getStatusColor(order.status)}`}>
-                          {getStatusIcon(order.status)}
-                          <span className="capitalize">{order.status}</span>
+                        <div className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border ${getStatusColor(order.order_status)}`}>
+                          {getStatusIcon(order.order_status)}
+                          <span className="capitalize">{order.order_status}</span>
                         </div>
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -127,9 +140,10 @@ const OrdersPage: React.FC = () => {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
-                      <span className={`px-3 py-1.5 text-xs font-semibold rounded-full ${getPaymentStatusColor(order.payment_status)}`}>
-                        Payment: {order.payment_status}
-                      </span>
+                      <div className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full ${getPaymentStatusColor(order.payment_status)}`}>
+                        {getPaymentStatusIcon(order.payment_status)}
+                        <span className="capitalize">{order.payment_status}</span>
+                      </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-600 dark:text-gray-400">Total Amount</p>
                         <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
@@ -173,6 +187,11 @@ const OrdersPage: React.FC = () => {
                             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                               Quantity: {item.quantity} × ${item.unit_price.toFixed(2)}
                             </p>
+                            {item.products?.created_by && (
+                              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                Seller ID: {item.products.created_by.substring(0, 8)}
+                              </p>
+                            )}
                           </div>
                           <div className="text-right">
                             <p className="font-semibold text-gray-900 dark:text-white">
@@ -217,9 +236,9 @@ const OrdersPage: React.FC = () => {
                     <span className="text-sm text-gray-600 dark:text-gray-400">
                       Last updated: {new Date(order.updated_at).toLocaleDateString()}
                     </span>
-                    {order.payment_reference && (
+                    {order.payment_intent_id && (
                       <span className="text-xs text-gray-500 dark:text-gray-500 font-mono">
-                        Ref: {order.payment_reference}
+                        Payment ID: {order.payment_intent_id.substring(0, 8)}...
                       </span>
                     )}
                   </div>

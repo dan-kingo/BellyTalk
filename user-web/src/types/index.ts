@@ -93,36 +93,15 @@ export interface Cart {
   updated_at: string;
 }
 
-export interface OrderItem {
-  id: string;
-  order_id: string;
-  product_id: string;
-  quantity: number;
-  unit_price: number;
-  products?: {
-    title: string;
-    image_url?: string;
-    price: number;
-  };
-  created_at: string;
-}
-
-export interface ShippingAddress {
-  address: string;
-  city: string;
-  zipCode: string;
-  country: string;
-  phone?: string;
-}
 
 export interface Order {
   id: string;
   user_id: string;
   total_price: number;
-  status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
   payment_status: 'pending' | 'paid' | 'failed';
-  payment_reference?: string;
-  shipping_address?: ShippingAddress;
+  order_status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+  payment_intent_id?: string;
+  shipping_address: ShippingAddress;
   tracking_number?: string;
   notes?: string;
   created_at: string;
@@ -135,6 +114,33 @@ export interface Order {
   };
 }
 
+export interface OrderItem {
+  id: string;
+  order_id: string;
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+  product_owner_id: string;
+  products?: {
+    title: string;
+    image_url: string;
+    price: number;
+    created_by: string;
+  };
+}
+
+export interface ShippingAddress {
+  address: string;
+  city: string;
+  zipCode: string;
+  country: string;
+  phone: string;
+}
+
+export interface CreateOrderData {
+  shipping_address: ShippingAddress;
+  notes?: string;
+}
 export interface Conversation {
   id: string;
   participant_a: string;

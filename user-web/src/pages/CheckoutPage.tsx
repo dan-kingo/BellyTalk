@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { shopService } from '../services/shop.service';
 import Layout from '../components/layout/Layout';
-import { CreditCard, Lock, ArrowLeft, MapPin, Package } from 'lucide-react';
+import { CreditCard, Lock, ArrowLeft, MapPin, Package, CheckCircle, XCircle } from 'lucide-react';
 import { CartItem } from '../types';
 
 const CheckoutPage: React.FC = () => {
@@ -11,8 +11,9 @@ const CheckoutPage: React.FC = () => {
   const { cartItems, total } = location.state as { cartItems: CartItem[]; total: number } || { cartItems: [], total: 0 };
 
   const [processing, setProcessing] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [currentStep, setCurrentStep] = useState<'shipping' | 'payment'>('shipping');
+  const [currentStep, setCurrentStep] = useState<'shipping' | 'payment' | 'processing' | 'result'>('shipping');
+  const [paymentResult, setPaymentResult] = useState<{ success: boolean; message: string; order?: any } | null>(null);
+  const [createdOrder, setCreatedOrder] = useState<any>(null);
 
   const [shippingData, setShippingData] = useState({
     address: '',
@@ -52,65 +53,214 @@ const CheckoutPage: React.FC = () => {
     setPaymentData({ ...paymentData, cardNumber: formatted });
   };
 
-  const handleShippingSubmit = (e: React.FormEvent) => {
+  const handleShippingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCurrentStep('payment');
-  };
-
-  const handlePaymentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (cartItems.length === 0) {
-      alert('Your cart is empty');
-      return;
-    }
-
+    
     try {
       setProcessing(true);
-
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      await shopService.createOrder({
+      
+      console.log('Creating order with shipping data:', shippingData);
+      
+      // Create the order when moving to payment step
+      const orderResponse = await shopService.createOrder({
         shipping_address: shippingData,
         notes: orderNotes,
       });
 
-      setPaymentSuccess(true);
-
-      setTimeout(() => {
-        navigate('/orders');
-      }, 3000);
-    } catch (error) {
-      console.error('Payment failed:', error);
-      alert('Payment failed. Please try again.');
+      console.log('Order created successfully:', orderResponse);
+      const order = orderResponse.order;
+      setCreatedOrder(order);
+      
+      setCurrentStep('payment');
+    } catch (error: any) {
+      console.error('Failed to create order:', error);
+      alert('Failed to create order. Please try again.');
     } finally {
       setProcessing(false);
     }
   };
 
-  if (paymentSuccess) {
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!createdOrder) {
+      alert('No order found. Please go back and try again.');
+      return;
+    }
+
+    try {
+      setProcessing(true);
+      setCurrentStep('processing');
+
+      console.log('Processing payment for order:', createdOrder.id);
+      
+      // Step 2: Process payment for the created order
+      const paymentResponse = await shopService.processPayment(createdOrder.id, 'mock');
+      console.log('Payment response:', paymentResponse);
+
+      setPaymentResult({
+        success: paymentResponse.success,
+        message: paymentResponse.message,
+        order: paymentResponse.order
+      });
+
+      setCurrentStep('result');
+
+      // Redirect to orders page after delay if successful
+      if (paymentResponse.success) {
+        setTimeout(() => {
+          navigate('/orders');
+        }, 3000);
+      }
+
+    } catch (error: any) {
+      console.error('Payment processing failed:', error);
+      
+      let errorMessage = 'Payment failed. Please try again.';
+      
+      if (error.response) {
+        errorMessage = error.response.data?.error || `Server error: ${error.response.status}`;
+      } else if (error.request) {
+        errorMessage = 'Network error. Please check your connection.';
+      } else {
+        errorMessage = error.message || 'An unexpected error occurred.';
+      }
+
+      setPaymentResult({
+        success: false,
+        message: errorMessage
+      });
+      setCurrentStep('result');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const retryPayment = () => {
+    if (createdOrder) {
+      setCurrentStep('payment');
+      setPaymentResult(null);
+    } else {
+      // If no order was created, go back to shipping
+      setCurrentStep('shipping');
+      setPaymentResult(null);
+    }
+  };
+
+  const createNewOrder = () => {
+    // Reset everything and start over
+    setCurrentStep('shipping');
+    setPaymentResult(null);
+    setCreatedOrder(null);
+  };
+
+  const goBackToShipping = () => {
+    setCurrentStep('shipping');
+    setPaymentResult(null);
+    // Note: We keep the createdOrder since it exists in the database
+    // User can choose to continue with the same order or create a new one
+  };
+
+  if (currentStep === 'result' && paymentResult) {
     return (
       <Layout>
         <div className="max-w-2xl mx-auto py-12">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center">
-            <div className="w-20 h-20 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg className="w-10 h-10 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+            <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ${
+              paymentResult.success 
+                ? 'bg-green-100 dark:bg-green-900/20' 
+                : 'bg-red-100 dark:bg-red-900/20'
+            }`}>
+              {paymentResult.success ? (
+                <CheckCircle className="w-10 h-10 text-green-600 dark:text-green-400" />
+              ) : (
+                <XCircle className="w-10 h-10 text-red-600 dark:text-red-400" />
+              )}
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Order Placed Successfully!</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              {paymentResult.success ? 'Order Placed Successfully!' : 'Payment Failed'}
+            </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Your order has been confirmed. You will receive an email with tracking information soon.
+              {paymentResult.message}
             </p>
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">Redirecting to orders...</p>
+            
+            {paymentResult.success ? (
+              <>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400 mb-4"></div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Redirecting to orders...</p>
+              </>
+            ) : (
+              <div className="flex gap-3 justify-center flex-wrap">
+                {createdOrder ? (
+                  <>
+                    <button
+                      onClick={retryPayment}
+                      className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition font-medium"
+                    >
+                      Retry Payment
+                    </button>
+                    <button
+                      onClick={goBackToShipping}
+                      className="bg-gray-600 hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition font-medium"
+                    >
+                      Edit Shipping
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={createNewOrder}
+                    className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition font-medium"
+                  >
+                    Try Again
+                  </button>
+                )}
+                <button
+                  onClick={() => navigate('/orders')}
+                  className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white px-6 py-3 rounded-lg transition font-medium"
+                >
+                  View Orders
+                </button>
+                <button
+                  onClick={() => navigate('/cart')}
+                  className="bg-orange-600 hover:bg-orange-700 dark:bg-orange-500 dark:hover:bg-orange-600 text-white px-6 py-3 rounded-lg transition font-medium"
+                >
+                  Back to Cart
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </Layout>
     );
   }
 
-  if (cartItems.length === 0) {
+  if (currentStep === 'processing') {
+    return (
+      <Layout>
+        <div className="max-w-2xl mx-auto py-12">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center">
+            <div className="inline-block animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 dark:border-blue-400 mx-auto mb-6"></div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              {createdOrder ? 'Processing Payment...' : 'Creating Order...'}
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400">
+              {createdOrder 
+                ? 'Please wait while we process your payment...'
+                : 'Please wait while we create your order...'
+              }
+            </p>
+            {createdOrder && (
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                Order ID: {createdOrder.id.substring(0, 8).toUpperCase()}
+              </p>
+            )}
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (cartItems.length === 0 && currentStep !== 'result') {
     return (
       <Layout>
         <div className="max-w-2xl mx-auto py-12">
@@ -133,7 +283,13 @@ const CheckoutPage: React.FC = () => {
     <Layout>
       <div className="max-w-7xl mx-auto py-8">
         <button
-          onClick={() => currentStep === 'payment' ? setCurrentStep('shipping') : navigate('/cart')}
+          onClick={() => {
+            if (currentStep === 'payment') {
+              setCurrentStep('shipping');
+            } else {
+              navigate('/cart');
+            }
+          }}
           className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -157,6 +313,24 @@ const CheckoutPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {createdOrder && currentStep === 'payment' && (
+          <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                  Order Created Successfully
+                </p>
+                <p className="text-xs text-blue-600 dark:text-blue-400">
+                  Order ID: {createdOrder.id.substring(0, 8).toUpperCase()} • Total: ${createdOrder.total_price.toFixed(2)}
+                </p>
+              </div>
+              <span className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full">
+                Ready for Payment
+              </span>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
@@ -259,9 +433,17 @@ const CheckoutPage: React.FC = () => {
 
                   <button
                     type="submit"
-                    className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white py-3 rounded-lg font-semibold transition"
+                    disabled={processing}
+                    className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
                   >
-                    Continue to Payment
+                    {processing ? (
+                      <>
+                        <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        Creating Order...
+                      </>
+                    ) : (
+                      'Continue to Payment'
+                    )}
                   </button>
                 </form>
               </div>
@@ -272,6 +454,13 @@ const CheckoutPage: React.FC = () => {
                 <div className="flex items-center gap-3 mb-6">
                   <CreditCard className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white">Payment Information</h2>
+                </div>
+
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                    <strong>Demo Payment:</strong> This is a mock payment system. Use any card details. 
+                    Payment has an 80% success rate for testing purposes.
+                  </p>
                 </div>
 
                 <form onSubmit={handlePaymentSubmit} className="space-y-4">
@@ -347,12 +536,12 @@ const CheckoutPage: React.FC = () => {
                     {processing ? (
                       <>
                         <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        Processing...
+                        Processing Payment...
                       </>
                     ) : (
                       <>
                         <Lock className="w-5 h-5" />
-                        Complete Order - ${total.toFixed(2)}
+                        Complete Payment - ${createdOrder?.total_price?.toFixed(2) || total.toFixed(2)}
                       </>
                     )}
                   </button>
@@ -408,6 +597,14 @@ const CheckoutPage: React.FC = () => {
                   <span>${total.toFixed(2)}</span>
                 </div>
               </div>
+
+              {createdOrder && (
+                <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Order Reference: <span className="font-mono">{createdOrder.id.substring(0, 8).toUpperCase()}</span>
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
