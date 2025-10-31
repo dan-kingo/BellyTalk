@@ -19,6 +19,8 @@ const AudioCallPage: React.FC = () => {
   const [searching, setSearching] = useState(false);
   const [currentSession, setCurrentSession] = useState<any>(null);
   const [callStatus, setCallStatus] = useState<string>('');
+  const [endingCall, setEndingCall] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   const handleSearchUsers = async (query: string) => {
     setSearchQuery(query);
@@ -41,6 +43,7 @@ const AudioCallPage: React.FC = () => {
   const handleStartCall = async (receiverId: string) => {
     try {
       setLoading(true);
+      setErrorMessage('');
       setCallStatus('Initiating call...');
 
       const session = await audioService.createSession(receiverId);
@@ -51,13 +54,18 @@ const AudioCallPage: React.FC = () => {
 
       setCallStatus('Connecting to audio room...');
 
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       setInCall(true);
       setShowNewCallDialog(false);
       setCallStatus('Connected');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to start call:', error);
-      alert('Failed to start audio call. Please try again.');
+      const errorMsg = error.response?.data?.error || error.message || 'Failed to start audio call. Please try again.';
+      setErrorMessage(errorMsg);
       setCallStatus('');
+      setInCall(false);
+      setCurrentSession(null);
     } finally {
       setLoading(false);
     }
@@ -65,14 +73,18 @@ const AudioCallPage: React.FC = () => {
 
   const handleEndCall = async () => {
     try {
+      setEndingCall(true);
       if (currentSession) {
         await audioService.endSession(currentSession.id);
       }
       setInCall(false);
       setCurrentSession(null);
       setCallStatus('');
+      setMuted(false);
     } catch (error) {
       console.error('Failed to end call:', error);
+    } finally {
+      setEndingCall(false);
     }
   };
 
@@ -126,10 +138,15 @@ const AudioCallPage: React.FC = () => {
 
             <button
               onClick={handleEndCall}
-              className="bg-red-600 hover:bg-red-700 cursor-pointer text-white px-8 py-3 rounded-lg transition font-medium flex items-center gap-2 mx-auto"
+              disabled={endingCall}
+              className="bg-red-600 hover:bg-red-700 cursor-pointer text-white px-8 py-3 rounded-lg transition font-medium flex items-center gap-2 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <PhoneOff className="w-5 h-5" />
-              End Call
+              {endingCall ? (
+                <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              ) : (
+                <PhoneOff className="w-5 h-5" />
+              )}
+              {endingCall ? 'Ending...' : 'End Call'}
             </button>
 
             <div className="mt-8 p-4 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
@@ -160,13 +177,21 @@ const AudioCallPage: React.FC = () => {
         <Dialog
           isOpen={showNewCallDialog}
           onClose={() => {
-            setShowNewCallDialog(false);
-            setSearchQuery('');
-            setSearchResults([]);
+            if (!loading) {
+              setShowNewCallDialog(false);
+              setSearchQuery('');
+              setSearchResults([]);
+              setErrorMessage('');
+            }
           }}
           title="Start Audio Call"
         >
           <div className="space-y-4">
+            {errorMessage && (
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-sm text-red-800 dark:text-red-200">{errorMessage}</p>
+              </div>
+            )}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
@@ -194,7 +219,7 @@ const AudioCallPage: React.FC = () => {
                       key={userProfile.id}
                       onClick={() => handleStartCall(userProfile.id)}
                       disabled={loading}
-                      className="w-full cursor-pointer p-4 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-3 disabled:opacity-50"
+                      className="w-full cursor-pointer p-4 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <div className="w-12 h-12 rounded-full bg-linear-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold shrink-0">
                         {userProfile.full_name.charAt(0).toUpperCase()}
@@ -207,7 +232,11 @@ const AudioCallPage: React.FC = () => {
                           {userProfile.email}
                         </p>
                       </div>
-                      <Phone className="w-5 h-5 text-primary-600 dark:text-primary-400 shrink-0" />
+                      {loading ? (
+                        <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600 dark:border-primary-400 shrink-0"></div>
+                      ) : (
+                        <Phone className="w-5 h-5 text-primary-600 dark:text-primary-400 shrink-0" />
+                      )}
                     </button>
                   ))}
                 </div>

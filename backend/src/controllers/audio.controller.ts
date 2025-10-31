@@ -25,19 +25,23 @@ export const createSession = async (req: AuthRequest, res: Response) => {
     let roomRes;
     try {
       roomRes = await hmsService.createRoom(roomPayload);
+      console.log('Audio room created:', roomRes);
     } catch (hmsError: any) {
       console.error("HMS createRoom error:", hmsError?.response?.data || hmsError.message);
       return res.status(500).json({
-        error: "Failed to create audio room. Please check HMS configuration.",
+        error: hmsError.message || "Failed to create audio room. Please check HMS configuration.",
         details: hmsError?.response?.data?.message || hmsError.message
       });
     }
 
-    const roomId = (roomRes?.data?.id ?? roomRes?.id ?? roomRes?.name) as string;
+    const roomId = (roomRes?.id || roomRes?.data?.id || roomRes?.name) as string;
 
     if (!roomId) {
       console.error("No room ID returned from HMS. Response:", roomRes);
-      return res.status(500).json({ error: "Failed to create room: No room ID returned" });
+      return res.status(500).json({
+        error: "Failed to create room: No room ID returned",
+        details: "The HMS service did not return a valid room identifier"
+      });
     }
 
     const { data: session, error } = await supabaseAdmin

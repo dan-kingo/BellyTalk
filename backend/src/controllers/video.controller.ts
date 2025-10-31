@@ -18,25 +18,29 @@ export const createVideoSession = async (req: AuthRequest, res: Response) => {
       room = await hmsService.createRoom({
         name: `video-${initiatorId}-${receiver_id}-${Date.now()}`,
         description: "BellyTalk video consultation",
-        template_id: process.env.HMS_VIDEO_TEMPLATE_ID!,
+        template_id: process.env.HMS_VIDEO_TEMPLATE_ID,
       });
-   } catch (hmsError: any) {
-  console.error("Full HMS createRoom error:", {
-    message: hmsError.message,
-    status: hmsError.response?.status,
-    data: hmsError.response?.data,
-    headers: hmsError.response?.headers,
-  });
-  return res.status(500).json({
-    error: "Failed to create video room. Please check HMS configuration.",
-    details: hmsError.response?.data || hmsError.message // This will now capture more info
-  });
-}
+      console.log('Video room created:', room);
+    } catch (hmsError: any) {
+      console.error("Full HMS createRoom error:", {
+        message: hmsError.message,
+        status: hmsError.response?.status,
+        data: hmsError.response?.data,
+        headers: hmsError.response?.headers,
+      });
+      return res.status(500).json({
+        error: hmsError.message || "Failed to create video room. Please check HMS configuration.",
+        details: hmsError.response?.data?.message || hmsError.message
+      });
+    }
 
-    const roomId = room?.id || room?.data?.id;
+    const roomId = (room?.id || room?.data?.id || room?.name) as string;
     if (!roomId) {
       console.error("No room ID returned from HMS. Response:", room);
-      return res.status(500).json({ error: "Failed to create room: No room ID returned" });
+      return res.status(500).json({
+        error: "Failed to create room: No room ID returned",
+        details: "The HMS service did not return a valid room identifier"
+      });
     }
 
     const { data, error } = await supabaseAdmin

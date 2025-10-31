@@ -47,7 +47,22 @@ class HMSService {
         description: options.description,
       };
     }
-    return await this.apiRequest("post", "/rooms", options);
+
+    try {
+      const response = await this.apiRequest("post", "/rooms", options);
+      console.log('HMS createRoom success:', response);
+      return response;
+    } catch (error: any) {
+      console.error('HMS createRoom failed:', error.response?.data || error.message);
+
+      if (error.response?.status === 401) {
+        throw new Error('HMS authentication failed. Please check HMS_MANAGEMENT_TOKEN.');
+      } else if (error.response?.status === 400) {
+        throw new Error(`HMS bad request: ${error.response.data?.message || 'Invalid room configuration'}`);
+      }
+
+      throw error;
+    }
   }
 
   /**
