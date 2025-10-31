@@ -49,6 +49,7 @@ router.delete("/cart/items/:itemId", requireAuth, CartCtrl.removeFromCart);
 router.post("/orders", requireAuth, OrderCtrl.createOrder);
 router.post("/orders/:orderId/payment", requireAuth, OrderCtrl.processPayment);
 router.get("/orders", requireAuth, OrderCtrl.listOrders);
+router.get("/my-orders", requireAuth, OrderCtrl.getMyOrders);
 router.get("/orders/:id", requireAuth, OrderCtrl.getOrder);
 router.put("/orders/:id/status", requireAuth, OrderCtrl.updateOrderStatus);
 router.post("/orders/:id/cancel", requireAuth, OrderCtrl.cancelOrder);

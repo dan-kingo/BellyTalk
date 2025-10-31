@@ -61,7 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       ]);
 
       setCartCount(cartRes.items?.length || 0);
-      setOrderCount(ordersRes.orders?.length || 0);
+      setOrderCount(ordersRes.orders?.filter(order => order.order_status === 'pending').length || 0);
       setMessageCount(unreadRes.unread_count || 0);
     } catch (error) {
       console.error('Failed to load counts:', error);

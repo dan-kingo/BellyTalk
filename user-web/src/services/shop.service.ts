@@ -70,6 +70,10 @@ export const shopService = {
     const response = await api.get('/shop/orders');
     return response.data;
   },
+  async getMyOrders(): Promise<{ orders: Order[] }> {
+    const response = await api.get('/shop/my-orders');
+    return response.data;
+  } ,
 
   async getOrder(orderId: string): Promise<{ order: Order }> {
     const response = await api.get(`/shop/orders/${orderId}`);

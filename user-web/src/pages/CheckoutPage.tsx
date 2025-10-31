@@ -186,7 +186,7 @@ const CheckoutPage: React.FC = () => {
             
             {paymentResult.success ? (
               <>
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400 mb-4"></div>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 dark:border-primary-400 mb-4"></div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Redirecting to orders...</p>
               </>
             ) : (
@@ -195,13 +195,13 @@ const CheckoutPage: React.FC = () => {
                   <>
                     <button
                       onClick={retryPayment}
-                      className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition font-medium"
+                      className="bg-primary-600 cursor-pointer hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white px-6 py-3 rounded-lg transition font-medium"
                     >
                       Retry Payment
                     </button>
                     <button
                       onClick={goBackToShipping}
-                      className="bg-gray-600 hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition font-medium"
+                      className="bg-gray-600 cursor-pointer hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition font-medium"
                     >
                       Edit Shipping
                     </button>
@@ -209,20 +209,20 @@ const CheckoutPage: React.FC = () => {
                 ) : (
                   <button
                     onClick={createNewOrder}
-                    className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition font-medium"
+                    className="bg-primary-600 cursor-pointer hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white px-6 py-3 rounded-lg transition font-medium"
                   >
                     Try Again
                   </button>
                 )}
                 <button
                   onClick={() => navigate('/orders')}
-                  className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white px-6 py-3 rounded-lg transition font-medium"
+                  className="bg-green-600 cursor-pointer hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white px-6 py-3 rounded-lg transition font-medium"
                 >
                   View Orders
                 </button>
                 <button
                   onClick={() => navigate('/cart')}
-                  className="bg-orange-600 hover:bg-orange-700 dark:bg-orange-500 dark:hover:bg-orange-600 text-white px-6 py-3 rounded-lg transition font-medium"
+                  className="bg-orange-600 cursor-pointer hover:bg-orange-700 dark:bg-orange-500 dark:hover:bg-orange-600 text-white px-6 py-3 rounded-lg transition font-medium"
                 >
                   Back to Cart
                 </button>
@@ -239,7 +239,7 @@ const CheckoutPage: React.FC = () => {
       <Layout>
         <div className="max-w-2xl mx-auto py-12">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center">
-            <div className="inline-block animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 dark:border-blue-400 mx-auto mb-6"></div>
+            <div className="inline-block animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600 dark:border-primary-400 mx-auto mb-6"></div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
               {createdOrder ? 'Processing Payment...' : 'Creating Order...'}
             </h2>
@@ -269,7 +269,7 @@ const CheckoutPage: React.FC = () => {
             <p className="text-gray-600 dark:text-gray-400 mb-6">Your cart is empty</p>
             <button
               onClick={() => navigate('/shop')}
-              className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition font-medium"
+              className="bg-primary-600 cursor-pointer hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white px-6 py-3 rounded-lg transition font-medium"
             >
               Continue Shopping
             </button>
@@ -290,7 +290,7 @@ const CheckoutPage: React.FC = () => {
               navigate('/cart');
             }
           }}
-          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition"
+          className="flex items-center gap-2 cursor-pointer text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition"
         >
           <ArrowLeft className="w-5 h-5" />
           {currentStep === 'payment' ? 'Back to Shipping' : 'Back to Cart'}
@@ -298,15 +298,15 @@ const CheckoutPage: React.FC = () => {
 
         <div className="mb-8">
           <div className="flex items-center justify-center gap-4">
-            <div className={`flex items-center gap-2 ${currentStep === 'shipping' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${currentStep === 'shipping' ? 'bg-blue-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
+            <div className={`flex items-center gap-2 ${currentStep === 'shipping' ? 'text-primary-600 dark:text-primary-400' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${currentStep === 'shipping' ? 'bg-primary-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
                 1
               </div>
               <span className="font-medium">Shipping</span>
             </div>
             <div className="w-24 h-1 bg-gray-300 dark:bg-gray-700"></div>
-            <div className={`flex items-center gap-2 ${currentStep === 'payment' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${currentStep === 'payment' ? 'bg-blue-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
+            <div className={`flex items-center gap-2 ${currentStep === 'payment' ? 'text-primary-600 dark:text-primary-400' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${currentStep === 'payment' ? 'bg-primary-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
                 2
               </div>
               <span className="font-medium">Payment</span>
@@ -315,17 +315,17 @@ const CheckoutPage: React.FC = () => {
         </div>
 
         {createdOrder && currentStep === 'payment' && (
-          <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="mb-6 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                <p className="text-sm font-medium text-primary-800 dark:text-primary-200">
                   Order Created Successfully
                 </p>
-                <p className="text-xs text-blue-600 dark:text-blue-400">
+                <p className="text-xs text-primary-600 dark:text-primary-400">
                   Order ID: {createdOrder.id.substring(0, 8).toUpperCase()} • Total: ${createdOrder.total_price.toFixed(2)}
                 </p>
               </div>
-              <span className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-full">
+              <span className="px-2 py-1 text-xs bg-primary-100 dark:bg-primary-800 text-primary-800 dark:text-primary-200 rounded-full">
                 Ready for Payment
               </span>
             </div>
@@ -337,7 +337,7 @@ const CheckoutPage: React.FC = () => {
             {currentStep === 'shipping' && (
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
                 <div className="flex items-center gap-3 mb-6">
-                  <MapPin className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  <MapPin className="w-6 h-6 text-primary-600 dark:text-primary-400" />
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white">Shipping Address</h2>
                 </div>
 
@@ -353,7 +353,7 @@ const CheckoutPage: React.FC = () => {
                       onChange={handleShippingChange}
                       placeholder="123 Main Street, Apt 4B"
                       required
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent"
                     />
                   </div>
 
@@ -369,7 +369,7 @@ const CheckoutPage: React.FC = () => {
                         onChange={handleShippingChange}
                         placeholder="New York"
                         required
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent"
                       />
                     </div>
                     <div>
@@ -383,7 +383,7 @@ const CheckoutPage: React.FC = () => {
                         onChange={handleShippingChange}
                         placeholder="10001"
                         required
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent"
                       />
                     </div>
                   </div>
@@ -399,7 +399,7 @@ const CheckoutPage: React.FC = () => {
                       onChange={handleShippingChange}
                       placeholder="United States"
                       required
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent"
                     />
                   </div>
 
@@ -414,7 +414,7 @@ const CheckoutPage: React.FC = () => {
                       onChange={handleShippingChange}
                       placeholder="+1 (555) 123-4567"
                       required
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent"
                     />
                   </div>
 
@@ -427,14 +427,14 @@ const CheckoutPage: React.FC = () => {
                       onChange={(e) => setOrderNotes(e.target.value)}
                       placeholder="Special delivery instructions..."
                       rows={3}
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent"
                     />
                   </div>
 
                   <button
                     type="submit"
                     disabled={processing}
-                    className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
+                    className="w-full cursor-pointer bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
                   >
                     {processing ? (
                       <>
@@ -452,7 +452,7 @@ const CheckoutPage: React.FC = () => {
             {currentStep === 'payment' && (
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
                 <div className="flex items-center gap-3 mb-6">
-                  <CreditCard className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  <CreditCard className="w-6 h-6 text-primary-600 dark:text-primary-400" />
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white">Payment Information</h2>
                 </div>
 
@@ -476,7 +476,7 @@ const CheckoutPage: React.FC = () => {
                       placeholder="1234 5678 9012 3456"
                       maxLength={19}
                       required
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent"
                     />
                   </div>
 
@@ -491,7 +491,7 @@ const CheckoutPage: React.FC = () => {
                       onChange={handlePaymentChange}
                       placeholder="John Doe"
                       required
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent"
                     />
                   </div>
 
@@ -508,7 +508,7 @@ const CheckoutPage: React.FC = () => {
                         placeholder="MM/YY"
                         maxLength={5}
                         required
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent"
                       />
                     </div>
                     <div>
@@ -523,7 +523,7 @@ const CheckoutPage: React.FC = () => {
                         placeholder="123"
                         maxLength={3}
                         required
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent"
                       />
                     </div>
                   </div>
@@ -531,7 +531,7 @@ const CheckoutPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={processing}
-                    className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
+                    className="w-full cursor-pointer bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
                   >
                     {processing ? (
                       <>

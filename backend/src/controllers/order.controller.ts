@@ -470,3 +470,27 @@ export const cancelOrder = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const getMyOrders = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    const { data, error } = await supabaseAdmin
+      .from("orders")
+      .select(`
+        *,
+        order_items (
+          *,
+          products (title, image_url, price, created_by)
+        )
+      `)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    res.json({ orders: data });
+  } catch (err: any) {
+    console.error("getMyOrders error:", err);
+    res.status(500).json({ error: err.message });
+  }
+}
