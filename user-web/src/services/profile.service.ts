@@ -14,14 +14,24 @@ export const profileService = {
   },
 
   async requestRoleUpgrade(role: string, files: File[]) {
-    const formData = new FormData();
-    formData.append('role', role);
-    files.forEach((file) => {
-      formData.append('files', file);
-    });
-    const response = await api.post('/profile/request-role', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+  
+  const formData = new FormData();
+  formData.append('role', role);
+  
+  files.forEach((file) => {
+    formData.append('files', file);
+  });
+
+ 
+  try {
+    const response = await api.post('/profile/request-role-upgrade', formData, {
+      headers: { 
+        'Content-Type': 'multipart/form-data',
+      },
     });
     return response.data;
-  },
-};
+  } catch (error: any) {
+    console.error('API error details:', error.response?.data);
+    throw error;
+  }
+}};

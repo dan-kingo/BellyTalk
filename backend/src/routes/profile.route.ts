@@ -15,7 +15,7 @@ router.put(
 router.post(
   "/request-role-upgrade",
   requireAuth,
-  uploadMiddleware.array("documents", 5), 
+  uploadMiddleware.array("files", 5), 
   requestRoleUpgrade
 );
 
