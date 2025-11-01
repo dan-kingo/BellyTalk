@@ -111,29 +111,29 @@ const ActivityLogsPage: React.FC = () => {
   const dataPoints = getDataPointsCount();
   const requestData = generateChartData(dataPoints, 50, 30);
   const responseTimeData = generateChartData(dataPoints, 150, 50);
+// // 
+//   const getTimeLabels = () => {
+//     switch (timeRange) {
+//       case '1h':
+//         return Array.from({ length: dataPoints }, (_, i) => 
+//           `${i * 5}min`
+//         );
+//       case '24h':
+//         return Array.from({ length: dataPoints }, (_, i) => 
+//           `${i}:00`
+//         );
+//       case '7d':
+//         return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+//       case '30d':
+//         return Array.from({ length: dataPoints }, (_, i) => 
+//           `Day ${i + 1}`
+//         );
+//       default:
+//         return Array.from({ length: dataPoints }, (_, i) => `${i}`);
+//     }
+//   };
 
-  const getTimeLabels = () => {
-    switch (timeRange) {
-      case '1h':
-        return Array.from({ length: dataPoints }, (_, i) => 
-          `${i * 5}min`
-        );
-      case '24h':
-        return Array.from({ length: dataPoints }, (_, i) => 
-          `${i}:00`
-        );
-      case '7d':
-        return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      case '30d':
-        return Array.from({ length: dataPoints }, (_, i) => 
-          `Day ${i + 1}`
-        );
-      default:
-        return Array.from({ length: dataPoints }, (_, i) => `${i}`);
-    }
-  };
-
-  const timeLabels = getTimeLabels();
+//   const timeLabels = getTimeLabels();
 
   const exportLogs = () => {
     const csvContent = [
@@ -173,7 +173,7 @@ const ActivityLogsPage: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl">
+            <div className="p-2 bg-linear-to-br from-primary-500 to-primary-600 rounded-xl">
               <Activity className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -196,14 +196,14 @@ const ActivityLogsPage: React.FC = () => {
             
             <button 
               onClick={loadLogs}
-              className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="p-2 border cursor-pointer border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <RefreshCw className="w-5 h-5" />
             </button>
             
             <button 
               onClick={exportLogs}
-              className="px-4 py-2 bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all flex items-center gap-2"
+              className="px-4 cursor-pointer py-2 bg-linear-to-br from-primary-500 to-primary-600 text-white rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all flex items-center gap-2"
             >
               <Download className="w-4 h-4" />
               Export
@@ -213,7 +213,7 @@ const ActivityLogsPage: React.FC = () => {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white">
+          <div className="bg-linear-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-blue-100 text-sm font-medium">Total Requests</p>
@@ -227,7 +227,7 @@ const ActivityLogsPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white">
+          <div className="bg-linear-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-green-100 text-sm font-medium">Unique Users</p>
@@ -241,7 +241,7 @@ const ActivityLogsPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white">
+          <div className="bg-linear-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-purple-100 text-sm font-medium">Avg. Response</p>
@@ -255,7 +255,7 @@ const ActivityLogsPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-6 text-white">
+          <div className="bg-linear-to-br from-orange-500 to-orange-600 rounded-2xl p-6 text-white">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-orange-100 text-sm font-medium">Error Rate</p>
@@ -282,11 +282,11 @@ const ActivityLogsPage: React.FC = () => {
               {requestData.map((value, index) => (
                 <div key={index} className="flex-1 flex flex-col items-center">
                   <div
-                    className="w-full bg-gradient-to-t from-blue-500 to-blue-600 rounded-t-lg transition-all hover:from-blue-400 hover:to-blue-500 cursor-pointer"
+                    className="w-full bg-linear-to-t from-blue-500 to-blue-600 rounded-t-lg transition-all hover:from-blue-400 hover:to-blue-500 cursor-pointer"
                     style={{ height: `${(value / Math.max(...requestData)) * 80}%` }}
                     title={`${Math.round(value)} requests`}
                   />
-                  <span className="text-xs text-gray-500 mt-1">{timeLabels[index]}</span>
+                  {/* <span className="text-xs text-gray-500 mt-1">{timeLabels[index]}</span> */}
                 </div>
               ))}
             </div>
@@ -303,11 +303,11 @@ const ActivityLogsPage: React.FC = () => {
                 {responseTimeData.map((value, index) => (
                   <div key={index} className="flex-1 flex flex-col items-center">
                     <div
-                      className="w-full bg-gradient-to-t from-green-500 to-green-600 rounded-t-lg transition-all hover:from-green-400 hover:to-green-500 cursor-pointer"
+                      className="w-full bg-linear-to-t from-green-500 to-green-600 rounded-t-lg transition-all hover:from-green-400 hover:to-green-500 cursor-pointer"
                       style={{ height: `${(value / Math.max(...responseTimeData)) * 80}%` }}
                       title={`${Math.round(value)}ms`}
                     />
-                    <span className="text-xs text-gray-500 mt-1">{timeLabels[index]}</span>
+                    {/* <span className="text-xs text-gray-500 mt-1">{timeLabels[index]}</span> */}
                   </div>
                 ))}
                 <div className="absolute top-1/2 left-0 right-0 border-t border-gray-300 dark:border-gray-600 border-dashed" />
