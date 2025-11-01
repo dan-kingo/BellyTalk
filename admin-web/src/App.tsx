@@ -9,6 +9,7 @@ import UsersPage from './pages/UsersPage';
 import RoleRequestsPage from './pages/RoleRequestsPage';
 import ActivityLogsPage from './pages/ActivityLogsPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
+import ContentPage from './pages/ContentPage';
 
 const App: React.FC = () => {
   return (
@@ -30,6 +31,23 @@ const App: React.FC = () => {
 
             <Route
               path="/users"
+              element={
+                <PrivateRoute>
+                  <UsersPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/contents"
+              element={
+                <PrivateRoute>
+                  <ContentPage />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/hospitals"
               element={
                 <PrivateRoute>
                   <UsersPage />

@@ -53,3 +53,34 @@ export interface ActivityLog {
   path: string;
   timestamp: string;
 }
+
+
+export interface Content {
+  id: string;
+  author_id: string;
+  title: string;
+  body: string;
+  category: string;
+  tags?: string[];
+  language: string;
+  cover_url?: string;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Hospital {
+  id: string;
+  name: string;
+  description?: string;
+  city?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  services?: string[];
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
