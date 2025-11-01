@@ -4,6 +4,9 @@ backend/dist/
 user-web/.env
 user-web/node_modules/
 user-web/dist/
+admin-web/.env
+admin-web/node_modules/
+admin-web/dist/
 .DS_Store
 .vscode/
 .idea/
