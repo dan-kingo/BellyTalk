@@ -248,9 +248,8 @@ const loadContent = async () => {
                   className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
                 >
                   <option value="en">English</option>
-                  <option value="ar">Arabic</option>
-                  <option value="es">Spanish</option>
-                  <option value="fr">French</option>
+                  <option value="am">Amharic</option>
+                  <option value="om">Afan Oromo</option>
                 </select>
               </div>
             </div>
@@ -284,6 +283,7 @@ const loadContent = async () => {
             <div className="flex gap-3 pt-4">
               <button
                 type="submit"
+                disabled={loading}
                 className="flex-1 cursor-pointer bg-primary hover:bg-primary-700 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-6 py-2 rounded-lg font-medium transition"
               >
                 {editingContent ? 'Update Content' : 'Create Content'}

@@ -7,8 +7,8 @@ export const contentService = {
     return response.data;
   },
 
-  async getMyContents() {
-    const response = await api.get('/content/my-contents');
+  async getMyContents(params?:{limit?: number}) {
+    const response = await api.get('/content/my-contents', { params });
     return response.data;
   },
   async getContent(id: string, lang?: string) {

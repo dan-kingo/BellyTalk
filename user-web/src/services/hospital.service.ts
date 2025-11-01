@@ -7,8 +7,8 @@ export const hospitalService = {
     return response.data;
   },
 
-  async getMyHospitals() {
-    const response = await api.get('/hospitals/my-hospitals');
+  async getMyHospitals(params?: {limit?: number}) {
+    const response = await api.get('/hospitals/my-hospitals', { params });
     return response.data;
   },
   async createHospital(hospitalData: Partial<Hospital>) {

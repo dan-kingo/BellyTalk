@@ -28,23 +28,29 @@ const [viewingContent, setViewingContent] = useState<Content | null>(null);
       setDialogMode('view');
       setShowDialog(true);
     };
+     const canManageContent = profile?.role === 'doctor' || profile?.role === 'counselor' || profile?.role === 'admin';
+   const canManageHospitals =
+    profile?.role === "doctor" ||
+    profile?.role === "counselor" ||
+    profile?.role === "admin";
+const loadDashboardData = async () => {
+  try {
+    setLoading(true);
     
-
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true);
-      const [contentRes, hospitalRes] = await Promise.all([
-        contentService.getAllContent({ limit: 3 }),
-        hospitalService.getHospitals({ limit: 3 }),
-      ]);
-      setContents(contentRes.data || []);
-      setHospitals(hospitalRes.data || []);
-    } catch (error) {
-      console.error('Failed to load dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Use appropriate services based on user role
+    const [contentRes, hospitalRes] = await Promise.all([
+      canManageContent ? contentService.getMyContents({ limit: 3 }) : contentService.getAllContent({ limit: 3 }),
+      canManageHospitals ? hospitalService.getMyHospitals({ limit: 3 }) : hospitalService.getHospitals({ limit: 3 }),
+    ]);
+    
+    setContents(contentRes.data || []);
+    setHospitals(hospitalRes.data || []);
+  } catch (error) {
+    console.error('Failed to load dashboard data:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (!profile) {
     return (
