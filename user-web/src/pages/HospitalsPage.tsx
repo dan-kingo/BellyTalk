@@ -1,59 +1,81 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import Layout from '../components/layout/Layout';
-import Dialog from '../components/common/Dialog';
-import { hospitalService } from '../services/hospital.service';
-import { Hospital } from '../types';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import Layout from "../components/layout/Layout";
+import Dialog from "../components/common/Dialog";
+import { hospitalService } from "../services/hospital.service";
+import { Hospital } from "../types";
+import { Plus, Edit, Trash2 } from "lucide-react";
 
 const HospitalsPage: React.FC = () => {
   const { profile } = useAuth();
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [filters, setFilters] = useState<{ city?: string; service?: string; query?: string; page?: number; limit?: number }>({ page: 1, limit: 10 });
+  const [error, setError] = useState("");
+  const [filters, setFilters] = useState<{
+    city?: string;
+    service?: string;
+    query?: string;
+    page?: number;
+    limit?: number;
+  }>({ page: 1, limit: 10 });
   const [showDialog, setShowDialog] = useState(false);
-  const [dialogMode, setDialogMode] = useState<'add' | 'edit' | 'delete'>('add');
+  const [dialogMode, setDialogMode] = useState<"add" | "edit" | "delete">(
+    "add"
+  );
   const [editingHospital, setEditingHospital] = useState<Hospital | null>(null);
-  const [deletingHospital, setDeletingHospital] = useState<Hospital | null>(null);
+  const [deletingHospital, setDeletingHospital] = useState<Hospital | null>(
+    null
+  );
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    city: '',
-    address: '',
-    phone: '',
-    email: '',
-    website: '',
-    services: '',
+    name: "",
+    description: "",
+    city: "",
+    address: "",
+    phone: "",
+    email: "",
+    website: "",
+    services: "",
   });
-
-  const canManageHospitals = profile?.role === 'doctor' || profile?.role === 'counselor' || profile?.role === 'admin';
-  const isUserRole = profile?.role === 'mother';
 
   useEffect(() => {
     loadHospitals();
   }, [filters]);
 
+  const canManageHospitals =
+    profile?.role === "doctor" ||
+    profile?.role === "counselor" ||
+    profile?.role === "admin";
+  const isUserRole = profile?.role === "mother";
   const loadHospitals = async () => {
     try {
       setLoading(true);
-      const response = await hospitalService.getHospitals(filters);
+      let response;
+
+      // Load user-specific hospitals for content managers, all hospitals for mothers
+      if (canManageHospitals) {
+        response = await hospitalService.getMyHospitals();
+      } else {
+        response = await hospitalService.getHospitals(filters);
+      }
+
       setHospitals(response.data || []);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load hospitals');
+      setError(err.response?.data?.error || "Failed to load hospitals");
     } finally {
       setLoading(false);
     }
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     try {
       const hospitalData = {
         ...formData,
-        services: formData.services.split(',').map(s => s.trim()).filter(Boolean),
+        services: formData.services
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
       };
 
       if (editingHospital) {
@@ -66,23 +88,23 @@ const HospitalsPage: React.FC = () => {
       loadHospitals();
       setShowDialog(false);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to save hospital');
+      setError(err.response?.data?.error || "Failed to save hospital");
     }
   };
 
   const handleAdd = () => {
     setEditingHospital(null);
     setFormData({
-      name: '',
-      description: '',
-      city: '',
-      address: '',
-      phone: '',
-      email: '',
-      website: '',
-      services: '',
+      name: "",
+      description: "",
+      city: "",
+      address: "",
+      phone: "",
+      email: "",
+      website: "",
+      services: "",
     });
-    setDialogMode('add');
+    setDialogMode("add");
     setShowDialog(true);
   };
 
@@ -90,21 +112,21 @@ const HospitalsPage: React.FC = () => {
     setEditingHospital(hospital);
     setFormData({
       name: hospital.name,
-      description: hospital.description || '',
-      city: hospital.city || '',
-      address: hospital.address || '',
-      phone: hospital.phone || '',
-      email: hospital.email || '',
-      website: hospital.website || '',
-      services: hospital.services?.join(', ') || '',
+      description: hospital.description || "",
+      city: hospital.city || "",
+      address: hospital.address || "",
+      phone: hospital.phone || "",
+      email: hospital.email || "",
+      website: hospital.website || "",
+      services: hospital.services?.join(", ") || "",
     });
-    setDialogMode('edit');
+    setDialogMode("edit");
     setShowDialog(true);
   };
 
   const handleDeleteClick = (hospital: Hospital) => {
     setDeletingHospital(hospital);
-    setDialogMode('delete');
+    setDialogMode("delete");
     setShowDialog(true);
   };
 
@@ -117,20 +139,20 @@ const HospitalsPage: React.FC = () => {
       setShowDialog(false);
       setDeletingHospital(null);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to delete hospital');
+      setError(err.response?.data?.error || "Failed to delete hospital");
     }
   };
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      description: '',
-      city: '',
-      address: '',
-      phone: '',
-      email: '',
-      website: '',
-      services: '',
+      name: "",
+      description: "",
+      city: "",
+      address: "",
+      phone: "",
+      email: "",
+      website: "",
+      services: "",
     });
     setEditingHospital(null);
     setDeletingHospital(null);
@@ -141,7 +163,9 @@ const HospitalsPage: React.FC = () => {
     <Layout>
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Hospitals</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Hospitals
+          </h1>
           {canManageHospitals && (
             <button
               onClick={handleAdd}
@@ -157,22 +181,28 @@ const HospitalsPage: React.FC = () => {
           <input
             type="text"
             placeholder="Search hospitals..."
-            value={filters.query || ''}
-            onChange={(e) => setFilters({ ...filters, query: e.target.value, page: 1 })}
+            value={filters.query || ""}
+            onChange={(e) =>
+              setFilters({ ...filters, query: e.target.value, page: 1 })
+            }
             className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
           />
           <input
             type="text"
             placeholder="Filter by city..."
-            value={filters.city || ''}
-            onChange={(e) => setFilters({ ...filters, city: e.target.value, page: 1 })}
+            value={filters.city || ""}
+            onChange={(e) =>
+              setFilters({ ...filters, city: e.target.value, page: 1 })
+            }
             className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
           />
           <input
             type="text"
             placeholder="Filter by service..."
-            value={filters.service || ''}
-            onChange={(e) => setFilters({ ...filters, service: e.target.value, page: 1 })}
+            value={filters.service || ""}
+            onChange={(e) =>
+              setFilters({ ...filters, service: e.target.value, page: 1 })
+            }
             className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
           />
         </div>
@@ -184,9 +214,9 @@ const HospitalsPage: React.FC = () => {
         )}
 
         <Dialog
-          isOpen={showDialog && dialogMode !== 'delete'}
+          isOpen={showDialog && dialogMode !== "delete"}
           onClose={resetForm}
-          title={editingHospital ? 'Edit Hospital' : 'Add New Hospital'}
+          title={editingHospital ? "Edit Hospital" : "Add New Hospital"}
         >
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -198,7 +228,9 @@ const HospitalsPage: React.FC = () => {
                   type="text"
                   required
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
                 />
               </div>
@@ -209,7 +241,9 @@ const HospitalsPage: React.FC = () => {
                 <input
                   type="text"
                   value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, city: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
                 />
               </div>
@@ -221,7 +255,9 @@ const HospitalsPage: React.FC = () => {
               </label>
               <textarea
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
               />
@@ -234,7 +270,9 @@ const HospitalsPage: React.FC = () => {
               <input
                 type="text"
                 value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, address: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
               />
             </div>
@@ -247,7 +285,9 @@ const HospitalsPage: React.FC = () => {
                 <input
                   type="tel"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
                 />
               </div>
@@ -258,7 +298,9 @@ const HospitalsPage: React.FC = () => {
                 <input
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
                 />
               </div>
@@ -269,7 +311,9 @@ const HospitalsPage: React.FC = () => {
                 <input
                   type="url"
                   value={formData.website}
-                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, website: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
                 />
               </div>
@@ -282,7 +326,9 @@ const HospitalsPage: React.FC = () => {
               <input
                 type="text"
                 value={formData.services}
-                onChange={(e) => setFormData({ ...formData, services: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, services: e.target.value })
+                }
                 placeholder="e.g., Maternity, Pediatrics, Emergency"
                 className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
               />
@@ -293,7 +339,7 @@ const HospitalsPage: React.FC = () => {
                 type="submit"
                 className="flex-1 cursor-pointer bg-primary hover:bg-primary-700 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-6 py-2 rounded-lg font-medium transition"
               >
-                {editingHospital ? 'Update Hospital' : 'Create Hospital'}
+                {editingHospital ? "Update Hospital" : "Create Hospital"}
               </button>
               <button
                 type="button"
@@ -307,13 +353,15 @@ const HospitalsPage: React.FC = () => {
         </Dialog>
 
         <Dialog
-          isOpen={showDialog && dialogMode === 'delete'}
+          isOpen={showDialog && dialogMode === "delete"}
           onClose={resetForm}
           title="Delete Hospital"
         >
           <div className="space-y-4">
             <p className="text-gray-700 dark:text-gray-300">
-              Are you sure you want to delete <strong>{deletingHospital?.name}</strong>? This action cannot be undone.
+              Are you sure you want to delete{" "}
+              <strong>{deletingHospital?.name}</strong>? This action cannot be
+              undone.
             </p>
             <div className="flex gap-3 pt-4">
               <button
@@ -340,7 +388,9 @@ const HospitalsPage: React.FC = () => {
           </div>
         ) : hospitals.length === 0 ? (
           <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg">
-            <p className="text-gray-500 dark:text-gray-400">No hospitals found</p>
+            <p className="text-gray-500 dark:text-gray-400">
+              No hospitals found
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

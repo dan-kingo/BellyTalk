@@ -61,3 +61,14 @@ export const deleteHospital = async (req: Request, res: Response) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const getMyHospitals = async (req: AuthRequest, res: Response) => {
+  try {
+    const createdBy = req.user?.id;
+    const { data, error } = await supabaseAdmin.from("hospitals").select("*").eq("created_by", createdBy);
+    if (error) throw error;
+    res.json({ data });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+};
