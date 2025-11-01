@@ -59,12 +59,14 @@ const loadDashboardData = async () => {
       </Layout>
     );
   }
+  const mother = profile.role === 'mother';
+  const doctor = profile.role === 'doctor';
 
   const renderMotherDashboard = () => (
     <div className="space-y-8">
       <div className="bg-linear-to-r from-primary to-primary-600 dark:from-secondary dark:to-secondary/80 rounded-xl shadow-lg p-8 text-white">
-        <h2 className="text-3xl font-bold mb-2">Welcome back, {profile.full_name}!</h2>
-        <p className="text-white/90">Track your pregnancy journey and stay connected with your care team.</p>
+        <h2 className="text-3xl font-bold mb-2">Welcome back, {doctor ? "Dr." : mother ? "Ms." : "Mr."} {profile.full_name}!</h2>
+        <p className="text-white/90"> {mother ? "Track your pregnancy journey and stay connected with your care team." : "Manage your patients and stay updated with the latest information."}</p>
       </div>
 
       <section>

@@ -337,6 +337,7 @@ const HospitalsPage: React.FC = () => {
             <div className="flex gap-3 pt-4">
               <button
                 type="submit"
+                disabled={loading}
                 className="flex-1 cursor-pointer bg-primary hover:bg-primary-700 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-6 py-2 rounded-lg font-medium transition"
               >
                 {editingHospital ? "Update Hospital" : "Create Hospital"}
