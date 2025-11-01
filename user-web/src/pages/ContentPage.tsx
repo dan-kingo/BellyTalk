@@ -32,19 +32,25 @@ const ContentPage: React.FC = () => {
   useEffect(() => {
     loadContent();
   }, [filters]);
-
-  const loadContent = async () => {
-    try {
-      setLoading(true);
-      const response = await contentService.getAllContent(filters);
-      setContents(response.data || []);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load content');
-    } finally {
-      setLoading(false);
+const loadContent = async () => {
+  try {
+    setLoading(true);
+    let response;
+    
+    // Load user-specific content for content managers, all content for mothers
+    if (canManageContent) {
+      response = await contentService.getMyContents();
+    } else {
+      response = await contentService.getAllContent(filters);
     }
-  };
-
+    
+    setContents(response.data || []);
+  } catch (err: any) {
+    setError(err.response?.data?.error || 'Failed to load content');
+  } finally {
+    setLoading(false);
+  }
+};
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');

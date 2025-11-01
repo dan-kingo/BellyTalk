@@ -7,6 +7,10 @@ export const contentService = {
     return response.data;
   },
 
+  async getMyContents() {
+    const response = await api.get('/content/my-contents');
+    return response.data;
+  },
   async getContent(id: string, lang?: string) {
     const response = await api.get(`/content/${id}`, { params: { lang } });
     return response.data;

@@ -8,6 +8,7 @@ import {
   updateContent,
   deleteContent,
   translateContent,
+  getMyContents,
 } from "../controllers/content.controller.js";
 import { contentSchema } from "../validators/content.schema.js";
 import { uploadMiddleware } from "../controllers/upload.controller.js";
@@ -22,6 +23,7 @@ router.post(
 );
 
 router.get("/", getAllContent);
+router.get("/my-contents", requireAuth, getMyContents);
 router.get("/:id", getSingleContent);
 router.put("/:id", requireAuth, uploadMiddleware.single("cover"), updateContent);
 router.delete("/:id", requireAuth, deleteContent);

@@ -158,3 +158,26 @@ export const translateContent = async (req: Request, res: Response) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+export const getMyContents = async (req: Request, res: Response) => {
+  try {
+    const authorId = (req as AuthRequest).user?.id;
+    const { page = 1, limit = 10 } = req.query;
+    const from = (Number(page) - 1) * Number(limit);
+    const to = from + Number(limit) - 1;
+
+    const { data, error } = await supabaseAdmin
+      .from("educational_content")
+      .select("*")
+      .eq("author_id", authorId)
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
+    if (error) throw error;
+
+    res.json({ data, page: Number(page) });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+}
