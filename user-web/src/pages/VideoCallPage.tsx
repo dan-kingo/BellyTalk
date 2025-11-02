@@ -106,15 +106,7 @@ const VideoCallPage: React.FC = () => {
             <Video className="w-8 h-8 text-primary-600 dark:text-primary-400" />
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Video Call</h1>
           </div>
-          {!inCall && (
-            <button
-              onClick={() => setShowNewCallDialog(true)}
-              className="flex items-center gap-2 cursor-pointer bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white px-6 py-3 rounded-lg transition font-medium"
-            >
-              <Video className="w-5 h-5" />
-              Start Video Call
-            </button>
-          )}
+         
         </div>
 
         {inCall ? (

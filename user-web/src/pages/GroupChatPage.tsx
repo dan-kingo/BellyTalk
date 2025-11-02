@@ -256,7 +256,7 @@ const GroupChatPage: React.FC = () => {
                       {selectedGroup.name}
                     </h3>
                     {selectedGroup.description && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 truncate text-wrap">
                         {selectedGroup.description}
                       </p>
                     )}

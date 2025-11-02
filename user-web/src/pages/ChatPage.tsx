@@ -63,18 +63,18 @@ const ChatPage: React.FC = () => {
     loadConversations();
 
     if (user?.id) {
-      // Initialize and update presence
-      presenceService.initializePresence(user.id);
+      // Initialize and update presence - FIXED
+      presenceService.initializePresence();
       
-      // Update presence every 30 seconds to stay online
+      // Update presence every 30 seconds to stay online - FIXED
       const interval = setInterval(() => {
-        presenceService.updatePresence(user.id, 'online');
+        presenceService.updatePresence('online');
       }, 30000);
 
       return () => {
         clearInterval(interval);
-        // Set offline status when leaving
-        presenceService.updatePresence(user.id, 'offline');
+        // Set offline status when leaving - FIXED
+        presenceService.updatePresence('offline');
         presenceService.cleanup();
       };
     }
@@ -151,21 +151,22 @@ const ChatPage: React.FC = () => {
       loadInitialPresence();
 
       // Subscribe to presence changes
-      const presenceChannel = presenceService.subscribeToPresence(otherUserId, (status) => {
-        console.log(`Presence update for ${otherUserId}:`, status);
-        setOtherUserStatus(status);
-      });
+     // Subscribe to presence changes
+const presenceChannel = presenceService.subscribeToPresence(otherUserId, (presence) => {
+  console.log(`Presence update for ${otherUserId}:`, presence);
+  setOtherUserStatus(presence.status); // Extract the status from the presence object
+});
 
       // Subscribe to typing indicators
-      const typingChannel = presenceService.subscribeToTyping(
-        selectedConversation.id,
-        user.id,
-        (isTyping) => {
-          console.log(`Typing update for conversation ${selectedConversation.id}:`, isTyping);
-          setIsOtherUserTyping(isTyping);
-        }
-      );
-
+     // Subscribe to typing indicators
+const typingChannel = presenceService.subscribeToTyping(
+  selectedConversation.id,
+  user.id,
+  (typingUserId, isTyping) => {
+    console.log(`Typing update for conversation ${selectedConversation.id}: User ${typingUserId} is ${isTyping ? 'typing' : 'not typing'}`);
+    setIsOtherUserTyping(isTyping);
+  }
+);
       return () => {
         try {
           if (presenceChannel && typeof presenceChannel.unsubscribe === 'function') {
@@ -252,14 +253,14 @@ const ChatPage: React.FC = () => {
   const handleTyping = () => {
     if (!selectedConversation || !user) return;
 
-    presenceService.setTyping(selectedConversation.id, user.id, true);
+    presenceService.setTyping(selectedConversation.id, true); // FIXED
 
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
 
     typingTimeoutRef.current = setTimeout(() => {
-      presenceService.setTyping(selectedConversation.id, user.id, false);
+      presenceService.setTyping(selectedConversation.id, false); // FIXED
     }, 3000);
   };
 
@@ -299,7 +300,7 @@ const ChatPage: React.FC = () => {
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
-      presenceService.setTyping(selectedConversation.id, user.id, false);
+      presenceService.setTyping(selectedConversation.id, false); // FIXED
 
       // Create optimistic message
       const optimisticMessage: Message = {

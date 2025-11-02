@@ -95,20 +95,12 @@ const AudioCallPage: React.FC = () => {
   return (
     <Layout>
       <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between flex-wrap mb-8">
           <div className="flex items-center gap-3">
             <Phone className="w-8 h-8 text-primary-600 dark:text-primary-400" />
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Audio Call</h1>
           </div>
-          {!inCall && (
-            <button
-              onClick={() => setShowNewCallDialog(true)}
-              className="flex items-center gap-2 cursor-pointer bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white px-6 py-3 rounded-lg transition font-medium"
-            >
-              <Phone className="w-5 h-5" />
-              Start Audio Call
-            </button>
-          )}
+         
         </div>
 
         {inCall ? (
