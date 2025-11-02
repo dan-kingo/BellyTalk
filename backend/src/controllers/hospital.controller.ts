@@ -61,13 +61,27 @@ export const deleteHospital = async (req: Request, res: Response) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 export const getMyHospitals = async (req: AuthRequest, res: Response) => {
   try {
     const createdBy = req.user?.id;
-    const { data, error } = await supabaseAdmin.from("hospitals").select("*").eq("created_by", createdBy);
+    const { city, service, query, page = 1, limit = 10 } = req.query;
+    const from = (Number(page) - 1) * Number(limit);
+    const to = from + Number(limit) - 1;
+
+    let q = supabaseAdmin
+      .from("hospitals")
+      .select("*")
+      .eq("created_by", createdBy)
+      .range(from, to);
+
+    if (city) q = q.ilike("city", `%${city}%`);
+    if (query) q = q.or(`name.ilike.%${query}%,description.ilike.%${query}%`);
+    if (service) q = q.contains("services", [service]);
+
+    const { data, error } = await q;
     if (error) throw error;
-    res.json({ data });
+
+    res.json({ data, page: Number(page) });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

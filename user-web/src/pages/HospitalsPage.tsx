@@ -37,25 +37,32 @@ const HospitalsPage: React.FC = () => {
     services: "",
   });
 
-  useEffect(() => {
-    loadHospitals();
-  }, [filters]);
-
   const canManageHospitals =
     profile?.role === "doctor" ||
     profile?.role === "counselor" ||
     profile?.role === "admin";
   const isUserRole = profile?.role === "mother";
+
+  useEffect(() => {
+    loadHospitals();
+  }, [filters]);
+
   const loadHospitals = async () => {
     try {
       setLoading(true);
+      setError("");
       let response;
+
+      // Clean up filters - remove empty values
+      const cleanFilters = Object.fromEntries(
+        Object.entries(filters).filter(([_, value]) => value !== '' && value !== undefined)
+      );
 
       // Load user-specific hospitals for content managers, all hospitals for mothers
       if (canManageHospitals) {
-        response = await hospitalService.getMyHospitals();
+        response = await hospitalService.getMyHospitals(cleanFilters);
       } else {
-        response = await hospitalService.getHospitals(filters);
+        response = await hospitalService.getHospitals(cleanFilters);
       }
 
       setHospitals(response.data || []);
@@ -65,6 +72,19 @@ const HospitalsPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFilters({ ...filters, query: e.target.value, page: 1 });
+  };
+
+  const handleCityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFilters({ ...filters, city: e.target.value, page: 1 });
+  };
+
+  const handleServiceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFilters({ ...filters, service: e.target.value, page: 1 });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -159,6 +179,9 @@ const HospitalsPage: React.FC = () => {
     setShowDialog(false);
   };
 
+  // Helper to check if filters are active
+  const hasActiveFilters = filters.query || filters.city || filters.service;
+
   return (
     <Layout>
       <div className="max-w-7xl mx-auto">
@@ -182,30 +205,52 @@ const HospitalsPage: React.FC = () => {
             type="text"
             placeholder="Search hospitals..."
             value={filters.query || ""}
-            onChange={(e) =>
-              setFilters({ ...filters, query: e.target.value, page: 1 })
-            }
+            onChange={handleSearchChange}
             className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
           />
           <input
             type="text"
             placeholder="Filter by city..."
             value={filters.city || ""}
-            onChange={(e) =>
-              setFilters({ ...filters, city: e.target.value, page: 1 })
-            }
+            onChange={handleCityChange}
             className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
           />
           <input
             type="text"
             placeholder="Filter by service..."
             value={filters.service || ""}
-            onChange={(e) =>
-              setFilters({ ...filters, service: e.target.value, page: 1 })
-            }
+            onChange={handleServiceChange}
             className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
           />
         </div>
+
+        {/* Active Filters Indicator */}
+        {hasActiveFilters && (
+          <div className="mb-4 flex items-center gap-2">
+            <span className="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
+            {filters.query && (
+              <span className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
+                Search: "{filters.query}"
+              </span>
+            )}
+            {filters.city && (
+              <span className="px-2 py-1 text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">
+                City: {filters.city}
+              </span>
+            )}
+            {filters.service && (
+              <span className="px-2 py-1 text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded">
+                Service: {filters.service}
+              </span>
+            )}
+            <button
+              onClick={() => setFilters({ page: 1, limit: 10 })}
+              className="text-sm text-red-600 dark:text-red-400 hover:underline"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 rounded-lg bg-red-50 dark:bg-red-900/20 p-4">
@@ -386,12 +431,24 @@ const HospitalsPage: React.FC = () => {
         {loading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary dark:border-secondary"></div>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">Loading hospitals...</p>
           </div>
         ) : hospitals.length === 0 ? (
           <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg">
             <p className="text-gray-500 dark:text-gray-400">
-              No hospitals found
+              {hasActiveFilters 
+                ? 'No hospitals found matching your filters' 
+                : 'No hospitals found'
+              }
             </p>
+            {hasActiveFilters && (
+              <button
+                onClick={() => setFilters({ page: 1, limit: 10 })}
+                className="mt-2 text-primary dark:text-secondary hover:underline"
+              >
+                Clear filters
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

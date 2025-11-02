@@ -7,7 +7,7 @@ export const hospitalService = {
     return response.data;
   },
 
-  async getMyHospitals(params?: {limit?: number}) {
+  async getMyHospitals(params?: { city?: string; service?: string; query?: string; page?: number; limit?: number }) {
     const response = await api.get('/hospitals/my-hospitals', { params });
     return response.data;
   },
