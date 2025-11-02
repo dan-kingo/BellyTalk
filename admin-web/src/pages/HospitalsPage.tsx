@@ -53,7 +53,7 @@ const HospitalsPage: React.FC = () => {
 
       // Load user-specific hospitals for content managers, all hospitals for mothers
       if (canManageHospitals) {
-        response = await hospitalService.getMyHospitals();
+        response = await hospitalService.getMyHospitals(filters);
       } else {
         response = await hospitalService.getHospitals(filters);
       }

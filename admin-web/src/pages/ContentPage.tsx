@@ -32,26 +32,42 @@ const ContentPage: React.FC = () => {
   useEffect(() => {
     loadContent();
   }, [filters]);
-const loadContent = async () => {
-  try {
-    setLoading(true);
-    let response;
-    
-    // Load user-specific content for content managers, all content for mothers
-    if (canManageContent) {
-      response = await contentService.getMyContents();
-    } else {
-      response = await contentService.getAllContent(filters);
+
+  const loadContent = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      let response;
+      
+      // Clean up filters - remove empty values
+      const cleanFilters = Object.fromEntries(
+        Object.entries(filters).filter(([_, value]) => value !== '' && value !== undefined)
+      );
+      
+      // Load user-specific content for content managers, all content for mothers
+      if (canManageContent) {
+        response = await contentService.getMyContents(cleanFilters);
+      } else {
+        response = await contentService.getAllContent(cleanFilters);
+      }
+      
+      setContents(response.data || []);
+    } catch (err: any) {
+      console.error('Error loading content:', err);
+      setError(err.response?.data?.error || 'Failed to load content');
+    } finally {
+      setLoading(false);
     }
-    
-    setContents(response.data || []);
-  } catch (err: any) {
-    console.log(err)
-    setError(err.response?.data?.error || 'Failed to load content');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFilters({ ...filters, query: e.target.value, page: 1 });
+  };
+
+  const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFilters({ ...filters, lang: e.target.value, page: 1 });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -151,6 +167,9 @@ const loadContent = async () => {
     setShowDialog(false);
   };
 
+  // Helper to check if filters are active
+  const hasActiveFilters = filters.query || filters.lang;
+
   return (
     <Layout>
       <div className="max-w-7xl mx-auto">
@@ -172,12 +191,12 @@ const loadContent = async () => {
             type="text"
             placeholder="Search content..."
             value={filters.query || ''}
-            onChange={(e) => setFilters({ ...filters, query: e.target.value, page: 1 })}
+            onChange={handleSearchChange}
             className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
           />
           <select
             value={filters.lang || ''}
-            onChange={(e) => setFilters({ ...filters, lang: e.target.value, page: 1 })}
+            onChange={handleLanguageChange}
             className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
           >
             <option value="">All Languages</option>
@@ -186,6 +205,29 @@ const loadContent = async () => {
             <option value="om">Afan Oromo</option>
           </select>
         </div>
+
+        {/* Active Filters Indicator */}
+        {hasActiveFilters && (
+          <div className="mb-4 flex items-center gap-2">
+            <span className="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
+            {filters.query && (
+              <span className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
+                Search: "{filters.query}"
+              </span>
+            )}
+            {filters.lang && (
+              <span className="px-2 py-1 text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">
+                Language: {filters.lang.toUpperCase()}
+              </span>
+            )}
+            <button
+              onClick={() => setFilters({ page: 1, limit: 10 })}
+              className="text-sm text-red-600 dark:text-red-400 hover:underline"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 rounded-lg bg-red-50 dark:bg-red-900/20 p-4">
@@ -378,10 +420,24 @@ const loadContent = async () => {
         {loading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary dark:border-secondary"></div>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">Loading content...</p>
           </div>
         ) : contents.length === 0 ? (
           <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg">
-            <p className="text-gray-500 dark:text-gray-400">No content found</p>
+            <p className="text-gray-500 dark:text-gray-400">
+              {hasActiveFilters 
+                ? 'No content found matching your filters' 
+                : 'No content found'
+              }
+            </p>
+            {hasActiveFilters && (
+              <button
+                onClick={() => setFilters({ page: 1, limit: 10 })}
+                className="mt-2 text-primary dark:text-secondary hover:underline"
+              >
+                Clear filters
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

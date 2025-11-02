@@ -159,25 +159,34 @@ export const translateContent = async (req: Request, res: Response) => {
   }
 };
 
-
 export const getMyContents = async (req: Request, res: Response) => {
   try {
     const authorId = (req as AuthRequest).user?.id;
-    const { page = 1, limit = 10 } = req.query;
+    const { query, lang, page = 1, limit = 10 } = req.query;
     const from = (Number(page) - 1) * Number(limit);
     const to = from + Number(limit) - 1;
 
-    const { data, error } = await supabaseAdmin
+    // Fix: Create base query and await the result
+    let supabaseQuery = supabaseAdmin
       .from("educational_content")
       .select("*")
       .eq("author_id", authorId)
       .order("created_at", { ascending: false })
       .range(from, to);
 
+    // Apply filters
+    if (query) supabaseQuery = supabaseQuery.ilike("title", `%${query}%`);
+    if (lang) supabaseQuery = supabaseQuery.eq("language", lang);
+
+    // Fix: Await the query execution
+    const { data, error } = await supabaseQuery;
+
     if (error) throw error;
 
+    // Fix: Return proper response format matching getAllContent
     res.json({ data, page: Number(page) });
   } catch (err: any) {
+    console.error("getMyContents error:", err);
     res.status(500).json({ error: err.message });
   }
-}
+};

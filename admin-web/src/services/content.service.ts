@@ -7,7 +7,7 @@ export const contentService = {
     return response.data;
   },
 
-  async getMyContents(params?:{limit?: number}) {
+  async getMyContents(params?:{ query?: string; lang?: string; page?: number; limit?: number }) {
     const response = await api.get('/content/my-contents', { params });
     return response.data;
   },
