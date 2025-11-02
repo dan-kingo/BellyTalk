@@ -27,7 +27,7 @@ dotenv.config();
 const app = express();
 app.use(cors({
   origin: [
-    'https://bellytalk.vercel.app',
+    'https://belly-talk.vercel.app',
     'http://localhost:3000', 
     'https://bellytalk-admin.vercel.app', 
     'http://localhost:5000',
