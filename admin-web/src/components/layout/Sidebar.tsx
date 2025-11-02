@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Users, FileText, Activity, X, Building2, RollerCoasterIcon } from 'lucide-react';
+import { Home, Users, FileText, X, Building2, RollerCoasterIcon } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -16,7 +16,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { path: '/hospitals', icon: Building2, label: 'Hospitals' },
     { path: '/users', icon: Users, label: 'Users' },
     { path: '/role-requests', icon: RollerCoasterIcon, label: 'Role Requests' },
-    { path: '/activity-logs', icon: Activity, label: 'Activity Logs' },
+    // { path: '/activity-logs', icon: Activity, label: 'Activity Logs' },
   ];
 
   return (

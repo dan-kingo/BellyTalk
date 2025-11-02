@@ -7,7 +7,6 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import UsersPage from './pages/UsersPage';
 import RoleRequestsPage from './pages/RoleRequestsPage';
-import ActivityLogsPage from './pages/ActivityLogsPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import ContentPage from './pages/ContentPage';
 import HospitalsPage from './pages/HospitalsPage';
@@ -65,14 +64,7 @@ const App: React.FC = () => {
               }
             />
 
-            <Route
-              path="/activity-logs"
-              element={
-                <PrivateRoute>
-                  <ActivityLogsPage />
-                </PrivateRoute>
-              }
-            />
+           
 
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
