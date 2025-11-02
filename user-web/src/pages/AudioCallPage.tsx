@@ -13,6 +13,7 @@ import { Profile } from '../types';
 interface HMSState {
   room: any;
   peers: any[];
+  localPeer?: any;
 }
 
 const AudioCallPage: React.FC = () => {
@@ -32,13 +33,15 @@ const AudioCallPage: React.FC = () => {
   const [remoteUser, setRemoteUser] = useState<Profile | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [peers, setPeers] = useState<any[]>([]);
+  const [localPeer, setLocalPeer] = useState<any>(null);
 
   // Subscribe to HMS store changes
   useEffect(() => {
     const unsubscribe = hmsStore.subscribe((state: HMSState) => {
       setIsConnected(!!state.room);
       setPeers(state.peers || []);
-    }, (select: any) => [select.room, select.peers]);
+      setLocalPeer(state.localPeer || null);
+    }, (select: any) => [select.room, select.peers, select.localPeer]);
 
     return unsubscribe;
   }, [hmsStore]);
@@ -71,6 +74,7 @@ const AudioCallPage: React.FC = () => {
       // 1. Create session with 100ms
       const session = await audioService.createSession(receiverId);
       setCurrentSession(session.session);
+      console.log('Session created:', session.session.id);
 
       setCallStatus('Getting auth token...');
       
@@ -82,22 +86,35 @@ const AudioCallPage: React.FC = () => {
         user?.email
       );
 
+      console.log('Auth token received:', authToken);
+      console.log('Token value:', authToken.token);
+
+      // Check if token is valid
+      if (!authToken.token || authToken.token.startsWith('mock-')) {
+        throw new Error('Invalid or mock token received');
+      }
+
       setCallStatus('Joining audio room...');
 
       // 3. Join the 100ms room with the SDK
-      await hmsActions.join({
-        userName:  user?.email || 'User',
+      const joinConfig = {
+        userName: user?.email || 'User',
         authToken: authToken.token,
         settings: {
           isAudioMuted: false,
-          isVideoMuted: true, // Audio only call
+          isVideoMuted: true,
         },
         metaData: JSON.stringify({
           email: user?.email,
           sessionId: session.session.id
         })
-      });
+      };
 
+      console.log('Joining with config:', joinConfig);
+      
+      await hmsActions.join(joinConfig);
+
+      console.log('Join successful!');
       setCallStatus('Connected');
       setShowNewCallDialog(false);
       
@@ -216,6 +233,18 @@ const AudioCallPage: React.FC = () => {
               )}
               {endingCall ? 'Ending...' : 'End Call'}
             </button>
+
+            {/* Debug Information */}
+            <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <h3 className="font-bold text-blue-800 dark:text-blue-200 mb-2">Connection Debug:</h3>
+              <div className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                <div>Room ID: {hmsStore.getState().room?.id || 'Not connected'}</div>
+                <div>Local Peer: {localPeer?.id || 'None'}</div>
+                <div>Audio Track: {localPeer?.audioTrack ? '✅ Enabled' : '❌ Disabled'}</div>
+                <div>Remote Peers: {remotePeers.length}</div>
+                <div>Real 100ms Connection: {isConnected ? '✅ YES' : '❌ NO'}</div>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-12 text-center">
