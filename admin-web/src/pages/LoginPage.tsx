@@ -22,6 +22,7 @@ const LoginPage: React.FC = () => {
       const errorMessage =
         err.response?.data?.error ||
         'Failed to login. Please check your credentials.';
+        console.log(err)
       setError(errorMessage);
     } finally {
       setLoading(false);

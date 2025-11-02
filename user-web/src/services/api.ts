@@ -1,6 +1,6 @@
 import axios from 'axios';
 const api = axios.create({
-  baseURL: "https://bellytalk.onrender.com",
+  baseURL: "https://bellytalk.onrender.com/api",
   headers: {
     'Content-Type': 'application/json',
   },
