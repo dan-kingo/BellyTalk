@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { supabaseAdmin } from "../configs/supabase";
-import { AuthRequest } from "../middlewares/auth.middleware";
+import { supabaseAdmin } from "../configs/supabase.js";
+import { AuthRequest } from "../middlewares/auth.middleware.js";
 
 export const createHospital = async (req: AuthRequest, res: Response) => {
   try {

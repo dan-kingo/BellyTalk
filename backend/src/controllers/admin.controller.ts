@@ -1,6 +1,6 @@
 import { Response } from "express";
 import { AuthRequest } from "../middlewares/auth.middleware.js";
-import { supabaseAdmin } from "../configs/supabase";
+import { supabaseAdmin } from "../configs/supabase.js";
 import { sendMail } from "../services/email.service.js";
 
 

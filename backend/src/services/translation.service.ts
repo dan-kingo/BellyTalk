@@ -1,6 +1,6 @@
 import { TranslationServiceClient } from "@google-cloud/translate";
 import dotenv from "dotenv";
-import { supabase } from "../configs/supabase";
+import { supabase } from "../configs/supabase.js";
 
 dotenv.config();
 
