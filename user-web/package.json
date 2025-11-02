@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@100mslive/hms-video-store": "^0.12.39",
+    "@100mslive/react-sdk": "^0.10.39",
     "@supabase/supabase-js": "^2.76.1",
     "@tailwindcss/vite": "^4.1.16",
     "axios": "^1.13.1",

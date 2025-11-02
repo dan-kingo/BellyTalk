@@ -1,34 +1,45 @@
-import React, { createContext, useContext, ReactNode } from 'react';
-import { HMSReactiveStore } from '@100mslive/hms-video-store';
+// src/contexts/HMSContext.tsx
+import React from 'react';
+import { 
+  HMSRoomProvider, 
+  useHMSActions, 
+  useHMSStore, 
+  selectPeers, 
+  selectIsConnectedToRoom, 
+  selectLocalPeer, 
+  selectIsLocalAudioEnabled 
+} from '@100mslive/react-sdk';
 
-// Initialize HMS store
-const hmsManager = new HMSReactiveStore();
-const hmsActions = hmsManager.getHMSActions();
-const hmsStore = hmsManager.getStore();
-
-interface HMSContextType {
-  hmsActions: any;
-  hmsStore: any;
-}
-
-const HMSContext = createContext<HMSContextType | null>(null);
-
-interface HMSProviderProps {
-  children: ReactNode;
-}
-
-export const HMSProvider: React.FC<HMSProviderProps> = ({ children }) => {
+// Main provider component
+export const HMSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <HMSContext.Provider value={{ hmsActions, hmsStore }}>
+    <HMSRoomProvider>
       {children}
-    </HMSContext.Provider>
+    </HMSRoomProvider>
   );
 };
 
+// Custom hook to access HMS actions and store
 export const useHMS = () => {
-  const context = useContext(HMSContext);
-  if (!context) {
-    throw new Error('useHMS must be used within an HMSProvider');
-  }
-  return context;
+  const hmsActions = useHMSActions();
+  
+  return {
+    hmsActions,
+    // Note: useHMSStore is a hook, not a function to call
+  };
+};
+
+// Hook for HMS state
+export const useHMSState = () => {
+  const isConnected = useHMSStore(selectIsConnectedToRoom);
+  const localPeer = useHMSStore(selectLocalPeer);
+  const peers = useHMSStore(selectPeers);
+  const isLocalAudioEnabled = useHMSStore(selectIsLocalAudioEnabled);
+
+  return {
+    isConnected,
+    localPeer,
+    peers,
+    isLocalAudioEnabled
+  };
 };
