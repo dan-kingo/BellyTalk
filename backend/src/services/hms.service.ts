@@ -7,6 +7,8 @@ dotenv.config();
 
 const ACCESS_KEY = process.env.HMS_ACCESS_KEY || '';
 const SECRET = process.env.HMS_SECRET || '';
+console.log('HMS Access Key:', process.env.HMS_ACCESS_KEY ? 'SET' : 'MISSING');
+console.log('HMS Secret:', process.env.HMS_SECRET ? 'SET' : 'MISSING');
 const API_BASE = process.env.HMS_API_BASE || 'https://api.100ms.live/v2';
 const AUTH_TOKEN_TTL = Number(process.env.HMS_TOKEN_TTL) || 86400;
 
