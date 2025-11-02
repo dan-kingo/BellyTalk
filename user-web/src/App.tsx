@@ -22,11 +22,13 @@ import AudioCallPage from './pages/AudioCallPage';
 import VideoCallPage from './pages/VideoCallPage';
 import GroupChatPage from './pages/GroupChatPage';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import { HMSProvider } from './contexts/HMSContext';
 
 const App: React.FC = () => {
   return (
     <Router>
-      <ThemeProvider>
+     <HMSProvider>
+       <ThemeProvider>
         <AuthProvider>
           <Routes>
             <Route path="/" element={<HomePage />} />
@@ -166,6 +168,7 @@ const App: React.FC = () => {
           </Routes>
         </AuthProvider>
       </ThemeProvider>
+     </HMSProvider>
     </Router>
   );
 };

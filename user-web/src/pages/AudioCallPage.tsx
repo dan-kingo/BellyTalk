@@ -1,17 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useHMS } from '../contexts/HMSContext';
 import { useAuth } from '../contexts/AuthContext';
 import { audioService } from '../services/audio.service';
 import { chatService } from '../services/chat.service';
 import Layout from '../components/layout/Layout';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import Dialog from '../components/common/Dialog';
-import { Phone, PhoneOff, Mic, MicOff, Search } from 'lucide-react';
+import { Phone, PhoneOff, Mic, MicOff, Search, User } from 'lucide-react';
 import { Profile } from '../types';
+
+// Define HMS store types
+interface HMSState {
+  room: any;
+  peers: any[];
+}
 
 const AudioCallPage: React.FC = () => {
   const { user } = useAuth();
+  const { hmsActions, hmsStore } = useHMS();
+  
   const [loading, setLoading] = useState(false);
-  const [inCall, setInCall] = useState(false);
   const [muted, setMuted] = useState(false);
   const [showNewCallDialog, setShowNewCallDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,6 +29,19 @@ const AudioCallPage: React.FC = () => {
   const [callStatus, setCallStatus] = useState<string>('');
   const [endingCall, setEndingCall] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [remoteUser, setRemoteUser] = useState<Profile | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [peers, setPeers] = useState<any[]>([]);
+
+  // Subscribe to HMS store changes
+  useEffect(() => {
+    const unsubscribe = hmsStore.subscribe((state: HMSState) => {
+      setIsConnected(!!state.room);
+      setPeers(state.peers || []);
+    }, (select: any) => [select.room, select.peers]);
+
+    return unsubscribe;
+  }, [hmsStore]);
 
   const handleSearchUsers = async (query: string) => {
     setSearchQuery(query);
@@ -40,32 +61,52 @@ const AudioCallPage: React.FC = () => {
     }
   };
 
-  const handleStartCall = async (receiverId: string) => {
+  const handleStartCall = async (receiverId: string, userProfile: Profile) => {
     try {
       setLoading(true);
       setErrorMessage('');
-      setCallStatus('Initiating call...');
+      setCallStatus('Creating session...');
+      setRemoteUser(userProfile);
 
+      // 1. Create session with 100ms
       const session = await audioService.createSession(receiverId);
       setCurrentSession(session.session);
 
-      setCallStatus('Getting audio token...');
-      await audioService.getToken(session.session.id, undefined, 'host', user?.email);
+      setCallStatus('Getting auth token...');
+      
+      // 2. Get auth token from your backend
+      const authToken = await audioService.getToken(
+        session.session.id, 
+        undefined, 
+        'host', 
+        user?.email
+      );
 
-      setCallStatus('Connecting to audio room...');
+      setCallStatus('Joining audio room...');
 
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // 3. Join the 100ms room with the SDK
+      await hmsActions.join({
+        userName:  user?.email || 'User',
+        authToken: authToken.token,
+        settings: {
+          isAudioMuted: false,
+          isVideoMuted: true, // Audio only call
+        },
+        metaData: JSON.stringify({
+          email: user?.email,
+          sessionId: session.session.id
+        })
+      });
 
-      setInCall(true);
-      setShowNewCallDialog(false);
       setCallStatus('Connected');
+      setShowNewCallDialog(false);
+      
     } catch (error: any) {
       console.error('Failed to start call:', error);
       const errorMsg = error.response?.data?.error || error.message || 'Failed to start audio call. Please try again.';
       setErrorMessage(errorMsg);
       setCallStatus('');
-      setInCall(false);
-      setCurrentSession(null);
+      setRemoteUser(null);
     } finally {
       setLoading(false);
     }
@@ -74,13 +115,20 @@ const AudioCallPage: React.FC = () => {
   const handleEndCall = async () => {
     try {
       setEndingCall(true);
+      setCallStatus('Disconnecting...');
+      
+      // Leave the 100ms room
+      await hmsActions.leave();
+      
+      // End session in your backend
       if (currentSession) {
         await audioService.endSession(currentSession.id);
       }
-      setInCall(false);
+      
       setCurrentSession(null);
       setCallStatus('');
       setMuted(false);
+      setRemoteUser(null);
     } catch (error) {
       console.error('Failed to end call:', error);
     } finally {
@@ -88,9 +136,17 @@ const AudioCallPage: React.FC = () => {
     }
   };
 
-  const toggleMute = () => {
-    setMuted(!muted);
+  const toggleMute = async () => {
+    try {
+      await hmsActions.setLocalAudioEnabled(!muted);
+      setMuted(!muted);
+    } catch (error) {
+      console.error('Failed to toggle mute:', error);
+    }
   };
+
+  // Get remote peers (other participants)
+  const remotePeers = peers.filter(peer => !peer.isLocal);
 
   return (
     <Layout>
@@ -100,19 +156,37 @@ const AudioCallPage: React.FC = () => {
             <Phone className="w-8 h-8 text-primary-600 dark:text-primary-400" />
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Audio Call</h1>
           </div>
-         
         </div>
 
-        {inCall ? (
+        {isConnected ? (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-12 text-center">
             <div className="mb-8">
               <div className="w-32 h-32 mx-auto rounded-full bg-linear-to-br from-primary to-secondary flex items-center justify-center mb-6">
-                <Phone className="w-16 h-16 text-white" />
+                <User className="w-16 h-16 text-white" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                 Audio Call in Progress
               </h2>
-              <p className="text-gray-600 dark:text-gray-400">{callStatus}</p>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">{callStatus}</p>
+              
+              {remoteUser && (
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-full">
+                  <div className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white text-sm">
+                    {remoteUser.full_name.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-gray-700 dark:text-gray-300 font-medium">
+                    {remoteUser.full_name}
+                  </span>
+                </div>
+              )}
+              
+              <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                {remotePeers.length > 0 ? (
+                  `${remotePeers.length} participant${remotePeers.length > 1 ? 's' : ''} in call`
+                ) : (
+                  'Waiting for other participants...'
+                )}
+              </div>
             </div>
 
             <div className="flex justify-center gap-4 mb-8">
@@ -134,18 +208,14 @@ const AudioCallPage: React.FC = () => {
               className="bg-red-600 hover:bg-red-700 cursor-pointer text-white px-8 py-3 rounded-lg transition font-medium flex items-center gap-2 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {endingCall ? (
-                <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                <div className="w-5 h-5">
+                  <LoadingSpinner />
+                </div>
               ) : (
                 <PhoneOff className="w-5 h-5" />
               )}
               {endingCall ? 'Ending...' : 'End Call'}
             </button>
-
-            <div className="mt-8 p-4 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
-              <p className="text-sm text-primary-800 dark:text-primary-200">
-                Audio calling is integrated with 100ms. In production, this would connect to a real audio room.
-              </p>
-            </div>
           </div>
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-12 text-center">
@@ -209,7 +279,7 @@ const AudioCallPage: React.FC = () => {
                   {searchResults.map((userProfile) => (
                     <button
                       key={userProfile.id}
-                      onClick={() => handleStartCall(userProfile.id)}
+                      onClick={() => handleStartCall(userProfile.id, userProfile)}
                       disabled={loading}
                       className="w-full cursor-pointer p-4 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -225,7 +295,9 @@ const AudioCallPage: React.FC = () => {
                         </p>
                       </div>
                       {loading ? (
-                        <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600 dark:border-primary-400 shrink-0"></div>
+                        <div className="w-5 h-5">
+                          <LoadingSpinner />
+                        </div>
                       ) : (
                         <Phone className="w-5 h-5 text-primary-600 dark:text-primary-400 shrink-0" />
                       )}
