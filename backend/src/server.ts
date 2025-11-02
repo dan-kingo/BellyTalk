@@ -25,7 +25,16 @@ import { logActivity } from "./middlewares/logging.middleware.js";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: [
+    'https://bellytalk.vercel.app',
+    'http://localhost:3000', 
+    'https://bellytalk-admin.vercel.app', 
+    'http://localhost:5000',
+    'https://bellytalk.onrender.com',
+  ],
+  credentials: true,
+}));
 app.use(express.json());
 app.use(morgan("combined"));
 
