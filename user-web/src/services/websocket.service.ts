@@ -5,7 +5,9 @@ import { supabase } from "./supabase";
 class WebSocketService {
   private static instance: WebSocketService;
   private channel: any = null;
-  private subscriptions: Map<string, (payload: any) => void> = new Map();
+  private currentUserId: string | null = null;
+  private isInitialized = false;
+  private callbacks: ((payload: any) => void)[] = [];
 
   static getInstance(): WebSocketService {
     if (!WebSocketService.instance) {
@@ -18,8 +20,20 @@ class WebSocketService {
     try {
       console.log('🔔 Subscribing to incoming calls for user:', userId);
       
+      // Store callback
+      this.callbacks.push(callback);
+
+      // If already subscribed for this user, just add callback and check existing calls
+      if (this.channel && this.currentUserId === userId) {
+        console.log('✅ Already subscribed, checking for existing calls...');
+        await this.checkExistingCalls(userId, callback);
+        return this.channel;
+      }
+
       // Unsubscribe from existing channel if any
       this.unsubscribe();
+
+      this.currentUserId = userId;
 
       this.channel = supabase
         .channel(`incoming-calls-${userId}`)
@@ -32,8 +46,8 @@ class WebSocketService {
             filter: `receiver_id=eq.${userId}`,
           },
           (payload) => {
-            console.log('📞 Incoming call notification:', payload);
-            callback(payload);
+            console.log('📞 NEW incoming call notification:', payload);
+            this.callbacks.forEach(cb => cb(payload));
           }
         )
         .on(
@@ -46,15 +60,17 @@ class WebSocketService {
           },
           (payload) => {
             console.log('📞 Call status update:', payload);
-            callback(payload);
+            this.callbacks.forEach(cb => cb(payload));
           }
         )
         .subscribe((status: string) => {
           console.log('📡 WebSocket subscription status:', status);
+          if (status === 'SUBSCRIBED') {
+            this.isInitialized = true;
+            // Check for existing pending calls once subscribed
+            this.checkExistingCalls(userId, callback);
+          }
         });
-
-      // Store the subscription
-      this.subscriptions.set(userId, callback);
 
       return this.channel;
     } catch (error) {
@@ -63,17 +79,61 @@ class WebSocketService {
     }
   }
 
+  private async checkExistingCalls(userId: string, callback: (payload: any) => void) {
+    try {
+      console.log('🔍 Checking for existing pending calls...');
+      
+      // Query for any pending calls for this user
+      const { data: pendingCalls, error } = await supabase
+        .from('audio_sessions')
+        .select('*')
+        .eq('receiver_id', userId)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (error) {
+        console.error('❌ Error checking pending calls:', error);
+        return;
+      }
+
+      if (pendingCalls && pendingCalls.length > 0) {
+        console.log(`📞 Found ${pendingCalls.length} pending call(s):`, pendingCalls);
+        
+        // Trigger callbacks for each pending call
+        pendingCalls.forEach(session => {
+          const payload = {
+            eventType: 'INSERT',
+            new: session,
+            old: null
+          };
+          callback(payload);
+        });
+      } else {
+        console.log('✅ No pending calls found');
+      }
+    } catch (error) {
+      console.error('❌ Error in checkExistingCalls:', error);
+    }
+  }
+
   unsubscribe() {
     if (this.channel) {
       supabase.removeChannel(this.channel);
       this.channel = null;
-      this.subscriptions.clear();
+      this.currentUserId = null;
+      this.isInitialized = false;
+      this.callbacks = [];
       console.log('🔕 Unsubscribed from WebSocket');
     }
   }
 
+  removeCallback(callback: (payload: any) => void) {
+    this.callbacks = this.callbacks.filter(cb => cb !== callback);
+  }
+
   isSubscribed(): boolean {
-    return this.channel !== null;
+    return this.channel !== null && this.isInitialized;
   }
 }
 
