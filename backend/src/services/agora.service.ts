@@ -169,38 +169,33 @@ class AgoraService {
   /**
    * Create channel tokens for audio call
    */
-  async createChannelTokens(userId: string, channelName?: string): Promise<any> {
-    console.log('🚀 Creating Agora channel tokens...');
-    
-    const generatedChannelName = channelName || `audio_${userId}_${Date.now()}`;
-    const uid = this.generateUid();
+ // In your agora.service.ts - Update createChannelTokens method
+async createChannelTokens(userId: string, channelName?: string): Promise<any> {
+  console.log('🚀 Creating Agora channel tokens...');
+  
+  const generatedChannelName = channelName || `audio_${userId}_${Date.now()}`;
+  
+  // ✅ CRITICAL: Generate DIFFERENT UIDs for initiator and receiver
+  // For now, we'll create the session with initiator's UID
+  // The receiver will get their own UID when they join
+  const initiatorUid = this.generateUid();
 
-    const rtcToken = await this.generateRtcToken(generatedChannelName, uid);
-    const rtmToken = await this.generateRtmToken(userId.toString());
+  const rtcToken = await this.generateRtcToken(generatedChannelName, initiatorUid);
+  const rtmToken = await this.generateRtmToken(userId.toString());
 
-    // Check token type
-    const isRealToken = !rtcToken.startsWith('mock_');
-    
-    console.log('✅ Token Generation Result:', {
-      channelName: generatedChannelName,
-      uid: uid,
-      tokenType: isRealToken ? 'REAL' : 'MOCK',
-      rtcTokenStartsWith: rtcToken.substring(0, 20)
-    });
+  console.log('✅ Token Generation Result:', {
+    channelName: generatedChannelName,
+    initiatorUid: initiatorUid,
+    tokenType: !rtcToken.startsWith('mock_') ? 'REAL' : 'MOCK'
+  });
 
-    if (!isRealToken) {
-      console.error('🚨 CRITICAL: Using MOCK tokens - audio calls will NOT work!');
-      console.log('💡 SOLUTION: Add AGORA_APP_ID and AGORA_APP_CERTIFICATE to Render environment variables');
-    }
-
-    return {
-      channelName: generatedChannelName,
-      uid,
-      token: rtcToken,
-      rtmToken
-    };
-  }
-
+  return {
+    channelName: generatedChannelName,
+    uid: initiatorUid, // This is just for the initiator
+    token: rtcToken,
+    rtmToken
+  };
+}
   /**
    * Validate if channel exists
    */

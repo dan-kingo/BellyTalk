@@ -1,7 +1,6 @@
 // Update your existing AudioCallPage component
 import React, { useState, useEffect } from 'react';
 import { useAgora } from '../contexts/AgoraContext';
-import { useAuth } from '../contexts/AuthContext';
 import { audioService } from '../services/audio.service';
 import { chatService } from '../services/chat.service';
 import { IncomingCallDialog } from '../components/audio/IncomingCallDialog';
@@ -12,7 +11,6 @@ import { Phone, PhoneOff, Mic, MicOff, Search, User, Users } from 'lucide-react'
 import { Profile } from '../types';
 
 const AudioCallPage: React.FC = () => {
-  const { user } = useAuth();
   const { 
     join, 
     leave, 
@@ -49,7 +47,7 @@ const AudioCallPage: React.FC = () => {
     });
   }, [connectionState, joinState, remoteUsers, isMuted, currentSession]);
 
-  // Add this useEffect to debug UID issues
+// Add this useEffect to debug UID issues
 useEffect(() => {
   if (currentSession) {
     console.log('🔍 CURRENT SESSION DEBUG:', {
@@ -59,48 +57,8 @@ useEffect(() => {
     });
   }
 }, [currentSession]);
- // In your AudioCallPage - update the handleIncomingCallAccepted function
-const handleIncomingCallAccepted = async (session: any) => {
-  try {
-    setLoading(true);
-    setCurrentSession(session);
-    setCallStatus('Joining call...');
 
-    console.log('🎯 Joining incoming call:', session.id);
-
-    // Get tokens for the session - this should return the SAME UID as caller
-    const authResponse = await audioService.getTokens(session.id);
-
-    console.log('✅ Auth tokens received for incoming call:', {
-      channelName: authResponse.channelName,
-      uid: authResponse.uid,
-      sessionUid: session.uid // Compare with session UID
-    });
-
-    // Join the Agora channel with the SAME UID
-    const joinConfig = {
-      appId: APP_ID || 'c9b0a43d50a947a38c8ba06c6ffec555',
-      channel: authResponse.channelName,
-      token: authResponse.rtcToken,
-      uid: authResponse.uid // ✅ Use the UID from backend (same as caller)
-    };
-
-    console.log('🔗 Joining Agora channel with config:', joinConfig);
-    await join(joinConfig);
-
-    setCallStatus('Connected to call');
-    console.log('✅ Successfully joined call with same UID');
-
-  } catch (error: any) {
-    console.error('❌ Failed to join incoming call:', error);
-    setErrorMessage(error.response?.data?.error || error.message || 'Failed to join call');
-    setCallStatus('');
-    setCurrentSession(null);
-    setRemoteUser(null);
-  } finally {
-    setLoading(false);
-  }
-};
+// Incoming call handler: consolidated implementation appears later in this file as `handleIncomingCallAccepted`.
   const handleIncomingCallRejected = (sessionId: string) => {
     console.log('📞 Call rejected:', sessionId);
     setCurrentSession(null);
@@ -125,83 +83,113 @@ const handleIncomingCallAccepted = async (session: any) => {
       setSearching(false);
     }
   };
+// In your AudioCallPage - add UID debugging
+const handleStartCall = async (receiverId: string, userProfile: Profile) => {
+  try {
+    setLoading(true);
+    setErrorMessage('');
+    setCallStatus('Creating session...');
+    setRemoteUser(userProfile);
 
-  const handleStartCall = async (receiverId: string, userProfile: Profile) => {
-    try {
-      setLoading(true);
-      setErrorMessage('');
-      setCallStatus('Creating session...');
-      setRemoteUser(userProfile);
+    console.log('🚀 Starting audio call process...');
 
-      console.log('🚀 Starting audio call process...');
+    // 1. Create session with Agora
+    setCallStatus('Creating audio session...');
+    const sessionResponse = await audioService.createSession(receiverId);
+    setCurrentSession(sessionResponse.session);
+    
+    console.log('✅ Session created:', {
+      sessionId: sessionResponse.session.id,
+      initiatorUid: sessionResponse.session.uid,
+      channel: sessionResponse.session.channel_name
+    });
 
-      // 1. Create session with Agora
-      setCallStatus('Creating audio session...');
-      const sessionResponse = await audioService.createSession(receiverId);
-      setCurrentSession(sessionResponse.session);
-      
-      console.log('✅ Session created:', sessionResponse.session.id);
+    setCallStatus('Getting auth tokens...');
+    
+    // 2. Get auth tokens from backend
+    const authResponse = await audioService.getTokens(
+      sessionResponse.session.id, 
+      undefined, 
+      'publisher'
+    );
 
-      setCallStatus('Getting auth tokens...');
-      
-      // 2. Get auth tokens from backend
-      const authResponse = await audioService.getTokens(
-        sessionResponse.session.id, 
-        undefined, 
-        'publisher', 
-        user?.email
-      );
+    console.log('✅ Auth tokens received for CALLER:', {
+      channelName: authResponse.channelName,
+      uid: authResponse.uid,
+      shouldMatchSession: authResponse.uid === sessionResponse.session.uid
+    });
 
-      console.log('✅ Auth tokens received:', {
-        channelName: authResponse.channelName,
-        uid: authResponse.uid,
-        hasRtcToken: !!authResponse.rtcToken,
-        hasRtmToken: !!authResponse.rtmToken
-      });
+    setCallStatus('Joining audio channel...');
 
-      // Check if tokens are valid
-      if (!authResponse.rtcToken || authResponse.rtcToken.startsWith('mock_')) {
-        throw new Error('Invalid or mock token received');
-      }
+    // 3. Join the Agora channel
+    const joinConfig = {
+      appId: APP_ID || 'c9b0a43d50a947a38c8ba06c6ffec555',
+      channel: authResponse.channelName,
+      token: authResponse.rtcToken,
+      uid: authResponse.uid
+    };
 
-      setCallStatus('Joining audio channel...');
+    console.log('🔗 CALLER joining Agora channel:', joinConfig);
+    await join(joinConfig);
 
-      // 3. Join the Agora channel with the SDK
-      const joinConfig = {
-        appId: APP_ID || 'c9b0a43d50a947a38c8ba06c6ffec555',
-        channel: authResponse.channelName,
-        token: authResponse.rtcToken,
-        uid: authResponse.uid
-      };
+    console.log('✅ Caller joined successfully with UID:', authResponse.uid);
+    setCallStatus('Connected - Waiting for recipient...');
+    setShowNewCallDialog(false);
+    
+  } catch (error: any) {
+    console.error('❌ Failed to start call:', error);
+    const errorMsg = error.response?.data?.error || error.message || 'Failed to start audio call. Please try again.';
+    setErrorMessage(errorMsg);
+    setCallStatus('');
+    setRemoteUser(null);
+  } finally {
+    setLoading(false);
+  }
+};
 
-      console.log('🔗 Joining Agora channel with config:', joinConfig);
-      
-      await join(joinConfig);
+const handleIncomingCallAccepted = async (session: any) => {
+  try {
+    setLoading(true);
+    setCurrentSession(session);
+    setCallStatus('Joining call...');
 
-      console.log('✅ Join successful!');
-      setCallStatus('Connected - Waiting for recipient...');
-      setShowNewCallDialog(false);
-      
-    } catch (error: any) {
-      console.error('❌ Failed to start call:', error);
-      const errorMsg = error.response?.data?.error || error.message || 'Failed to start audio call. Please try again.';
-      setErrorMessage(errorMsg);
-      setCallStatus('');
-      setRemoteUser(null);
-      
-      // Clean up on error
-      if (currentSession) {
-        try {
-          await audioService.endSession(currentSession.id);
-        } catch (cleanupError) {
-          console.error('Cleanup error:', cleanupError);
-        }
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+    console.log('🎯 RECEIVER accepting call:', {
+      sessionId: session.id,
+      sessionUid: session.uid, // This is the INITIATOR's UID
+      channel: session.channel_name
+    });
 
+    // Get tokens for the session - receiver should get a DIFFERENT UID
+    const authResponse = await audioService.getTokens(session.id);
+
+    console.log('✅ Auth tokens received for RECEIVER:', {
+      channelName: authResponse.channelName,
+      receiverUid: authResponse.uid,
+      initiatorUid: session.uid,
+      differentUIDs: authResponse.uid !== session.uid
+    });
+
+    // Join the Agora channel with RECEIVER's UID
+    const joinConfig = {
+      appId: APP_ID || 'c9b0a43d50a947a38c8ba06c6ffec555',
+      channel: authResponse.channelName,
+      token: authResponse.rtcToken,
+      uid: authResponse.uid // ✅ This should be DIFFERENT from initiator's UID
+    };
+
+    console.log('🔗 RECEIVER joining Agora channel:', joinConfig);
+    await join(joinConfig);
+
+    setCallStatus('Connected to call');
+    console.log('✅ Receiver joined successfully with UID:', authResponse.uid);
+
+  } catch (error: any) {
+    console.error('❌ Failed to join incoming call:', error);
+    setErrorMessage(error.response?.data?.error || error.message || 'Failed to join call');
+  } finally {
+    setLoading(false);
+  }
+};
   const handleEndCall = async () => {
     try {
       setEndingCall(true);

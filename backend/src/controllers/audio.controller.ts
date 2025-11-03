@@ -144,10 +144,16 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
       session = sessionData;
       channelName = sessionData.channel_name;
       
-      // ✅ CRITICAL FIX: Use the SAME UID from session for both users
-      uid = sessionData.uid;
-      
-      console.log('✅ Session validated:', { channelName, uid: sessionData.uid });
+      // ✅ CRITICAL FIX: Generate DIFFERENT UID for receiver
+      if (sessionData.initiator_id === user_id) {
+        // Initiator uses the session UID
+        uid = sessionData.uid;
+        console.log('🎯 Initiator using session UID:', uid);
+      } else {
+        // Receiver gets a NEW UID
+        uid = Math.floor(Math.random() * 100000);
+        console.log('🎯 Receiver generated new UID:', uid);
+      }
 
       // Check if user is authorized for this session
       if (sessionData.initiator_id !== user_id && sessionData.receiver_id !== user_id) {
@@ -162,7 +168,7 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
       }
 
     } else {
-      // Only generate new UID if no session (shouldn't happen in our flow)
+      // Generate new UID if no session (shouldn't happen in our flow)
       uid = Math.floor(Math.random() * 100000);
       console.log('📋 Generated new UID (no session):', uid);
     }
@@ -172,7 +178,7 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: "channel_name or valid session_id required" });
     }
 
-    // Generate tokens - NOW ASYNC
+    // Generate tokens
     console.log('🔧 Generating tokens...', { channelName, uid, role });
     const rtcToken = await agoraService.generateRtcToken(channelName, uid, role as any);
     const rtmToken = await agoraService.generateRtmToken(user_id.toString());
@@ -180,12 +186,12 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
     console.log('✅ Tokens generated:', {
       uid: uid,
       channelName: channelName,
-      tokenType: rtcToken.startsWith('mock_') ? 'MOCK' : 'REAL'
+      userRole: session?.initiator_id === user_id ? 'initiator' : 'receiver'
     });
 
-    // Update session status if this is the first token generation (receiver joining)
-    if (session_id && session && session.status === 'pending') {
-      console.log('🔄 Updating session status to active (receiver joined):', { session_id });
+    // Update session status if receiver is joining
+    if (session_id && session && session.status === 'pending' && session.initiator_id !== user_id) {
+      console.log('🔄 Receiver joined - updating session status to active');
       await supabaseAdmin
         .from("audio_sessions")
         .update({ 
@@ -200,7 +206,7 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
       rtcToken,
       rtmToken,
       channelName,
-      uid, // ✅ This will now be the SAME for both users
+      uid,
       session_id: session_id || null
     });
   } catch (err: any) {
