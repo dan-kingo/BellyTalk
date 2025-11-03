@@ -33,6 +33,7 @@ const AudioCallPage: React.FC = () => {
   const [remoteUser, setRemoteUser] = useState<Profile | null>(null);
   const [debugInfo, setDebugInfo] = useState<any>({});
 
+  const APP_ID = import.meta.env.NEXT_PUBLIC_AGORA_APP_ID!
   // Update debug info
   useEffect(() => {
     setDebugInfo({
@@ -105,7 +106,7 @@ const AudioCallPage: React.FC = () => {
 
       // 3. Join the Agora channel with the SDK
       const joinConfig = {
-        appId: import.meta.env.NEXT_PUBLIC_AGORA_APP_ID!,
+        appId: APP_ID,
         channel: authResponse.channelName,
         token: authResponse.rtcToken,
         uid: authResponse.uid
