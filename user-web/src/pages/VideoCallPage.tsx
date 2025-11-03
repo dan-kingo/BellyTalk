@@ -8,6 +8,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import Dialog from '../components/common/Dialog';
 import { Video, Mic, MicOff, PhoneOff, Search, Camera, CameraOff, User, Users } from 'lucide-react';
 import { Profile } from '../types';
+import { videoService } from '../services/video.service';
 
 const VideoCallPage: React.FC = () => {
   const { 
@@ -71,74 +72,74 @@ const VideoCallPage: React.FC = () => {
     }
   };
 
-  const handleStartCall = async (receiverId: string, userProfile: Profile) => {
-    try {
-      setLoading(true);
-      setErrorMessage('');
-      setCallStatus('Creating session...');
-      setRemoteUser(userProfile);
+  // In your VideoCallPage - update handleStartCall
+const handleStartCall = async (receiverId: string, userProfile: Profile) => {
+  try {
+    setLoading(true);
+    setErrorMessage('');
+    setCallStatus('Creating session...');
+    setRemoteUser(userProfile);
 
-      console.log('🚀 Starting video call process...');
+    console.log('🚀 Starting video call process...');
 
-      // 1. Create session with Agora (reuse audio service)
-      setCallStatus('Creating video session...');
-      const sessionResponse = await audioService.createSession(receiverId);
-      setCurrentSession(sessionResponse.session);
-      
-      console.log('✅ Video session created:', sessionResponse.session.id);
+    // 1. Create session with Agora using VIDEO service
+    setCallStatus('Creating video session...');
+    const sessionResponse = await videoService.createSession(receiverId);
+    setCurrentSession(sessionResponse.session);
+    
+    console.log('✅ Video session created:', sessionResponse.session.id);
 
-      setCallStatus('Getting auth tokens...');
-      
-      // 2. Get auth tokens from backend
-      const authResponse = await audioService.getTokens(
-        sessionResponse.session.id, 
-        undefined, 
-        'publisher'
-      );
+    setCallStatus('Getting auth tokens...');
+    
+    // 2. Get auth tokens from backend
+    const authResponse = await videoService.getTokens(
+      sessionResponse.session.id, 
+      undefined, 
+      'publisher'
+    );
 
-      console.log('✅ Auth tokens received for video call:', {
-        channelName: authResponse.channelName,
-        uid: authResponse.uid
-      });
+    console.log('✅ Auth tokens received for video call:', {
+      channelName: authResponse.channelName,
+      uid: authResponse.uid
+    });
 
-      setCallStatus('Joining video channel...');
+    setCallStatus('Joining video channel...');
 
-      // 3. Join the Agora channel with video enabled
-      const joinConfig = {
-        appId: APP_ID || 'c9b0a43d50a947a38c8ba06c6ffec555',
-        channel: authResponse.channelName,
-        token: authResponse.rtcToken,
-        uid: authResponse.uid,
-        enableVideo: true // Enable video for this call
-      };
+    // 3. Join the Agora channel with video enabled
+    const joinConfig = {
+      appId: APP_ID || 'c9b0a43d50a947a38c8ba06c6ffec555',
+      channel: authResponse.channelName,
+      token: authResponse.rtcToken,
+      uid: authResponse.uid,
+      enableVideo: true // This enables video
+    };
 
-      console.log('🔗 Joining Agora video channel with config:', joinConfig);
-      await join(joinConfig);
+    console.log('🔗 Joining Agora video channel with config:', joinConfig);
+    await join(joinConfig);
 
-      console.log('✅ Video join successful!');
-      setCallStatus('Connected - Waiting for recipient...');
-      setShowNewCallDialog(false);
-      
-    } catch (error: any) {
-      console.error('❌ Failed to start video call:', error);
-      const errorMsg = error.response?.data?.error || error.message || 'Failed to start video call. Please try again.';
-      setErrorMessage(errorMsg);
-      setCallStatus('');
-      setRemoteUser(null);
-      
-      // Clean up on error
-      if (currentSession) {
-        try {
-          await audioService.endSession(currentSession.id);
-        } catch (cleanupError) {
-          console.error('Cleanup error:', cleanupError);
-        }
+    console.log('✅ Video join successful!');
+    setCallStatus('Connected - Waiting for recipient...');
+    setShowNewCallDialog(false);
+    
+  } catch (error: any) {
+    console.error('❌ Failed to start video call:', error);
+    const errorMsg = error.response?.data?.error || error.message || 'Failed to start video call. Please try again.';
+    setErrorMessage(errorMsg);
+    setCallStatus('');
+    setRemoteUser(null);
+    
+    // Clean up on error
+    if (currentSession) {
+      try {
+        await videoService.endSession(currentSession.id);
+      } catch (cleanupError) {
+        console.error('Cleanup error:', cleanupError);
       }
-    } finally {
-      setLoading(false);
     }
-  };
-
+  } finally {
+    setLoading(false);
+  }
+};
   const handleEndCall = async () => {
     try {
       setEndingCall(true);

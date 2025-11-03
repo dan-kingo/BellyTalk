@@ -6,7 +6,7 @@ import { AuthRequest } from "../middlewares/auth.middleware.js";
 /**
  * POST /api/audio/create
  * Body: { receiver_id: string, channel_name?: string }
- */
+ */// In your audio.controller.ts - update createSession function
 export const createSession = async (req: AuthRequest, res: Response) => {
   console.log('🎯 CREATE SESSION REQUEST:', {
     user: req.user?.id,
@@ -15,7 +15,7 @@ export const createSession = async (req: AuthRequest, res: Response) => {
 
   try {
     const initiatorId = req.user!.id;
-    const { receiver_id, channel_name } = req.body;
+    const { receiver_id, channel_name, call_type = 'audio' } = req.body; // Add call_type
     
     if (!receiver_id) {
       console.warn('❌ Missing receiver_id');
@@ -37,7 +37,7 @@ export const createSession = async (req: AuthRequest, res: Response) => {
 
     console.log('✅ Receiver validated:', receiver);
 
-    // Create Agora channel tokens - NOW ASYNC
+    // Create Agora channel tokens
     console.log('🚀 Creating Agora channel...');
     const channelInfo = await agoraService.createChannelTokens(initiatorId, channel_name);
     
@@ -46,22 +46,23 @@ export const createSession = async (req: AuthRequest, res: Response) => {
       uid: channelInfo.uid
     });
 
-    // Create session record - NO JOINS
+    // Create session record
     console.log('💾 Creating session record...');
     const sessionData = {
       initiator_id: initiatorId,
       receiver_id,
       channel_name: channelInfo.channelName,
       uid: channelInfo.uid,
+      call_type, // Add call_type: 'audio' or 'video'
       status: "pending",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
     const { data: session, error } = await supabaseAdmin
-      .from("audio_sessions")
+      .from("audio_sessions") // Keep same table for now
       .insert([sessionData])
-      .select()  // Simple select without joins
+      .select()
       .single();
 
     if (error) {
