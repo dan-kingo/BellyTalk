@@ -157,31 +157,37 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
         clearTimeout(callTimeout);
       }
       
-      // Use appropriate service based on call type
+      // CRITICAL FIX: For video calls, navigate directly to video page
       if (incomingCall.isVideoCall) {
-        console.log('🎥 Accepting video call');
+        console.log('🎥 Accepting VIDEO call - navigating to video page');
+        
+        // Get tokens first
         await videoService.getTokens(incomingCall.session.id);
         
-        // FIX: Navigate directly to video call page for video calls
+        // Navigate directly to video call page with session data
         setIsVisible(false);
         navigate('/video-call', { 
           state: { 
             session: incomingCall.session,
             isIncomingCall: true,
-            caller: incomingCall.caller
+            caller: incomingCall.caller,
+            autoJoin: true // Add this flag to auto-join
           }
         });
-        return; // Return early to avoid the audio call flow
+        
+        // Don't call onCallAccepted for video calls - video page will handle it
+        return;
       } else {
+        // For audio calls, use the existing flow
         console.log('🎵 Accepting audio call');
         await audioService.getTokens(incomingCall.session.id);
+        
+        setIsVisible(false);
+        onCallAccepted({
+          ...incomingCall.session,
+          isVideoCall: incomingCall.isVideoCall
+        });
       }
-      
-      setIsVisible(false);
-      onCallAccepted({
-        ...incomingCall.session,
-        isVideoCall: incomingCall.isVideoCall
-      });
     } catch (error: any) {
       console.error('❌ Failed to accept call:', error);
       alert('Failed to accept call: ' + (error.message || 'Please try again.'));

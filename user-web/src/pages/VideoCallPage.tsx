@@ -8,7 +8,7 @@ import Dialog from '../components/common/Dialog';
 import { Video, Mic, MicOff, PhoneOff, Search, Camera, CameraOff, User, Users } from 'lucide-react';
 import { Profile } from '../types';
 import { videoService } from '../services/video.service';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const VideoCallPage: React.FC = () => {
   const { 
@@ -25,6 +25,7 @@ const VideoCallPage: React.FC = () => {
   } = useAgora();
   
   const location = useLocation();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [showNewCallDialog, setShowNewCallDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,11 +41,11 @@ const VideoCallPage: React.FC = () => {
 
   const APP_ID = import.meta.env.VITE_AGORA_APP_ID!;
 
-  // Handle incoming video calls
+  // CRITICAL FIX: Handle incoming video calls with auto-join
   useEffect(() => {
-    if (location.state?.isIncomingCall) {
+    if (location.state?.isIncomingCall && location.state?.autoJoin && !currentSession) {
       const { session, caller } = location.state;
-      console.log('🎥 Handling incoming video call:', { session, caller });
+      console.log('🎥 AUTO-JOINING incoming video call:', { session, caller });
       
       // Set the session and remote user
       setCurrentSession(session);
@@ -52,8 +53,17 @@ const VideoCallPage: React.FC = () => {
       
       // Automatically join the video call
       handleJoinIncomingCall(session);
+      
+      // Clear the autoJoin flag to prevent re-joining
+      navigate('/video-call', { 
+        state: { 
+          ...location.state,
+          autoJoin: false 
+        },
+        replace: true 
+      });
     }
-  }, [location.state]);
+  }, [location.state, currentSession, navigate]);
 
   // Handle joining an incoming video call
   const handleJoinIncomingCall = async (session: any) => {
@@ -61,7 +71,7 @@ const VideoCallPage: React.FC = () => {
       setLoading(true);
       setCallStatus('Joining video call...');
       
-      console.log('🎥 Joining incoming video call:', session.id);
+      console.log('🎥 Joining incoming video call as RECEIVER:', session.id);
       
       // Get auth tokens for the session
       const authResponse = await videoService.getTokens(
@@ -70,30 +80,30 @@ const VideoCallPage: React.FC = () => {
         'publisher'
       );
 
-      console.log('✅ Incoming call auth tokens received:', authResponse);
+      console.log('✅ Receiver auth tokens received:', authResponse);
 
-      setCallStatus('Connecting video...');
+      setCallStatus('Enabling video and audio...');
 
-      // Join the Agora channel with video enabled
+      // CRITICAL: Join the Agora channel with video enabled for receiver too
       const joinConfig = {
         appId: APP_ID || 'c9b0a43d50a947a38c8ba06c6ffec555',
         channel: authResponse.channelName,
         token: authResponse.rtcToken,
         uid: authResponse.uid,
-        enableVideo: true // CRITICAL: This ensures video is enabled for receiver too
+        enableVideo: true // THIS ENSURES RECEIVER HAS VIDEO ENABLED
       };
 
-      console.log('🔗 Joining Agora video channel as receiver:', joinConfig);
+      console.log('🔗 Receiver joining Agora video channel:', joinConfig);
       await join(joinConfig);
 
-      console.log('✅ Receiver video join successful!');
-      setCallStatus('Connected');
+      console.log('✅ Receiver video join successful! Video should be enabled.');
+      setCallStatus('Connected - Video call active');
       
     } catch (error: any) {
       console.error('❌ Failed to join incoming video call:', error);
       const errorMsg = error.response?.data?.error || error.message || 'Failed to join video call.';
       setErrorMessage(errorMsg);
-      setCallStatus('');
+      setCallStatus('Failed to connect');
     } finally {
       setLoading(false);
     }
@@ -106,7 +116,7 @@ const VideoCallPage: React.FC = () => {
       setCallStatus('Creating session...');
       setRemoteUser(userProfile);
 
-      console.log('🚀 Starting video call process...');
+      console.log('🚀 Starting video call process as CALLER...');
 
       // 1. Create session with Agora using VIDEO service
       setCallStatus('Creating video session...');
@@ -124,9 +134,9 @@ const VideoCallPage: React.FC = () => {
         'publisher'
       );
 
-      console.log('✅ Auth tokens received for video call:', authResponse);
+      console.log('✅ Caller auth tokens received:', authResponse);
 
-      setCallStatus('Joining video channel...');
+      setCallStatus('Enabling video and joining...');
 
       // 3. Join the Agora channel with video enabled
       const joinConfig = {
@@ -134,13 +144,13 @@ const VideoCallPage: React.FC = () => {
         channel: authResponse.channelName,
         token: authResponse.rtcToken,
         uid: authResponse.uid,
-        enableVideo: true // Ensure video is enabled
+        enableVideo: true // CALLER VIDEO ENABLED
       };
 
-      console.log('🔗 Joining Agora video channel with config:', joinConfig);
+      console.log('🔗 Caller joining Agora video channel:', joinConfig);
       await join(joinConfig);
 
-      console.log('✅ Video join successful!');
+      console.log('✅ Caller video join successful!');
       setCallStatus('Connected - Waiting for recipient...');
       setShowNewCallDialog(false);
       
@@ -209,7 +219,6 @@ const VideoCallPage: React.FC = () => {
     } catch (error) {
       console.error('❌ Failed to toggle video:', error);
       // If toggleVideo fails, we'll still update the UI state
-      // The next render will show the correct state
       setIsVideoEnabled(!isVideoEnabled);
     }
   };
@@ -255,7 +264,8 @@ const VideoCallPage: React.FC = () => {
       localVideoTrack: !!localVideoTrack,
       remoteVideoTracks: Object.keys(remoteVideoTracks).length,
       isIncomingCall: location.state?.isIncomingCall || false,
-      remoteUser: remoteUser?.full_name || 'None'
+      remoteUser: remoteUser?.full_name || 'None',
+      userRole: location.state?.isIncomingCall ? 'RECEIVER' : 'CALLER'
     });
   }, [connectionState, joinState, remoteUsers, isMuted, isVideoEnabled, currentSession, localVideoTrack, remoteVideoTracks, location.state, remoteUser]);
 
@@ -267,11 +277,16 @@ const VideoCallPage: React.FC = () => {
             <Video className="w-8 h-8 text-primary-600 dark:text-primary-400" />
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Video Call</h1>
           </div>
-          {location.state?.isIncomingCall && (
-            <div className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-3 py-1 rounded-full text-sm">
-              Incoming Call
+          <div className="flex gap-2">
+            {location.state?.isIncomingCall && (
+              <div className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-3 py-1 rounded-full text-sm">
+                Incoming Call
+              </div>
+            )}
+            <div className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm">
+              {location.state?.isIncomingCall ? 'Receiver' : 'Caller'}
             </div>
-          )}
+          </div>
         </div>
 
         {joinState ? (
@@ -300,7 +315,7 @@ const VideoCallPage: React.FC = () => {
                     <p className="text-gray-400 text-lg">Waiting for other participants...</p>
                     {remoteUser && (
                       <p className="text-gray-500 text-sm mt-2">
-                        Calling {remoteUser.full_name}
+                        {location.state?.isIncomingCall ? 'In call with' : 'Calling'} {remoteUser.full_name}
                       </p>
                     )}
                   </div>
@@ -312,7 +327,7 @@ const VideoCallPage: React.FC = () => {
                 <div className="absolute bottom-4 right-4 w-48 h-36 bg-gray-800 rounded-lg overflow-hidden shadow-lg">
                   <div id="local-video" className="w-full h-full" />
                   <div className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
-                    You
+                    You {!isVideoEnabled && '(Video Off)'}
                   </div>
                 </div>
               )}
@@ -399,6 +414,9 @@ const VideoCallPage: React.FC = () => {
                 </div>
                 <div>
                   <strong>Remote Videos:</strong> <span className="font-mono">{debugInfo.remoteVideoTracks}</span>
+                </div>
+                <div>
+                  <strong>User Role:</strong> <span className="font-mono">{debugInfo.userRole}</span>
                 </div>
                 <div>
                   <strong>Call Type:</strong> <span className="font-mono">{debugInfo.isIncomingCall ? 'INCOMING' : 'OUTGOING'}</span>
