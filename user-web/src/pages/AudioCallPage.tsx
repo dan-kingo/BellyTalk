@@ -34,6 +34,7 @@ const AudioCallPage: React.FC = () => {
   const [debugInfo, setDebugInfo] = useState<any>({});
 
   const APP_ID = import.meta.env.VITE_AGORA_APP_ID!
+  
   // Update debug info
   useEffect(() => {
     setDebugInfo({
@@ -65,81 +66,81 @@ const AudioCallPage: React.FC = () => {
   };
 
   const handleStartCall = async (receiverId: string, userProfile: Profile) => {
-    try {
-      setLoading(true);
-      setErrorMessage('');
-      setCallStatus('Creating session...');
-      setRemoteUser(userProfile);
+  try {
+    setLoading(true);
+    setErrorMessage('');
+    setCallStatus('Creating session...');
+    setRemoteUser(userProfile);
 
-      console.log('🚀 Starting audio call process...');
+    console.log('🚀 Starting audio call process...');
+    console.log('🔧 App ID being used:', APP_ID || 'c9b0a43d50a947a38c8ba06c6ffec555');
 
-      // 1. Create session with Agora
-      setCallStatus('Creating audio session...');
-      const sessionResponse = await audioService.createSession(receiverId);
-      setCurrentSession(sessionResponse.session);
-      
-      console.log('✅ Session created:', sessionResponse.session.id);
+    // 1. Create session with Agora
+    setCallStatus('Creating audio session...');
+    const sessionResponse = await audioService.createSession(receiverId);
+    setCurrentSession(sessionResponse.session);
+    
+    console.log('✅ Session created:', sessionResponse.session.id);
 
-      setCallStatus('Getting auth tokens...');
-      
-      // 2. Get auth tokens from backend
-      const authResponse = await audioService.getTokens(
-        sessionResponse.session.id, 
-        undefined, 
-        'publisher', 
-        user?.email
-      );
+    setCallStatus('Getting auth tokens...');
+    
+    // 2. Get auth tokens from backend
+    const authResponse = await audioService.getTokens(
+      sessionResponse.session.id, 
+      undefined, 
+      'publisher', 
+      user?.email
+    );
 
-      console.log('✅ Auth tokens received:', {
-        channelName: authResponse.channelName,
-        uid: authResponse.uid,
-        hasRtcToken: !!authResponse.rtcToken,
-        hasRtmToken: !!authResponse.rtmToken
-      });
+    console.log('✅ Auth tokens received:', {
+      channelName: authResponse.channelName,
+      uid: authResponse.uid,
+      hasRtcToken: !!authResponse.rtcToken,
+      hasRtmToken: !!authResponse.rtmToken
+    });
 
-      // Check if tokens are valid
-      if (!authResponse.rtcToken || authResponse.rtcToken.startsWith('mock_')) {
-        throw new Error('Invalid or mock token received');
-      }
-
-      setCallStatus('Joining audio channel...');
-
-      // 3. Join the Agora channel with the SDK
-      const joinConfig = {
-        appId: APP_ID,
-        channel: authResponse.channelName,
-        token: authResponse.rtcToken,
-        uid: authResponse.uid
-      };
-
-      console.log('🔗 Joining Agora channel with config:', joinConfig);
-      
-      await join(joinConfig);
-
-      console.log('✅ Join successful!');
-      setCallStatus('Connected');
-      setShowNewCallDialog(false);
-      
-    } catch (error: any) {
-      console.error('❌ Failed to start call:', error);
-      const errorMsg = error.response?.data?.error || error.message || 'Failed to start audio call. Please try again.';
-      setErrorMessage(errorMsg);
-      setCallStatus('');
-      setRemoteUser(null);
-      
-      // Clean up on error
-      if (currentSession) {
-        try {
-          await audioService.endSession(currentSession.id);
-        } catch (cleanupError) {
-          console.error('Cleanup error:', cleanupError);
-        }
-      }
-    } finally {
-      setLoading(false);
+    // Check if tokens are valid
+    if (!authResponse.rtcToken || authResponse.rtcToken.startsWith('mock_')) {
+      throw new Error('Invalid or mock token received');
     }
-  };
 
+    setCallStatus('Joining audio channel...');
+
+    // 3. Join the Agora channel with the SDK - HARDCODED APP ID
+    const joinConfig = {
+      appId: APP_ID || 'c9b0a43d50a947a38c8ba06c6ffec555', // Fallback to hardcoded
+      channel: authResponse.channelName,
+      token: authResponse.rtcToken,
+      uid: authResponse.uid
+    };
+
+    console.log('🔗 Joining Agora channel with config:', joinConfig);
+    
+    await join(joinConfig);
+
+    console.log('✅ Join successful!');
+    setCallStatus('Connected');
+    setShowNewCallDialog(false);
+    
+  } catch (error: any) {
+    console.error('❌ Failed to start call:', error);
+    const errorMsg = error.response?.data?.error || error.message || 'Failed to start audio call. Please try again.';
+    setErrorMessage(errorMsg);
+    setCallStatus('');
+    setRemoteUser(null);
+    
+    // Clean up on error
+    if (currentSession) {
+      try {
+        await audioService.endSession(currentSession.id);
+      } catch (cleanupError) {
+        console.error('Cleanup error:', cleanupError);
+      }
+    }
+  } finally {
+    setLoading(false);
+  }
+};
   const handleEndCall = async () => {
     try {
       setEndingCall(true);
