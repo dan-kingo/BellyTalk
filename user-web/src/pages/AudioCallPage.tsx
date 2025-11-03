@@ -1,8 +1,10 @@
+// Update your existing AudioCallPage component
 import React, { useState, useEffect } from 'react';
 import { useAgora } from '../contexts/AgoraContext';
 import { useAuth } from '../contexts/AuthContext';
 import { audioService } from '../services/audio.service';
 import { chatService } from '../services/chat.service';
+import { IncomingCallDialog } from '../components/audio/IncomingCallDialog';
 import Layout from '../components/layout/Layout';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import Dialog from '../components/common/Dialog';
@@ -34,7 +36,7 @@ const AudioCallPage: React.FC = () => {
   const [debugInfo, setDebugInfo] = useState<any>({});
 
   const APP_ID = import.meta.env.VITE_AGORA_APP_ID!
-  
+
   // Update debug info
   useEffect(() => {
     setDebugInfo({
@@ -46,6 +48,59 @@ const AudioCallPage: React.FC = () => {
       channelName: currentSession?.channel_name
     });
   }, [connectionState, joinState, remoteUsers, isMuted, currentSession]);
+
+  const handleIncomingCallAccepted = async (session: any) => {
+    try {
+      setLoading(true);
+      setCurrentSession(session);
+      setRemoteUser(session.initiator);
+      setCallStatus('Joining call...');
+
+      console.log('🎯 Joining incoming call:', session.id);
+
+      // Get tokens for the session
+      const authResponse = await audioService.getTokens(
+        session.id, 
+        undefined, 
+        'publisher'
+      );
+
+      console.log('✅ Auth tokens received for incoming call:', {
+        channelName: authResponse.channelName,
+        uid: authResponse.uid
+      });
+
+      // Join the Agora channel
+      const joinConfig = {
+        appId: APP_ID || 'c9b0a43d50a947a38c8ba06c6ffec555',
+        channel: authResponse.channelName,
+        token: authResponse.rtcToken,
+        uid: authResponse.uid
+      };
+
+      console.log('🔗 Joining Agora channel for incoming call...');
+      await join(joinConfig);
+
+      setCallStatus('Connected to call');
+      console.log('✅ Successfully joined incoming call');
+
+    } catch (error: any) {
+      console.error('❌ Failed to join incoming call:', error);
+      setErrorMessage(error.response?.data?.error || error.message || 'Failed to join call');
+      setCallStatus('');
+      setCurrentSession(null);
+      setRemoteUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleIncomingCallRejected = (sessionId: string) => {
+    console.log('📞 Call rejected:', sessionId);
+    setCurrentSession(null);
+    setRemoteUser(null);
+    setCallStatus('');
+  };
 
   const handleSearchUsers = async (query: string) => {
     setSearchQuery(query);
@@ -66,81 +121,81 @@ const AudioCallPage: React.FC = () => {
   };
 
   const handleStartCall = async (receiverId: string, userProfile: Profile) => {
-  try {
-    setLoading(true);
-    setErrorMessage('');
-    setCallStatus('Creating session...');
-    setRemoteUser(userProfile);
+    try {
+      setLoading(true);
+      setErrorMessage('');
+      setCallStatus('Creating session...');
+      setRemoteUser(userProfile);
 
-    console.log('🚀 Starting audio call process...');
-    console.log('🔧 App ID being used:', APP_ID || 'c9b0a43d50a947a38c8ba06c6ffec555');
+      console.log('🚀 Starting audio call process...');
 
-    // 1. Create session with Agora
-    setCallStatus('Creating audio session...');
-    const sessionResponse = await audioService.createSession(receiverId);
-    setCurrentSession(sessionResponse.session);
-    
-    console.log('✅ Session created:', sessionResponse.session.id);
+      // 1. Create session with Agora
+      setCallStatus('Creating audio session...');
+      const sessionResponse = await audioService.createSession(receiverId);
+      setCurrentSession(sessionResponse.session);
+      
+      console.log('✅ Session created:', sessionResponse.session.id);
 
-    setCallStatus('Getting auth tokens...');
-    
-    // 2. Get auth tokens from backend
-    const authResponse = await audioService.getTokens(
-      sessionResponse.session.id, 
-      undefined, 
-      'publisher', 
-      user?.email
-    );
+      setCallStatus('Getting auth tokens...');
+      
+      // 2. Get auth tokens from backend
+      const authResponse = await audioService.getTokens(
+        sessionResponse.session.id, 
+        undefined, 
+        'publisher', 
+        user?.email
+      );
 
-    console.log('✅ Auth tokens received:', {
-      channelName: authResponse.channelName,
-      uid: authResponse.uid,
-      hasRtcToken: !!authResponse.rtcToken,
-      hasRtmToken: !!authResponse.rtmToken
-    });
+      console.log('✅ Auth tokens received:', {
+        channelName: authResponse.channelName,
+        uid: authResponse.uid,
+        hasRtcToken: !!authResponse.rtcToken,
+        hasRtmToken: !!authResponse.rtmToken
+      });
 
-    // Check if tokens are valid
-    if (!authResponse.rtcToken || authResponse.rtcToken.startsWith('mock_')) {
-      throw new Error('Invalid or mock token received');
-    }
-
-    setCallStatus('Joining audio channel...');
-
-    // 3. Join the Agora channel with the SDK - HARDCODED APP ID
-    const joinConfig = {
-      appId: APP_ID || 'c9b0a43d50a947a38c8ba06c6ffec555', // Fallback to hardcoded
-      channel: authResponse.channelName,
-      token: authResponse.rtcToken,
-      uid: authResponse.uid
-    };
-
-    console.log('🔗 Joining Agora channel with config:', joinConfig);
-    
-    await join(joinConfig);
-
-    console.log('✅ Join successful!');
-    setCallStatus('Connected');
-    setShowNewCallDialog(false);
-    
-  } catch (error: any) {
-    console.error('❌ Failed to start call:', error);
-    const errorMsg = error.response?.data?.error || error.message || 'Failed to start audio call. Please try again.';
-    setErrorMessage(errorMsg);
-    setCallStatus('');
-    setRemoteUser(null);
-    
-    // Clean up on error
-    if (currentSession) {
-      try {
-        await audioService.endSession(currentSession.id);
-      } catch (cleanupError) {
-        console.error('Cleanup error:', cleanupError);
+      // Check if tokens are valid
+      if (!authResponse.rtcToken || authResponse.rtcToken.startsWith('mock_')) {
+        throw new Error('Invalid or mock token received');
       }
+
+      setCallStatus('Joining audio channel...');
+
+      // 3. Join the Agora channel with the SDK
+      const joinConfig = {
+        appId: APP_ID || 'c9b0a43d50a947a38c8ba06c6ffec555',
+        channel: authResponse.channelName,
+        token: authResponse.rtcToken,
+        uid: authResponse.uid
+      };
+
+      console.log('🔗 Joining Agora channel with config:', joinConfig);
+      
+      await join(joinConfig);
+
+      console.log('✅ Join successful!');
+      setCallStatus('Connected - Waiting for recipient...');
+      setShowNewCallDialog(false);
+      
+    } catch (error: any) {
+      console.error('❌ Failed to start call:', error);
+      const errorMsg = error.response?.data?.error || error.message || 'Failed to start audio call. Please try again.';
+      setErrorMessage(errorMsg);
+      setCallStatus('');
+      setRemoteUser(null);
+      
+      // Clean up on error
+      if (currentSession) {
+        try {
+          await audioService.endSession(currentSession.id);
+        } catch (cleanupError) {
+          console.error('Cleanup error:', cleanupError);
+        }
+      }
+    } finally {
+      setLoading(false);
     }
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
   const handleEndCall = async () => {
     try {
       setEndingCall(true);
@@ -180,6 +235,13 @@ const AudioCallPage: React.FC = () => {
   return (
     <Layout>
       <div className="max-w-4xl mx-auto">
+        {/* Incoming Call Dialog */}
+        <IncomingCallDialog
+          onCallAccepted={handleIncomingCallAccepted}
+          onCallRejected={handleIncomingCallRejected}
+        />
+
+        {/* Rest of your existing JSX remains the same */}
         <div className="flex items-center justify-between flex-wrap mb-8">
           <div className="flex items-center gap-3">
             <Phone className="w-8 h-8 text-primary-600 dark:text-primary-400" />
@@ -270,7 +332,7 @@ const AudioCallPage: React.FC = () => {
               No Active Call
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-8">
-              Start an audio call with another user to get started
+              Start an audio call with another user or wait for incoming calls
             </p>
             <button
               onClick={() => setShowNewCallDialog(true)}
@@ -282,6 +344,7 @@ const AudioCallPage: React.FC = () => {
           </div>
         )}
 
+        {/* Existing New Call Dialog remains the same */}
         <Dialog
           isOpen={showNewCallDialog}
           onClose={() => {
