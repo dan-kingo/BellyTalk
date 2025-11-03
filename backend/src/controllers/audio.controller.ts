@@ -46,46 +46,62 @@ export const createSession = async (req: AuthRequest, res: Response) => {
       uid: channelInfo.uid
     });
 
-    // Create session record
+    // Create session record - NO JOINS
     console.log('💾 Creating session record...');
+    const sessionData = {
+      initiator_id: initiatorId,
+      receiver_id,
+      channel_name: channelInfo.channelName,
+      uid: channelInfo.uid,
+      status: "pending",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
     const { data: session, error } = await supabaseAdmin
       .from("audio_sessions")
-      .insert([
-        {
-          initiator_id: initiatorId,
-          receiver_id,
-          channel_name: channelInfo.channelName,
-          uid: channelInfo.uid,
-          status: "pending",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ])
-      .select(`
-        *,
-        initiator:profiles!audio_sessions_initiator_id_fk(id, email, full_name),
-        receiver:profiles!audio_sessions_receiver_id_fk(id, email, full_name)
-      `)
+      .insert([sessionData])
+      .select()  // Simple select without joins
       .single();
 
     if (error) {
       console.error('❌ Session creation failed:', error);
-      throw error;
+      return res.status(500).json({ 
+        error: "Failed to create session in database",
+        details: error.message,
+        code: "DATABASE_ERROR"
+      });
     }
 
     console.log('✅ Session created successfully:', session.id);
 
-    res.status(201).json({ 
-      session,
+    // Manually add user info to response
+    const responseData = {
+      session: {
+        ...session,
+        initiator: { 
+          id: initiatorId, 
+          email: req.user?.email, 
+          full_name: req.user?.full_name 
+        },
+        receiver: { 
+          id: receiver.id, 
+          email: receiver.email, 
+          full_name: receiver.full_name 
+        }
+      },
       channel: {
         name: channelInfo.channelName,
         uid: channelInfo.uid
       }
-    });
+    };
+
+    res.status(201).json(responseData);
+
   } catch (err: any) {
     console.error("❌ createSession error:", err);
     res.status(500).json({ 
-      error: err.message ?? "Server error",
+      error: "Internal server error",
       code: "SESSION_CREATION_FAILED"
     });
   }
@@ -112,13 +128,11 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
     // If session_id provided, get channel_name and validate session
     if (session_id) {
       console.log('🔍 Fetching session:', { session_id });
+      
+      // Simple select without joins
       const { data: sessionData, error: sessionError } = await supabaseAdmin
         .from("audio_sessions")
-        .select(`
-          *,
-          initiator:profiles!audio_sessions_initiator_id_fk(id, email, full_name),
-          receiver:profiles!audio_sessions_receiver_id_fk(id, email, full_name)
-        `)
+        .select("*")
         .eq("id", session_id)
         .single();
 
@@ -146,7 +160,8 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
       console.log('✅ Session validated:', { channelName, uid });
     } else {
       // Generate new UID if no session
-      uid = agoraService.generateUid();
+      uid = Math.floor(Math.random() * 100000);
+      console.log('📋 Generated new UID:', uid);
     }
 
     if (!channelName) {
@@ -213,7 +228,7 @@ export const endSession = async (req: AuthRequest, res: Response) => {
 
   try {
     const { session_id } = req.params;
-    const { recording_url, summary } = req.body;
+    const { recording_url } = req.body; // Removed summary
     const user_id = req.user!.id;
 
     // Get and validate session
@@ -245,7 +260,7 @@ export const endSession = async (req: AuthRequest, res: Response) => {
     };
     
     if (recording_url) updates.recording_url = recording_url;
-    if (summary) updates.summary = summary;
+    // Removed summary field
 
     const { data, error } = await supabaseAdmin
       .from("audio_sessions")
@@ -281,13 +296,10 @@ export const getSession = async (req: AuthRequest, res: Response) => {
     const { session_id } = req.params;
     const user_id = req.user!.id;
 
+    // Simple select without joins
     const { data: session, error } = await supabaseAdmin
       .from("audio_sessions")
-      .select(`
-        *,
-        initiator:profiles!audio_sessions_initiator_id_fk(id, email, full_name),
-        receiver:profiles!audio_sessions_receiver_id_fk(id, email, full_name)
-      `)
+      .select("*")
       .eq("id", session_id)
       .single();
 
@@ -304,7 +316,27 @@ export const getSession = async (req: AuthRequest, res: Response) => {
 
     console.log('✅ Session retrieved:', session_id);
 
-    res.json({ session });
+    // Get user details separately
+    const [initiatorResult, receiverResult] = await Promise.all([
+      supabaseAdmin
+        .from('profiles')
+        .select('id, email, full_name')
+        .eq('id', session.initiator_id)
+        .single(),
+      supabaseAdmin
+        .from('profiles')
+        .select('id, email, full_name')
+        .eq('id', session.receiver_id)
+        .single()
+    ]);
+
+    const sessionWithUsers = {
+      ...session,
+      initiator: initiatorResult.data,
+      receiver: receiverResult.data
+    };
+
+    res.json({ session: sessionWithUsers });
   } catch (err: any) {
     console.error("❌ getSession error:", err);
     res.status(500).json({ error: err.message ?? "Server error" });
