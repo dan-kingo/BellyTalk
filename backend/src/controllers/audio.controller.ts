@@ -111,6 +111,7 @@ export const createSession = async (req: AuthRequest, res: Response) => {
  * POST /api/audio/token
  * Body: { session_id?: string, channel_name?: string, role?: 'publisher'|'subscriber', user_name?: string }
  */
+// In your backend audio.controller.ts - getAuthToken function
 export const getAuthToken = async (req: AuthRequest, res: Response) => {
   console.log('🎯 GET AUTH TOKEN REQUEST:', {
     user: req.user?.id,
@@ -129,7 +130,6 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
     if (session_id) {
       console.log('🔍 Fetching session:', { session_id });
       
-      // Simple select without joins
       const { data: sessionData, error: sessionError } = await supabaseAdmin
         .from("audio_sessions")
         .select("*")
@@ -143,7 +143,11 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
 
       session = sessionData;
       channelName = sessionData.channel_name;
+      
+      // ✅ CRITICAL FIX: Use the SAME UID from session for both users
       uid = sessionData.uid;
+      
+      console.log('✅ Session validated:', { channelName, uid: sessionData.uid });
 
       // Check if user is authorized for this session
       if (sessionData.initiator_id !== user_id && sessionData.receiver_id !== user_id) {
@@ -157,24 +161,15 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
         return res.status(400).json({ error: "Session has ended" });
       }
 
-      console.log('✅ Session validated:', { channelName, uid });
     } else {
-      // Generate new UID if no session
+      // Only generate new UID if no session (shouldn't happen in our flow)
       uid = Math.floor(Math.random() * 100000);
-      console.log('📋 Generated new UID:', uid);
+      console.log('📋 Generated new UID (no session):', uid);
     }
 
     if (!channelName) {
       console.warn('❌ Missing channel_name');
       return res.status(400).json({ error: "channel_name or valid session_id required" });
-    }
-
-    // Validate channel (Agora channels are created on-demand)
-    console.log('🔍 Validating channel:', { channelName });
-    const channelValid = await agoraService.validateChannel(channelName);
-    if (!channelValid) {
-      console.error('❌ Channel validation failed:', { channelName });
-      return res.status(404).json({ error: "Audio channel not available" });
     }
 
     // Generate tokens - NOW ASYNC
@@ -183,14 +178,14 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
     const rtmToken = await agoraService.generateRtmToken(user_id.toString());
 
     console.log('✅ Tokens generated:', {
-      rtcTokenLength: rtcToken.length,
-      rtmTokenLength: rtmToken.length,
+      uid: uid,
+      channelName: channelName,
       tokenType: rtcToken.startsWith('mock_') ? 'MOCK' : 'REAL'
     });
 
-    // Update session status if this is the first token generation
+    // Update session status if this is the first token generation (receiver joining)
     if (session_id && session && session.status === 'pending') {
-      console.log('🔄 Updating session status to active:', { session_id });
+      console.log('🔄 Updating session status to active (receiver joined):', { session_id });
       await supabaseAdmin
         .from("audio_sessions")
         .update({ 
@@ -205,7 +200,7 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
       rtcToken,
       rtmToken,
       channelName,
-      uid,
+      uid, // ✅ This will now be the SAME for both users
       session_id: session_id || null
     });
   } catch (err: any) {
@@ -216,7 +211,6 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
     });
   }
 };
-
 /**
  * POST /api/audio/end/:session_id
  */
