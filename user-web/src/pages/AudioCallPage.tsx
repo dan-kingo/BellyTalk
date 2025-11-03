@@ -105,7 +105,7 @@ const AudioCallPage: React.FC = () => {
 
       // 3. Join the Agora channel with the SDK
       const joinConfig = {
-        appId: process.env.NEXT_PUBLIC_AGORA_APP_ID!,
+        appId: import.meta.env.NEXT_PUBLIC_AGORA_APP_ID!,
         channel: authResponse.channelName,
         token: authResponse.rtcToken,
         uid: authResponse.uid
