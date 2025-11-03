@@ -37,9 +37,9 @@ export const createSession = async (req: AuthRequest, res: Response) => {
 
     console.log('✅ Receiver validated:', receiver);
 
-    // Create Agora channel tokens
+    // Create Agora channel tokens - NOW ASYNC
     console.log('🚀 Creating Agora channel...');
-    const channelInfo = agoraService.createChannelTokens(initiatorId, channel_name);
+    const channelInfo = await agoraService.createChannelTokens(initiatorId, channel_name);
     
     console.log('📋 Agora channel created:', {
       channelName: channelInfo.channelName,
@@ -177,14 +177,15 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: "Audio channel not available" });
     }
 
-    // Generate tokens
+    // Generate tokens - NOW ASYNC
     console.log('🔧 Generating tokens...', { channelName, uid, role });
-    const rtcToken = agoraService.generateRtcToken(channelName, uid, role as any);
-    const rtmToken = agoraService.generateRtmToken(user_id.toString());
+    const rtcToken = await agoraService.generateRtcToken(channelName, uid, role as any);
+    const rtmToken = await agoraService.generateRtmToken(user_id.toString());
 
     console.log('✅ Tokens generated:', {
       rtcTokenLength: rtcToken.length,
-      rtmTokenLength: rtmToken.length
+      rtmTokenLength: rtmToken.length,
+      tokenType: rtcToken.startsWith('mock_') ? 'MOCK' : 'REAL'
     });
 
     // Update session status if this is the first token generation

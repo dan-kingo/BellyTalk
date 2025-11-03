@@ -18,8 +18,53 @@ console.log('All Agora env vars:', {
 const AGORA_APP_ID = process.env.AGORA_APP_ID || '';
 const AGORA_APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE || '';
 
-// Import Agora token builders
-const { RtcTokenBuilder, RtmTokenBuilder } = require('agora-access-token');
+// Use dynamic import for CommonJS modules in ES module environment
+let RtcTokenBuilder: any;
+let RtmTokenBuilder: any;
+
+// Dynamically import the agora-access-token package
+const initializeAgora = async () => {
+  try {
+    const agoraAccessToken = await import('agora-access-token');
+    RtcTokenBuilder = agoraAccessToken.RtcTokenBuilder;
+    RtmTokenBuilder = agoraAccessToken.RtmTokenBuilder;
+    console.log('✅ Agora token builders imported successfully');
+  } catch (error) {
+    console.error('❌ Failed to import Agora token builders:', error);
+    // Fallback to mock implementations
+    RtcTokenBuilder = createMockTokenBuilder('RTC');
+    RtmTokenBuilder = createMockTokenBuilder('RTM');
+  }
+};
+
+// Initialize immediately
+initializeAgora();
+
+function createMockTokenBuilder(type: string) {
+  return {
+    buildTokenWithUid: (
+      appId: string,
+      appCertificate: string,
+      channelName: string,
+      uid: number,
+      role: number,
+      expireTime: number
+    ) => {
+      console.warn(`⚠️ Using mock ${type} token builder`);
+      return `mock_${type.toLowerCase()}_token_${channelName}_${uid}_${Date.now()}`;
+    },
+    buildToken: (
+      appId: string,
+      appCertificate: string,
+      userId: string,
+      role: number,
+      expireTime: number
+    ) => {
+      console.warn(`⚠️ Using mock ${type} token builder`);
+      return `mock_${type.toLowerCase()}_token_${userId}_${Date.now()}`;
+    }
+  };
+}
 
 class AgoraService {
   /**
@@ -32,11 +77,11 @@ class AgoraService {
   /**
    * Generate RTC token for voice call
    */
-  generateRtcToken(
+  async generateRtcToken(
     channelName: string, 
     uid: number, 
     role: string = 'publisher'
-  ): string {
+  ): Promise<string> {
     console.log('🔧 Generating RTC Token - CREDENTIAL CHECK:', {
       hasAppId: !!AGORA_APP_ID,
       hasCertificate: !!AGORA_APP_CERTIFICATE,
@@ -47,6 +92,11 @@ class AgoraService {
       console.error('❌ AGORA CREDENTIALS MISSING - USING MOCK TOKEN');
       console.log('Please set AGORA_APP_ID and AGORA_APP_CERTIFICATE in Render environment variables');
       return `mock_rtc_token_${channelName}_${uid}_${Date.now()}`;
+    }
+
+    // Wait for Agora to initialize if needed
+    if (!RtcTokenBuilder || !RtmTokenBuilder) {
+      await initializeAgora();
     }
 
     const expirationTimeInSeconds = 3600;
@@ -79,7 +129,7 @@ class AgoraService {
   /**
    * Generate RTM token for signaling
    */
-  generateRtmToken(uid: string): string {
+  async generateRtmToken(uid: string): Promise<string> {
     console.log('🔧 Generating RTM Token - CREDENTIAL CHECK:', {
       hasAppId: !!AGORA_APP_ID,
       hasCertificate: !!AGORA_APP_CERTIFICATE
@@ -88,6 +138,11 @@ class AgoraService {
     if (!AGORA_APP_ID || !AGORA_APP_CERTIFICATE) {
       console.error('❌ AGORA CREDENTIALS MISSING - USING MOCK RTM TOKEN');
       return `mock_rtm_token_${uid}_${Date.now()}`;
+    }
+
+    // Wait for Agora to initialize if needed
+    if (!RtcTokenBuilder || !RtmTokenBuilder) {
+      await initializeAgora();
     }
 
     const expirationTimeInSeconds = 3600;
@@ -114,14 +169,14 @@ class AgoraService {
   /**
    * Create channel tokens for audio call
    */
-  createChannelTokens(userId: string, channelName?: string): any {
+  async createChannelTokens(userId: string, channelName?: string): Promise<any> {
     console.log('🚀 Creating Agora channel tokens...');
     
     const generatedChannelName = channelName || `audio_${userId}_${Date.now()}`;
     const uid = this.generateUid();
 
-    const rtcToken = this.generateRtcToken(generatedChannelName, uid);
-    const rtmToken = this.generateRtmToken(userId.toString());
+    const rtcToken = await this.generateRtcToken(generatedChannelName, uid);
+    const rtmToken = await this.generateRtmToken(userId.toString());
 
     // Check token type
     const isRealToken = !rtcToken.startsWith('mock_');
