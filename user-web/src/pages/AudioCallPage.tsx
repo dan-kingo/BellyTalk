@@ -33,7 +33,7 @@ const AudioCallPage: React.FC = () => {
   const [remoteUser, setRemoteUser] = useState<Profile | null>(null);
   const [debugInfo, setDebugInfo] = useState<any>({});
 
-  const APP_ID = import.meta.env.NEXT_PUBLIC_AGORA_APP_ID!
+  const APP_ID = import.meta.env.VITE_AGORA_APP_ID!
   // Update debug info
   useEffect(() => {
     setDebugInfo({
