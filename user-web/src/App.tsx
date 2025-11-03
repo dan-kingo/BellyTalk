@@ -22,12 +22,12 @@ import AudioCallPage from './pages/AudioCallPage';
 import VideoCallPage from './pages/VideoCallPage';
 import GroupChatPage from './pages/GroupChatPage';
 import ErrorBoundary from './components/common/ErrorBoundary';
-import { HMSProvider } from './contexts/HMSContext';
+import { AgoraProvider } from './contexts/AgoraContext';
 
 const App: React.FC = () => {
   return (
     <Router>
-     <HMSProvider>
+     <AgoraProvider>
        <ThemeProvider>
         <AuthProvider>
           <Routes>
@@ -168,7 +168,7 @@ const App: React.FC = () => {
           </Routes>
         </AuthProvider>
       </ThemeProvider>
-     </HMSProvider>
+     </AgoraProvider>
     </Router>
   );
 };

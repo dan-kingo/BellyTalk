@@ -9,9 +9,9 @@
   },
   "dependencies": {
     "@100mslive/hms-video-store": "^0.12.39",
-    "@100mslive/react-sdk": "^0.10.39",
     "@supabase/supabase-js": "^2.76.1",
     "@tailwindcss/vite": "^4.1.16",
+    "agora-rtc-sdk-ng": "^4.24.0",
     "axios": "^1.13.1",
     "lucide-react": "^0.548.0",
     "react": "^19.2.0",

@@ -1,27 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { useHMS } from '../contexts/HMSContext';
+import { useAgora } from '../contexts/AgoraContext';
 import { useAuth } from '../contexts/AuthContext';
 import { audioService } from '../services/audio.service';
 import { chatService } from '../services/chat.service';
 import Layout from '../components/layout/Layout';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import Dialog from '../components/common/Dialog';
-import { Phone, PhoneOff, Mic, MicOff, Search, User } from 'lucide-react';
+import { Phone, PhoneOff, Mic, MicOff, Search, User, Users } from 'lucide-react';
 import { Profile } from '../types';
-
-// Define HMS store types
-interface HMSState {
-  room: any;
-  peers: any[];
-  localPeer?: any;
-}
 
 const AudioCallPage: React.FC = () => {
   const { user } = useAuth();
-  const { hmsActions, hmsStore } = useHMS();
+  const { 
+    join, 
+    leave, 
+    mute, 
+    joinState, 
+    remoteUsers, 
+    isMuted, 
+    connectionState 
+  } = useAgora();
   
   const [loading, setLoading] = useState(false);
-  const [muted, setMuted] = useState(false);
   const [showNewCallDialog, setShowNewCallDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
@@ -31,20 +31,19 @@ const AudioCallPage: React.FC = () => {
   const [endingCall, setEndingCall] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [remoteUser, setRemoteUser] = useState<Profile | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [peers, setPeers] = useState<any[]>([]);
-  const [localPeer, setLocalPeer] = useState<any>(null);
+  const [debugInfo, setDebugInfo] = useState<any>({});
 
-  // Subscribe to HMS store changes
+  // Update debug info
   useEffect(() => {
-    const unsubscribe = hmsStore.subscribe((state: HMSState) => {
-      setIsConnected(!!state.room);
-      setPeers(state.peers || []);
-      setLocalPeer(state.localPeer || null);
-    }, (select: any) => [select.room, select.peers, select.localPeer]);
-
-    return unsubscribe;
-  }, [hmsStore]);
+    setDebugInfo({
+      connectionState,
+      joinState,
+      remoteUsersCount: remoteUsers.length,
+      isMuted,
+      currentSession: currentSession?.id,
+      channelName: currentSession?.channel_name
+    });
+  }, [connectionState, joinState, remoteUsers, isMuted, currentSession]);
 
   const handleSearchUsers = async (query: string) => {
     setSearchQuery(query);
@@ -71,59 +70,70 @@ const AudioCallPage: React.FC = () => {
       setCallStatus('Creating session...');
       setRemoteUser(userProfile);
 
-      // 1. Create session with 100ms
-      const session = await audioService.createSession(receiverId);
-      setCurrentSession(session.session);
-      console.log('Session created:', session.session.id);
+      console.log('🚀 Starting audio call process...');
 
-      setCallStatus('Getting auth token...');
+      // 1. Create session with Agora
+      setCallStatus('Creating audio session...');
+      const sessionResponse = await audioService.createSession(receiverId);
+      setCurrentSession(sessionResponse.session);
       
-      // 2. Get auth token from your backend
-      const authToken = await audioService.getToken(
-        session.session.id, 
+      console.log('✅ Session created:', sessionResponse.session.id);
+
+      setCallStatus('Getting auth tokens...');
+      
+      // 2. Get auth tokens from backend
+      const authResponse = await audioService.getTokens(
+        sessionResponse.session.id, 
         undefined, 
-        'host', 
+        'publisher', 
         user?.email
       );
 
-      console.log('Auth token received:', authToken);
-      console.log('Token value:', authToken.token);
+      console.log('✅ Auth tokens received:', {
+        channelName: authResponse.channelName,
+        uid: authResponse.uid,
+        hasRtcToken: !!authResponse.rtcToken,
+        hasRtmToken: !!authResponse.rtmToken
+      });
 
-      // Check if token is valid
-      if (!authToken.token || authToken.token.startsWith('mock-')) {
+      // Check if tokens are valid
+      if (!authResponse.rtcToken || authResponse.rtcToken.startsWith('mock_')) {
         throw new Error('Invalid or mock token received');
       }
 
-      setCallStatus('Joining audio room...');
+      setCallStatus('Joining audio channel...');
 
-      // 3. Join the 100ms room with the SDK
+      // 3. Join the Agora channel with the SDK
       const joinConfig = {
-        userName: user?.email || 'User',
-        authToken: authToken.token,
-        settings: {
-          isAudioMuted: false,
-          isVideoMuted: true,
-        },
-        metaData: JSON.stringify({
-          email: user?.email,
-          sessionId: session.session.id
-        })
+        appId: process.env.NEXT_PUBLIC_AGORA_APP_ID!,
+        channel: authResponse.channelName,
+        token: authResponse.rtcToken,
+        uid: authResponse.uid
       };
 
-      console.log('Joining with config:', joinConfig);
+      console.log('🔗 Joining Agora channel with config:', joinConfig);
       
-      await hmsActions.join(joinConfig);
+      await join(joinConfig);
 
-      console.log('Join successful!');
+      console.log('✅ Join successful!');
       setCallStatus('Connected');
       setShowNewCallDialog(false);
       
     } catch (error: any) {
-      console.error('Failed to start call:', error);
+      console.error('❌ Failed to start call:', error);
       const errorMsg = error.response?.data?.error || error.message || 'Failed to start audio call. Please try again.';
       setErrorMessage(errorMsg);
       setCallStatus('');
       setRemoteUser(null);
+      
+      // Clean up on error
+      if (currentSession) {
+        try {
+          await audioService.endSession(currentSession.id);
+        } catch (cleanupError) {
+          console.error('Cleanup error:', cleanupError);
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -134,20 +144,23 @@ const AudioCallPage: React.FC = () => {
       setEndingCall(true);
       setCallStatus('Disconnecting...');
       
-      // Leave the 100ms room
-      await hmsActions.leave();
+      console.log('🛑 Ending call...');
       
-      // End session in your backend
+      // Leave the Agora channel
+      await leave();
+      
+      // End session in backend
       if (currentSession) {
         await audioService.endSession(currentSession.id);
       }
       
       setCurrentSession(null);
       setCallStatus('');
-      setMuted(false);
       setRemoteUser(null);
+      
+      console.log('✅ Call ended successfully');
     } catch (error) {
-      console.error('Failed to end call:', error);
+      console.error('❌ Failed to end call:', error);
     } finally {
       setEndingCall(false);
     }
@@ -155,15 +168,12 @@ const AudioCallPage: React.FC = () => {
 
   const toggleMute = async () => {
     try {
-      await hmsActions.setLocalAudioEnabled(!muted);
-      setMuted(!muted);
+      console.log('🔇 Toggling mute:', !isMuted);
+      await mute(!isMuted);
     } catch (error) {
-      console.error('Failed to toggle mute:', error);
+      console.error('❌ Failed to toggle mute:', error);
     }
   };
-
-  // Get remote peers (other participants)
-  const remotePeers = peers.filter(peer => !peer.isLocal);
 
   return (
     <Layout>
@@ -175,7 +185,7 @@ const AudioCallPage: React.FC = () => {
           </div>
         </div>
 
-        {isConnected ? (
+        {joinState ? (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-12 text-center">
             <div className="mb-8">
               <div className="w-32 h-32 mx-auto rounded-full bg-linear-to-br from-primary to-secondary flex items-center justify-center mb-6">
@@ -198,8 +208,11 @@ const AudioCallPage: React.FC = () => {
               )}
               
               <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-                {remotePeers.length > 0 ? (
-                  `${remotePeers.length} participant${remotePeers.length > 1 ? 's' : ''} in call`
+                {remoteUsers.length > 0 ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <Users className="w-4 h-4" />
+                    {remoteUsers.length} participant{remoteUsers.length > 1 ? 's' : ''} in call
+                  </div>
                 ) : (
                   'Waiting for other participants...'
                 )}
@@ -210,12 +223,12 @@ const AudioCallPage: React.FC = () => {
               <button
                 onClick={toggleMute}
                 className={`p-4 rounded-full cursor-pointer transition ${
-                  muted
+                  isMuted
                     ? 'bg-red-600 hover:bg-red-700 text-white'
                     : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white'
                 }`}
               >
-                {muted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+                {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
               </button>
             </div>
 
@@ -236,13 +249,15 @@ const AudioCallPage: React.FC = () => {
 
             {/* Debug Information */}
             <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <h3 className="font-bold text-blue-800 dark:text-blue-200 mb-2">Connection Debug:</h3>
+              <h3 className="font-bold text-blue-800 dark:text-blue-200 mb-2">Agora Debug Info:</h3>
               <div className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
-                <div>Room ID: {hmsStore.getState().room?.id || 'Not connected'}</div>
-                <div>Local Peer: {localPeer?.id || 'None'}</div>
-                <div>Audio Track: {localPeer?.audioTrack ? '✅ Enabled' : '❌ Disabled'}</div>
-                <div>Remote Peers: {remotePeers.length}</div>
-                <div>Real 100ms Connection: {isConnected ? '✅ YES' : '❌ NO'}</div>
+                <div>Connection State: <span className="font-mono">{debugInfo.connectionState}</span></div>
+                <div>Joined: <span className="font-mono">{debugInfo.joinState ? '✅ YES' : '❌ NO'}</span></div>
+                <div>Remote Users: <span className="font-mono">{debugInfo.remoteUsersCount}</span></div>
+                <div>Microphone: <span className="font-mono">{debugInfo.isMuted ? '🔇 MUTED' : '🎤 ACTIVE'}</span></div>
+                <div>Session ID: <span className="font-mono">{debugInfo.currentSession || 'None'}</span></div>
+                <div>Channel: <span className="font-mono">{debugInfo.channelName || 'None'}</span></div>
+                <div>Real Agora Connection: <span className="font-mono">{joinState ? '✅ YES' : '❌ NO'}</span></div>
               </div>
             </div>
           </div>
