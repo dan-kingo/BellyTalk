@@ -7,6 +7,7 @@ import { webSocketService } from '../../services/websocket.service';
 import Dialog from '../common/Dialog';
 import { Phone, PhoneOff, Video } from 'lucide-react';
 import { Profile } from '../../types';
+import { useNavigate } from 'react-router-dom';
 
 interface IncomingCallDialogProps {
   onCallAccepted: (session: any) => void;
@@ -15,7 +16,7 @@ interface IncomingCallDialogProps {
 
 interface IncomingCall {
   session: any;
-  caller: Partial<Profile>; // Use Partial to handle missing properties
+  caller: Partial<Profile>;
   isVideoCall: boolean;
 }
 
@@ -24,6 +25,7 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
   onCallRejected
 }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isResponding, setIsResponding] = useState(false);
@@ -82,7 +84,7 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
         } catch (error: any) {
           console.error('❌ Failed to fetch session details:', error);
           
-          // Fallback with basic data - use Partial<Profile> to handle missing properties
+          // Fallback with basic data
           const isVideoCall = session.call_type === 'video';
           const basicCall: IncomingCall = {
             session: {
@@ -159,6 +161,17 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
       if (incomingCall.isVideoCall) {
         console.log('🎥 Accepting video call');
         await videoService.getTokens(incomingCall.session.id);
+        
+        // FIX: Navigate directly to video call page for video calls
+        setIsVisible(false);
+        navigate('/video-call', { 
+          state: { 
+            session: incomingCall.session,
+            isIncomingCall: true,
+            caller: incomingCall.caller
+          }
+        });
+        return; // Return early to avoid the audio call flow
       } else {
         console.log('🎵 Accepting audio call');
         await audioService.getTokens(incomingCall.session.id);
@@ -282,6 +295,9 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
           </p>
           <p className="text-xs text-gray-600 dark:text-gray-400">
             <strong>Session ID:</strong> {incomingCall.session.id}
+          </p>
+          <p className="text-xs text-gray-600 dark:text-gray-400">
+            <strong>Route:</strong> {incomingCall.isVideoCall ? 'Video Page' : 'Audio Page'}
           </p>
         </div>
       </div>
