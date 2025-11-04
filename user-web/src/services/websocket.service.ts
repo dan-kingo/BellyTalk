@@ -117,6 +117,39 @@ class WebSocketService {
     }
   }
 
+  // In your websocket.service.ts - add this method
+async subscribeToCallEndEvents(userId: string, callback: (payload: any) => void) {
+  try {
+    console.log('🔔 Subscribing to call end events for user:', userId);
+    
+    const channel = supabase
+      .channel(`call-end-events-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'audio_sessions',
+          filter: `initiator_id=eq.${userId} OR receiver_id=eq.${userId}`,
+        },
+        (payload) => {
+          console.log('📞 Call status update received:', payload);
+          // Only trigger for ended calls
+          if (payload.new.status === 'ended') {
+            callback(payload);
+          }
+        }
+      )
+      .subscribe((status: string) => {
+        console.log('📡 Call end events subscription status:', status);
+      });
+
+    return channel;
+  } catch (error) {
+    console.error('❌ Failed to subscribe to call end events:', error);
+    throw error;
+  }
+}
   unsubscribe() {
     if (this.channel) {
       supabase.removeChannel(this.channel);
