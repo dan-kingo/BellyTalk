@@ -115,54 +115,70 @@ class WebSocketService {
     } catch (error) {
       console.error('❌ Error in checkExistingCalls:', error);
     }
-  }
-// In your websocket.service.ts - update the subscribeToCallEndEvents method
+  }// src/services/websocket.service.ts
+
 async subscribeToCallEndEvents(userId: string, callback: (payload: any) => void) {
   try {
-    console.log('🔔 Subscribing to call end events for user:', userId);
-    
-    const channel = supabase
-      .channel(`call-end-events-${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'audio_sessions',
-          filter: `initiator_id=eq.${userId} OR receiver_id=eq.${userId}`,
-        },
-        (payload) => {
-          console.log('📞 CALL END EVENT RECEIVED:', {
-            sessionId: payload.new.id,
-            oldStatus: payload.old?.status,
-            newStatus: payload.new.status,
-            userId: userId,
-            matchesInitiator: payload.new.initiator_id === userId,
-            matchesReceiver: payload.new.receiver_id === userId
-          });
-          
-          // Only trigger for ended calls
-          if (payload.new.status === 'ended') {
-            console.log('🎯 TRIGGERING CALL END CALLBACK for session:', payload.new.id);
-            callback(payload);
-          } else {
-            console.log('ℹ️ Status update but not ended:', payload.new.status);
-          }
-        }
-      )
-      .subscribe((status: string) => {
-        console.log('📡 Call end events subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ Successfully subscribed to call end events');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Failed to subscribe to call end events');
-        }
-      });
+    console.log('Subscribing to call end events for user:', userId);
+
+    // Unsubscribe from previous
+    this.unsubscribeCallEnd();
+
+    // Create channel
+    const channel = supabase.channel(`call-end-${userId}`);
+
+    // Subscribe to updates where user is initiator
+    channel.on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'audio_sessions',
+        filter: `initiator_id=eq.${userId}`
+      },
+      (payload) => this.handleCallEnd(payload, callback, userId)
+    );
+
+    // Subscribe to updates where user is receiver
+    channel.on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'audio_sessions',
+        filter: `receiver_id=eq.${userId}`
+      },
+      (payload) => this.handleCallEnd(payload, callback, userId)
+    );
+
+    // Subscribe
+    channel.subscribe((status: string) => {
+      console.log('Call end subscription status:', status);
+    });
+
+    // Store for cleanup
+    this.callEndChannel = channel;
 
     return channel;
   } catch (error) {
-    console.error('❌ Failed to subscribe to call end events:', error);
+    console.error('Failed to subscribe to call end events:', error);
     throw error;
+  }
+}
+
+private handleCallEnd(payload: any, callback: (p: any) => void, userId: string) {
+  if (payload.new.status === 'ended') {
+    console.log('CALL ENDED EVENT for user', userId, payload.new.id);
+    callback(payload);
+  }
+}
+
+private callEndChannel: any = null;
+
+unsubscribeCallEnd() {
+  if (this.callEndChannel) {
+    supabase.removeChannel(this.callEndChannel);
+    this.callEndChannel = null;
   }
 }
   unsubscribe() {
