@@ -282,6 +282,13 @@ const AudioCallPage: React.FC = () => {
   };
 
   const handleEndCall = async () => {
+    console.log('🔍 END CALL DEBUG:', {
+    current_user: user?.id,  // From useAuth()
+      current_session_id: currentSession.id,
+      session_initiator: currentSession.initiator_id,
+      session_receiver: currentSession.receiver_id,
+      user_is_participant: user?.id === currentSession.initiator_id || user?.id === currentSession.receiver_id
+    });
     try {
       setEndingCall(true);
       setCallStatus('Ending call for both users...');

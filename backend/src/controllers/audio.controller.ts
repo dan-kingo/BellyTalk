@@ -222,70 +222,74 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
  * POST /api/audio/end/:session_id
  */
 export const endSession = async (req: AuthRequest, res: Response) => {
-  const rawSessionId = req.params.session_id;
-  const session_id = (rawSessionId || "").trim();
-
-  console.log('🔍 RAW session_id from URL:', JSON.stringify(rawSessionId));
-  console.log('🔍 TRIMMED session_id:', JSON.stringify(session_id));
-  console.log('🔍 Length:', session_id.length);
-  console.log('🔍 Is valid UUID?', /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(session_id));
-
-  if (!session_id || session_id.length !== 36) {
-    return res.status(400).json({ error: "Invalid session_id" });
-  }
-
-  const user_id = req.user!.id;
-  console.log('👤 Current user_id (auth.uid):', user_id);
+  console.log('🎯 END SESSION REQUEST:', {
+    user_id: req.user?.id,
+    session_id: req.params.session_id,
+    full_user: req.user  // Log entire req.user object
+  });
 
   try {
-    // First: Try query with supabase (authenticated)
-    const { data: session, error, count } = await supabase
+    const { session_id } = req.params;
+    const user_id = req.user!.id;
+
+    // Fetch session
+    const { data: session, error: fetchErr } = await supabase
       .from("audio_sessions")
-      .select("id, initiator_id, receiver_id, status", { count: 'exact' })
-      .eq("id", session_id);
+      .select("id, initiator_id, receiver_id, status")
+      .eq("id", session_id)
+      .single();
 
-    console.log('🔍 Supabase query result:', { session, error, count });
+    if (fetchErr || !session) {
+      console.error('❌ Session not found:', fetchErr);
+      return res.status(404).json({ error: "Session not found" });
+    }
 
-    if (!session || session.length === 0) {
-      // Fallback: Try with supabaseAdmin (bypass RLS)
-      const { data: adminSession } = await supabaseAdmin
-        .from("audio_sessions")
-        .select("id, initiator_id, receiver_id")
-        .eq("id", session_id)
-        .single();
-
-      console.log('🔧 Admin query result (bypass RLS):', adminSession ? 'FOUND' : 'NOT FOUND');
-      if (!adminSession) {
-        return res.status(404).json({ error: "Session does not exist in DB" });
+    // CRITICAL DEBUG LOG
+    console.log('🔍 AUTH DEBUG:', {
+      user_id,  // From JWT
+      initiator_id: session.initiator_id,
+      receiver_id: session.receiver_id,
+      user_is_initiator: session.initiator_id === user_id,
+      user_is_receiver: session.receiver_id === user_id,
+      types_match: {
+        user_type: typeof user_id,
+        initiator_type: typeof session.initiator_id,
+        receiver_type: typeof session.receiver_id
       }
+    });
 
+    // Auth check
+    if (session.initiator_id !== user_id && session.receiver_id !== user_id) {
+      console.warn('🚫 UNAUTHORIZED:', {
+        user_id,
+        expected: [session.initiator_id, session.receiver_id]
+      });
       return res.status(403).json({ 
-        error: "RLS blocked access", 
-        debug: { 
-          session_id, 
-          user_id, 
-          initiator_id: adminSession.initiator_id,
-          receiver_id: adminSession.receiver_id 
+        error: "Not authorized to end this session",
+        debug: {  // TEMP: Remove in production
+          user_id,
+          initiator_id: session.initiator_id,
+          receiver_id: session.receiver_id
         }
       });
     }
 
-    const s = session[0];
-    if (s.initiator_id !== user_id && s.receiver_id !== user_id) {
-      return res.status(403).json({ error: "Not authorized" });
-    }
-
-    // Update with supabase → triggers real-time
-    const { data: updated } = await supabase
+    // Update (triggers WebSocket)
+    const updates = { status: "ended", ended_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+    const { data: updatedSession, error } = await supabase
       .from("audio_sessions")
-      .update({ status: "ended", ended_at: new Date().toISOString() })
+      .update(updates)
       .eq("id", session_id)
       .select()
       .single();
 
-    console.log('CALL ENDED → WebSocket should fire');
-    res.json({ session: updated });
+    if (error) {
+      console.error('❌ Update failed:', error);
+      return res.status(500).json({ error: "Failed to end session" });
+    }
 
+    console.log('✅ Session ended - WebSocket fired!');
+    res.json({ session: updatedSession });
   } catch (err: any) {
     console.error("endSession error:", err);
     res.status(500).json({ error: err.message });
