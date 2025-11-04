@@ -7,7 +7,7 @@ const router = Router();
 
 router.post("/create", requireAuth, AudioCtrl.createSession);
 router.post("/token", requireAuth, AudioCtrl.getAuthToken);
-router.get('/session/:session_id',requireAuth,AudioCtrl.getSession); 
 router.post("/end/:session_id", requireAuth, AudioCtrl.endSession);
+router.get('/session/:session_id',requireAuth,AudioCtrl.getSession); 
 
 export default router;
