@@ -409,7 +409,7 @@ const VideoCallPage: React.FC = () => {
 
               {/* Local Video Preview */}
               {isVideoEnabled && localVideoTrack && (
-                <div className="absolute bottom-4 right-4 w-48 h-36 bg-gray-800 rounded-lg overflow-hidden shadow-lg border-2 border-green-400">
+                <div className="absolute bottom-4 right-4 w-8 h-8 bg-gray-800 rounded-lg overflow-hidden shadow-lg border-2 border-green-400">
                   <div id="local-video" className="w-full h-full" />
                   <div className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
                     You {!isVideoEnabled && '(Video Off)'}

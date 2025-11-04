@@ -116,8 +116,7 @@ class WebSocketService {
       console.error('❌ Error in checkExistingCalls:', error);
     }
   }
-
-  // In your websocket.service.ts - add this method
+// In your websocket.service.ts - update the subscribeToCallEndEvents method
 async subscribeToCallEndEvents(userId: string, callback: (payload: any) => void) {
   try {
     console.log('🔔 Subscribing to call end events for user:', userId);
@@ -133,15 +132,31 @@ async subscribeToCallEndEvents(userId: string, callback: (payload: any) => void)
           filter: `initiator_id=eq.${userId} OR receiver_id=eq.${userId}`,
         },
         (payload) => {
-          console.log('📞 Call status update received:', payload);
+          console.log('📞 CALL END EVENT RECEIVED:', {
+            sessionId: payload.new.id,
+            oldStatus: payload.old?.status,
+            newStatus: payload.new.status,
+            userId: userId,
+            matchesInitiator: payload.new.initiator_id === userId,
+            matchesReceiver: payload.new.receiver_id === userId
+          });
+          
           // Only trigger for ended calls
           if (payload.new.status === 'ended') {
+            console.log('🎯 TRIGGERING CALL END CALLBACK for session:', payload.new.id);
             callback(payload);
+          } else {
+            console.log('ℹ️ Status update but not ended:', payload.new.status);
           }
         }
       )
       .subscribe((status: string) => {
         console.log('📡 Call end events subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Successfully subscribed to call end events');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Failed to subscribe to call end events');
+        }
       });
 
     return channel;

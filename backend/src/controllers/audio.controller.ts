@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { agoraService } from "../services/agora.service.js";
-import { supabaseAdmin } from "../configs/supabase.js";
+import { supabase, supabaseAdmin } from "../configs/supabase.js";
 import { AuthRequest } from "../middlewares/auth.middleware.js";
 
 /**
@@ -220,8 +220,7 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
 };
 /**
  * POST /api/audio/end/:session_id
- */
-export const endSession = async (req: AuthRequest, res: Response) => {
+ */export const endSession = async (req: AuthRequest, res: Response) => {
   console.log('🎯 END SESSION REQUEST:', {
     user: req.user?.id,
     params: req.params,
@@ -230,12 +229,12 @@ export const endSession = async (req: AuthRequest, res: Response) => {
 
   try {
     const { session_id } = req.params;
-    const { recording_url } = req.body; // Removed summary
+    const { recording_url } = req.body;
     const user_id = req.user!.id;
 
-    // Get and validate session
+    // Get and validate session - Use regular supabase client
     console.log('🔍 Fetching session to end:', { session_id });
-    const { data: session, error: fetchErr } = await supabaseAdmin
+    const { data: session, error: fetchErr } = await supabase
       .from("audio_sessions")
       .select("*")
       .eq("id", session_id)
@@ -254,7 +253,7 @@ export const endSession = async (req: AuthRequest, res: Response) => {
 
     console.log('✅ Authorization verified, ending session...');
 
-    // Update session
+    // Update session - Use regular supabase client to trigger real-time
     const updates: any = { 
       status: "ended", 
       ended_at: new Date().toISOString(), 
@@ -262,9 +261,14 @@ export const endSession = async (req: AuthRequest, res: Response) => {
     };
     
     if (recording_url) updates.recording_url = recording_url;
-    // Removed summary field
 
-    const { data, error } = await supabaseAdmin
+    console.log('🔄 UPDATING SESSION (will trigger WebSocket):', {
+      sessionId: session_id,
+      updates: updates
+    });
+
+    // Use regular supabase client here too
+    const { data: updatedSession, error } = await supabase
       .from("audio_sessions")
       .update(updates)
       .eq("id", session_id)
@@ -276,9 +280,15 @@ export const endSession = async (req: AuthRequest, res: Response) => {
       throw error;
     }
 
-    console.log('✅ Session ended successfully:', session_id);
+    console.log('✅ Session ended successfully and WebSocket should trigger:', {
+      sessionId: session_id,
+      newStatus: updatedSession.status,
+      endedAt: updatedSession.ended_at,
+      initiatorId: updatedSession.initiator_id,
+      receiverId: updatedSession.receiver_id
+    });
 
-    res.json({ session: data });
+    res.json({ session: updatedSession });
   } catch (err: any) {
     console.error("❌ endSession error:", err);
     res.status(500).json({ error: err.message ?? "Server error" });
