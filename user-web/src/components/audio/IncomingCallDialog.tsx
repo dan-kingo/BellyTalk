@@ -7,7 +7,6 @@ import { webSocketService } from '../../services/websocket.service';
 import Dialog from '../common/Dialog';
 import { Phone, PhoneOff, Video } from 'lucide-react';
 import { Profile } from '../../types';
-import { useNavigate } from 'react-router-dom';
 
 interface IncomingCallDialogProps {
   onCallAccepted: (session: any) => void;
@@ -25,7 +24,6 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
   onCallRejected
 }) => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isResponding, setIsResponding] = useState(false);
@@ -144,55 +142,41 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
       webSocketService.removeCallback(handleIncomingCall);
     };
   }, [user?.id]);
-// In your IncomingCallDialog.tsx - update the handleAcceptCall function
-const handleAcceptCall = async () => {
-  if (!incomingCall) return;
 
-  try {
-    setIsResponding(true);
-    console.log('✅ Accepting call:', incomingCall.session.id);
-    
-    // Clear timeout
-    if (callTimeout) {
-      clearTimeout(callTimeout);
-    }
-    
-    // CRITICAL FIX: For video calls, navigate directly to video page
-    if (incomingCall.isVideoCall) {
-      console.log('🎥 Accepting VIDEO call - navigating to video page');
+  const handleAcceptCall = async () => {
+    if (!incomingCall) return;
+
+    try {
+      setIsResponding(true);
+      console.log('✅ Accepting call:', incomingCall.session.id);
+      
+      // Clear timeout
+      if (callTimeout) {
+        clearTimeout(callTimeout);
+      }
       
       // Get tokens first to ensure session is ready
-      await videoService.getTokens(incomingCall.session.id);
-      
-      // Navigate directly to video call page with session data
-      setIsVisible(false);
-      navigate('/video-call', { 
-        state: { 
-          session: incomingCall.session,
-          isIncomingCall: true,
-          caller: incomingCall.caller,
-          autoJoin: true // This flag tells VideoCallPage to auto-join
-        },
-        replace: true
-      });
-    } else {
-      // For audio calls, use the existing flow
-      console.log('🎵 Accepting audio call');
-      await audioService.getTokens(incomingCall.session.id);
+      if (incomingCall.isVideoCall) {
+        await videoService.getTokens(incomingCall.session.id);
+      } else {
+        await audioService.getTokens(incomingCall.session.id);
+      }
       
       setIsVisible(false);
+      
+      // Pass the session to the parent component for handling
       onCallAccepted({
         ...incomingCall.session,
         isVideoCall: incomingCall.isVideoCall
       });
+      
+    } catch (error: any) {
+      console.error('❌ Failed to accept call:', error);
+      alert('Failed to accept call: ' + (error.message || 'Please try again.'));
+    } finally {
+      setIsResponding(false);
     }
-  } catch (error: any) {
-    console.error('❌ Failed to accept call:', error);
-    alert('Failed to accept call: ' + (error.message || 'Please try again.'));
-  } finally {
-    setIsResponding(false);
-  }
-};
+  };
 
   const handleRejectCall = async () => {
     if (!incomingCall) return;

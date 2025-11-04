@@ -303,14 +303,12 @@ const handleStartCall = async (receiverId: string, userProfile: Profile) => {
 
         {joinState ? (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
-            {/* Main Video Area */}
-          // Update the video display section in VideoCallPage
-<div className="relative bg-gray-900 aspect-video">
-  {/* Remote Video Streams */}
-  {Object.keys(remoteVideoTracks).length > 0 ? (
-    <div className="w-full h-full grid grid-cols-1 gap-2 p-2">
-      {Object.entries(remoteVideoTracks).map(([uid, track]) => (
-        <div key={uid} className="w-full h-full bg-black rounded-lg overflow-hidden relative">
+            <div className="relative bg-gray-900 aspect-video">
+              {/* Remote Video Streams */}
+              {Object.keys(remoteVideoTracks).length > 0 ? (
+                <div className="w-full h-full grid grid-cols-1 gap-2 p-2">
+                  {Object.entries(remoteVideoTracks).map(([uid, track]) => (
+                    <div key={uid} className="w-full h-full bg-black rounded-lg overflow-hidden relative">
           <div 
             id={`remote-video-${uid}`}
             className="w-full h-full"
@@ -341,7 +339,7 @@ const handleStartCall = async (receiverId: string, userProfile: Profile) => {
 
   {/* Local Video Preview */}
   {isVideoEnabled && localVideoTrack && (
-    <div className="absolute bottom-4 right-4 w-48 h-36 bg-gray-800 rounded-lg overflow-hidden shadow-lg border-2 border-green-400">
+    <div className="absolute bottom-4 right-4 w-8 h-8 bg-gray-800 rounded-lg overflow-hidden shadow-lg border-2 border-green-400">
       <div id="local-video" className="w-full h-full" />
       <div className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
         You {!isVideoEnabled && '(Video Off)'}
