@@ -72,7 +72,8 @@ const AudioCallPage: React.FC = () => {
 
     const handleCallEnded = async (payload: any) => {
       const endedSession = payload.new;
-      
+      console.log('ENDING CALL WITH ID:', JSON.stringify(currentSession.id));
+      console.log('LENGTH:', currentSession.id.length);
       // Check if this is our current session that ended
       if (endedSession.id === currentSession.id && endedSession.status === 'ended') {
         console.log('📞 Audio call ended by other user, leaving channel...');

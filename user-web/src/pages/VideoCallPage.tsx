@@ -280,7 +280,8 @@ const VideoCallPage: React.FC = () => {
     try {
       setEndingCall(true);
       setCallStatus('Ending call for both users...');
-      
+      console.log('ENDING CALL WITH ID:', JSON.stringify(currentSession.id));
+console.log('LENGTH:', currentSession.id.length);
       console.log('🛑 Ending video call for both users...');
       
       // Leave the Agora channel
