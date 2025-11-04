@@ -5,7 +5,7 @@ import { chatService } from '../services/chat.service';
 import Layout from '../components/layout/Layout';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import Dialog from '../components/common/Dialog';
-import { Video, Mic, MicOff, PhoneOff, Search, Camera, CameraOff, User, Users } from 'lucide-react';
+import { Video, Mic, MicOff, PhoneOff, Search, Camera, CameraOff, User } from 'lucide-react';
 import { Profile } from '../types';
 import { videoService } from '../services/video.service';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -41,139 +41,151 @@ const VideoCallPage: React.FC = () => {
 
   const APP_ID = import.meta.env.VITE_AGORA_APP_ID!;
 
-  // CRITICAL FIX: Handle incoming video calls with auto-join
-  useEffect(() => {
-    if (location.state?.isIncomingCall && location.state?.autoJoin && !currentSession) {
-      const { session, caller } = location.state;
-      console.log('🎥 AUTO-JOINING incoming video call:', { session, caller });
-      
-      // Set the session and remote user
-      setCurrentSession(session);
-      setRemoteUser(caller);
-      
-      // Automatically join the video call
-      handleJoinIncomingCall(session);
-      
-      // Clear the autoJoin flag to prevent re-joining
-      navigate('/video-call', { 
-        state: { 
-          ...location.state,
-          autoJoin: false 
-        },
-        replace: true 
-      });
-    }
-  }, [location.state, currentSession, navigate]);
+  // In your VideoCallPage.tsx - add this useEffect at the top
+useEffect(() => {
+  if (location.state?.isIncomingCall && location.state?.autoJoin && !currentSession && !joinState) {
+    const { session, caller } = location.state;
+    console.log('🎥 AUTO-JOINING incoming video call:', { session, caller });
+    
+    // Set the session and remote user
+    setCurrentSession(session);
+    setRemoteUser(caller);
+    
+    // Automatically join the video call
+    handleJoinIncomingCall(session);
+    
+    // Clear the autoJoin flag to prevent re-joining
+    navigate('/video-call', { 
+      state: { 
+        ...location.state,
+        autoJoin: false 
+      },
+      replace: true 
+    });
+  }
+}, [location.state, currentSession, joinState, navigate]);
 
-  // Handle joining an incoming video call
-  const handleJoinIncomingCall = async (session: any) => {
-    try {
-      setLoading(true);
-      setCallStatus('Joining video call...');
-      
-      console.log('🎥 Joining incoming video call as RECEIVER:', session.id);
-      
-      // Get auth tokens for the session
-      const authResponse = await videoService.getTokens(
-        session.id, 
-        undefined, 
-        'publisher'
-      );
-
-      console.log('✅ Receiver auth tokens received:', authResponse);
-
-      setCallStatus('Enabling video and audio...');
-
-      // CRITICAL: Join the Agora channel with video enabled for receiver too
-      const joinConfig = {
-        appId: APP_ID || 'c9b0a43d50a947a38c8ba06c6ffec555',
-        channel: authResponse.channelName,
-        token: authResponse.rtcToken,
-        uid: authResponse.uid,
-        enableVideo: true // THIS ENSURES RECEIVER HAS VIDEO ENABLED
-      };
-
-      console.log('🔗 Receiver joining Agora video channel:', joinConfig);
-      await join(joinConfig);
-
-      console.log('✅ Receiver video join successful! Video should be enabled.');
-      setCallStatus('Connected - Video call active');
-      
-    } catch (error: any) {
-      console.error('❌ Failed to join incoming video call:', error);
-      const errorMsg = error.response?.data?.error || error.message || 'Failed to join video call.';
-      setErrorMessage(errorMsg);
-      setCallStatus('Failed to connect');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleStartCall = async (receiverId: string, userProfile: Profile) => {
-    try {
-      setLoading(true);
-      setErrorMessage('');
-      setCallStatus('Creating session...');
-      setRemoteUser(userProfile);
-
-      console.log('🚀 Starting video call process as CALLER...');
-
-      // 1. Create session with Agora using VIDEO service
-      setCallStatus('Creating video session...');
-      const sessionResponse = await videoService.createSession(receiverId);
-      setCurrentSession(sessionResponse.session);
-      
-      console.log('✅ Video session created:', sessionResponse.session.id);
-
-      setCallStatus('Getting auth tokens...');
-      
-      // 2. Get auth tokens from backend
-      const authResponse = await videoService.getTokens(
-        sessionResponse.session.id, 
-        undefined, 
-        'publisher'
-      );
-
-      console.log('✅ Caller auth tokens received:', authResponse);
-
-      setCallStatus('Enabling video and joining...');
-
-      // 3. Join the Agora channel with video enabled
-      const joinConfig = {
-        appId: APP_ID || 'c9b0a43d50a947a38c8ba06c6ffec555',
-        channel: authResponse.channelName,
-        token: authResponse.rtcToken,
-        uid: authResponse.uid,
-        enableVideo: true // CALLER VIDEO ENABLED
-      };
-
-      console.log('🔗 Caller joining Agora video channel:', joinConfig);
-      await join(joinConfig);
-
-      console.log('✅ Caller video join successful!');
-      setCallStatus('Connected - Waiting for recipient...');
-      setShowNewCallDialog(false);
-      
-    } catch (error: any) {
-      console.error('❌ Failed to start video call:', error);
-      const errorMsg = error.response?.data?.error || error.message || 'Failed to start video call. Please try again.';
-      setErrorMessage(errorMsg);
-      setCallStatus('');
-      setRemoteUser(null);
-      
-      // Clean up on error
-      if (currentSession) {
-        try {
-          await videoService.endSession(currentSession.id);
-        } catch (cleanupError) {
-          console.error('Cleanup error:', cleanupError);
-        }
+// Add this useEffect to ensure remote videos auto-play
+useEffect(() => {
+  Object.values(remoteVideoTracks).forEach(track => {
+    if (track && track.isPlaying === false) {
+      try {
+        track.play(`remote-video-${track.getUserId()}`);
+        console.log('🎥 Auto-playing remote video for user:', track.getUserId());
+      } catch (error) {
+        console.error('❌ Failed to auto-play remote video:', error);
       }
-    } finally {
-      setLoading(false);
     }
-  };
+  });
+}, [remoteVideoTracks]);
+// Add this function to handle joining incoming calls
+const handleJoinIncomingCall = async (session: any) => {
+  try {
+    setLoading(true);
+    setCallStatus('Joining video call...');
+    
+    console.log('🎥 Joining incoming video call as RECEIVER:', session.id);
+    
+    // Get auth tokens for the session
+    const authResponse = await videoService.getTokens(
+      session.id, 
+      undefined, 
+      'publisher'
+    );
 
+    console.log('✅ Receiver auth tokens received:', authResponse);
+
+    setCallStatus('Enabling video and audio...');
+
+    // CRITICAL: Join the Agora channel with video enabled for receiver
+    const joinConfig = {
+      appId: APP_ID || 'c9b0a43d50a947a38c8ba06c6ffec555',
+      channel: authResponse.channelName,
+      token: authResponse.rtcToken,
+      uid: authResponse.uid,
+      enableVideo: true // THIS ENSURES RECEIVER HAS VIDEO ENABLED
+    };
+
+    console.log('🔗 Receiver joining Agora video channel:', joinConfig);
+    await join(joinConfig);
+
+    console.log('✅ Receiver video join successful! Video should be enabled.');
+    setCallStatus('Connected - Video call active');
+    
+  } catch (error: any) {
+    console.error('❌ Failed to join incoming video call:', error);
+    const errorMsg = error.response?.data?.error || error.message || 'Failed to join video call.';
+    setErrorMessage(errorMsg);
+    setCallStatus('Failed to connect');
+  } finally {
+    setLoading(false);
+  }
+};
+// In your VideoCallPage - update the handleStartCall function
+const handleStartCall = async (receiverId: string, userProfile: Profile) => {
+  try {
+    setLoading(true);
+    setErrorMessage('');
+    setCallStatus('Creating session...');
+    setRemoteUser(userProfile);
+
+    console.log('🚀 Starting video call process as CALLER...');
+
+    // 1. Create session with Agora using VIDEO service
+    setCallStatus('Creating video session...');
+    const sessionResponse = await videoService.createSession(receiverId);
+    setCurrentSession(sessionResponse.session);
+    
+    console.log('✅ Video session created:', sessionResponse.session.id);
+
+    setCallStatus('Getting auth tokens...');
+    
+    // 2. Get auth tokens from backend
+    const authResponse = await videoService.getTokens(
+      sessionResponse.session.id, 
+      undefined, 
+      'publisher'
+    );
+
+    console.log('✅ Caller auth tokens received:', authResponse);
+
+    setCallStatus('Enabling video and joining...');
+
+    // 3. Join the Agora channel with video enabled
+    const joinConfig = {
+      appId: APP_ID || 'c9b0a43d50a947a38c8ba06c6ffec555',
+      channel: authResponse.channelName,
+      token: authResponse.rtcToken,
+      uid: authResponse.uid,
+      enableVideo: true // CALLER VIDEO ENABLED
+    };
+
+    console.log('🔗 Caller joining Agora video channel:', joinConfig);
+    await join(joinConfig);
+
+    console.log('✅ Caller video join successful!');
+    setCallStatus('Connected - Waiting for recipient...');
+    setShowNewCallDialog(false);
+    
+  } catch (error: any) {
+    console.error('❌ Failed to start video call:', error);
+    const errorMsg = error.response?.data?.error || error.message || 'Failed to start video call. Please try again.';
+    setErrorMessage(errorMsg);
+    setCallStatus('');
+    setRemoteUser(null);
+    
+    // Clean up on error
+    if (currentSession) {
+      try {
+        await videoService.endSession(currentSession.id);
+      } catch (cleanupError) {
+        console.error('Cleanup error:', cleanupError);
+      }
+    }
+  } finally {
+    setLoading(false);
+  }
+};
   const handleEndCall = async () => {
     try {
       setEndingCall(true);
@@ -292,63 +304,64 @@ const VideoCallPage: React.FC = () => {
         {joinState ? (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
             {/* Main Video Area */}
-            <div className="relative bg-gray-900 aspect-video">
-              {/* Remote Video Streams */}
-              {Object.keys(remoteVideoTracks).length > 0 ? (
-                <div className="w-full h-full grid grid-cols-1 gap-2 p-2">
-                  {Object.entries(remoteVideoTracks).map(([uid, _]) => (
-                    <div key={uid} className="w-full h-full bg-black rounded-lg overflow-hidden">
-                      <div 
-                        id={`remote-video-${uid}`}
-                        className="w-full h-full"
-                      />
-                      <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                        {remoteUser?.full_name || `User ${uid}`}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <div className="text-center">
-                    <User className="w-24 h-24 text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-400 text-lg">Waiting for other participants...</p>
-                    {remoteUser && (
-                      <p className="text-gray-500 text-sm mt-2">
-                        {location.state?.isIncomingCall ? 'In call with' : 'Calling'} {remoteUser.full_name}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
+          // Update the video display section in VideoCallPage
+<div className="relative bg-gray-900 aspect-video">
+  {/* Remote Video Streams */}
+  {Object.keys(remoteVideoTracks).length > 0 ? (
+    <div className="w-full h-full grid grid-cols-1 gap-2 p-2">
+      {Object.entries(remoteVideoTracks).map(([uid, track]) => (
+        <div key={uid} className="w-full h-full bg-black rounded-lg overflow-hidden relative">
+          <div 
+            id={`remote-video-${uid}`}
+            className="w-full h-full"
+          />
+          <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
+            {remoteUser?.full_name || `User ${uid}`}
+            {!track.isPlaying && ' (Connecting...)'}
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div className="w-full h-full flex items-center justify-center">
+      <div className="text-center">
+        <User className="w-24 h-24 text-gray-600 mx-auto mb-4" />
+        <p className="text-gray-400 text-lg">Waiting for other participants...</p>
+        {remoteUser && (
+          <p className="text-gray-500 text-sm mt-2">
+            {location.state?.isIncomingCall ? 'In call with' : 'Calling'} {remoteUser.full_name}
+          </p>
+        )}
+        <p className="text-gray-500 text-sm mt-1">
+          Ensure your camera is enabled for video call
+        </p>
+      </div>
+    </div>
+  )}
 
-              {/* Local Video Preview */}
-              {isVideoEnabled && localVideoTrack && (
-                <div className="absolute bottom-4 right-4 w-48 h-36 bg-gray-800 rounded-lg overflow-hidden shadow-lg">
-                  <div id="local-video" className="w-full h-full" />
-                  <div className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
-                    You {!isVideoEnabled && '(Video Off)'}
-                  </div>
-                </div>
-              )}
+  {/* Local Video Preview */}
+  {isVideoEnabled && localVideoTrack && (
+    <div className="absolute bottom-4 right-4 w-48 h-36 bg-gray-800 rounded-lg overflow-hidden shadow-lg border-2 border-green-400">
+      <div id="local-video" className="w-full h-full" />
+      <div className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
+        You {!isVideoEnabled && '(Video Off)'}
+      </div>
+    </div>
+  )}
 
-              {/* Call Status */}
-              {callStatus && (
-                <div className="absolute top-4 left-4 bg-gray-800 rounded-lg p-2">
-                  <p className="text-white text-sm">{callStatus}</p>
-                </div>
-              )}
+  {/* Video Status Indicators */}
+  {!isVideoEnabled && (
+    <div className="absolute top-4 left-4 bg-yellow-600 rounded-lg p-2">
+      <p className="text-white text-sm">Your camera is off</p>
+    </div>
+  )}
 
-              {/* Remote Users Info */}
-              {remoteUsers.length > 0 && (
-                <div className="absolute top-4 right-4 bg-gray-800 rounded-lg p-2">
-                  <div className="flex items-center gap-2 text-white text-sm">
-                    <Users className="w-4 h-4" />
-                    <span>{remoteUsers.length} in call</span>
-                  </div>
-                </div>
-              )}
-            </div>
+  {Object.keys(remoteVideoTracks).length === 0 && joinState && (
+    <div className="absolute top-4 left-4 bg-blue-600 rounded-lg p-2">
+      <p className="text-white text-sm">Waiting for other user's video...</p>
+    </div>
+  )}
+</div>
 
             {/* Controls */}
             <div className="p-6 bg-gray-50 dark:bg-gray-900/50 flex justify-center gap-4">

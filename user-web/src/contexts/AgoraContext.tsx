@@ -162,7 +162,7 @@ export const AgoraProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       console.error('❌ Failed to initialize Agora RTC client:', error);
     }
   }, []);
-
+// In your Agora context - update the join function
 const join = async (config: JoinConfig) => {
   console.log('🎯 Joining Agora channel:', config);
   
@@ -192,8 +192,8 @@ const join = async (config: JoinConfig) => {
 
     const tracksToPublish: ILocalTrack[] = [localAudioTrack];
 
-    // CRITICAL FIX: Handle video based on enableVideo flag, but ensure it works
-    const shouldEnableVideo = config.enableVideo !== false; // Default to true if not specified
+    // CRITICAL FIX: Always try to enable video for both caller and receiver
+    const shouldEnableVideo = config.enableVideo !== false;
     
     if (shouldEnableVideo) {
       console.log('📹 Creating local video track...');
@@ -202,7 +202,7 @@ const join = async (config: JoinConfig) => {
         localVideoTrackRef.current = localVideoTrack;
         tracksToPublish.push(localVideoTrack);
         
-        // Play local video track
+        // Play local video track immediately
         localVideoTrack.play('local-video');
         console.log('✅ Local video track created and playing');
       } catch (videoError) {
@@ -222,6 +222,53 @@ const join = async (config: JoinConfig) => {
   } catch (error) {
     console.error('❌ Failed to join channel:', error);
     setJoinState(false);
+    throw error;
+  }
+};
+
+// Also update the toggleVideo function to be more robust
+const toggleVideo = async (enabled: boolean) => {
+  console.log('📹 Toggling video:', enabled);
+  
+  const client = clientRef.current;
+  if (!client) {
+    console.warn('⚠️ No Agora client available');
+    return;
+  }
+
+  try {
+    if (enabled) {
+      // Enable video - create and publish track
+      console.log('🎥 Enabling video...');
+      
+      if (localVideoTrackRef.current) {
+        // If track exists but not published, publish it
+        await client.publish([localVideoTrackRef.current]);
+      } else {
+        // Create new video track
+        const localVideoTrack = await AgoraRTC.createCameraVideoTrack();
+        localVideoTrackRef.current = localVideoTrack;
+        await client.publish([localVideoTrack]);
+        localVideoTrack.play('local-video');
+      }
+      
+      setIsVideoEnabled(true);
+      console.log('✅ Video enabled and published');
+      
+    } else {
+      // Disable video - unpublish track but keep it for later
+      console.log('🚫 Disabling video...');
+      
+      if (localVideoTrackRef.current) {
+        await client.unpublish([localVideoTrackRef.current]);
+        // Don't close the track, just stop it
+        localVideoTrackRef.current.stop();
+        setIsVideoEnabled(false);
+        console.log('✅ Video unpublished');
+      }
+    }
+  } catch (error) {
+    console.error('❌ Failed to toggle video:', error);
     throw error;
   }
 };
@@ -284,42 +331,6 @@ const join = async (config: JoinConfig) => {
     }
   };
 
- const toggleVideo = async (enabled: boolean) => {
-  console.log('📹 Toggling video:', enabled);
-  
-  const client = clientRef.current;
-  if (!client) {
-    console.warn('⚠️ No Agora client available');
-    return;
-  }
-
-  try {
-    if (enabled && !localVideoTrackRef.current) {
-      // Create and publish video track
-      console.log('🎥 Creating and publishing video track...');
-      const localVideoTrack = await AgoraRTC.createCameraVideoTrack();
-      localVideoTrackRef.current = localVideoTrack;
-      await client.publish([localVideoTrack]);
-      localVideoTrack.play('local-video');
-      setIsVideoEnabled(true);
-      console.log('✅ Video track published and playing');
-    } else if (!enabled && localVideoTrackRef.current) {
-      // Unpublish and close video track
-      console.log('🚫 Unpublishing video track...');
-      await client.unpublish([localVideoTrackRef.current]);
-      localVideoTrackRef.current.stop();
-      localVideoTrackRef.current.close();
-      localVideoTrackRef.current = null;
-      setIsVideoEnabled(false);
-      console.log('✅ Video track unpublished and closed');
-    }
-    // Remove the else-if condition that just toggles enabled state
-    // as it can cause inconsistent behavior
-  } catch (error) {
-    console.error('❌ Failed to toggle video:', error);
-    throw error;
-  }
-};
   const value: AgoraContextType = {
     client: clientRef.current,
     localAudioTrack: localAudioTrackRef.current,

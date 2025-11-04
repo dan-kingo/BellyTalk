@@ -144,57 +144,55 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
       webSocketService.removeCallback(handleIncomingCall);
     };
   }, [user?.id]);
+// In your IncomingCallDialog.tsx - update the handleAcceptCall function
+const handleAcceptCall = async () => {
+  if (!incomingCall) return;
 
-  const handleAcceptCall = async () => {
-    if (!incomingCall) return;
-
-    try {
-      setIsResponding(true);
-      console.log('✅ Accepting call:', incomingCall.session.id);
-      
-      // Clear timeout
-      if (callTimeout) {
-        clearTimeout(callTimeout);
-      }
-      
-      // CRITICAL FIX: For video calls, navigate directly to video page
-      if (incomingCall.isVideoCall) {
-        console.log('🎥 Accepting VIDEO call - navigating to video page');
-        
-        // Get tokens first
-        await videoService.getTokens(incomingCall.session.id);
-        
-        // Navigate directly to video call page with session data
-        setIsVisible(false);
-        navigate('/video-call', { 
-          state: { 
-            session: incomingCall.session,
-            isIncomingCall: true,
-            caller: incomingCall.caller,
-            autoJoin: true // Add this flag to auto-join
-          }
-        });
-        
-        // Don't call onCallAccepted for video calls - video page will handle it
-        return;
-      } else {
-        // For audio calls, use the existing flow
-        console.log('🎵 Accepting audio call');
-        await audioService.getTokens(incomingCall.session.id);
-        
-        setIsVisible(false);
-        onCallAccepted({
-          ...incomingCall.session,
-          isVideoCall: incomingCall.isVideoCall
-        });
-      }
-    } catch (error: any) {
-      console.error('❌ Failed to accept call:', error);
-      alert('Failed to accept call: ' + (error.message || 'Please try again.'));
-    } finally {
-      setIsResponding(false);
+  try {
+    setIsResponding(true);
+    console.log('✅ Accepting call:', incomingCall.session.id);
+    
+    // Clear timeout
+    if (callTimeout) {
+      clearTimeout(callTimeout);
     }
-  };
+    
+    // CRITICAL FIX: For video calls, navigate directly to video page
+    if (incomingCall.isVideoCall) {
+      console.log('🎥 Accepting VIDEO call - navigating to video page');
+      
+      // Get tokens first to ensure session is ready
+      await videoService.getTokens(incomingCall.session.id);
+      
+      // Navigate directly to video call page with session data
+      setIsVisible(false);
+      navigate('/video-call', { 
+        state: { 
+          session: incomingCall.session,
+          isIncomingCall: true,
+          caller: incomingCall.caller,
+          autoJoin: true // This flag tells VideoCallPage to auto-join
+        },
+        replace: true
+      });
+    } else {
+      // For audio calls, use the existing flow
+      console.log('🎵 Accepting audio call');
+      await audioService.getTokens(incomingCall.session.id);
+      
+      setIsVisible(false);
+      onCallAccepted({
+        ...incomingCall.session,
+        isVideoCall: incomingCall.isVideoCall
+      });
+    }
+  } catch (error: any) {
+    console.error('❌ Failed to accept call:', error);
+    alert('Failed to accept call: ' + (error.message || 'Please try again.'));
+  } finally {
+    setIsResponding(false);
+  }
+};
 
   const handleRejectCall = async () => {
     if (!incomingCall) return;
