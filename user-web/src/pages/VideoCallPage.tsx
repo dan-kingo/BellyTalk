@@ -32,7 +32,7 @@ const VideoCallPage: React.FC = () => {
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
   const [searching, setSearching] = useState(false);
   const [currentSession, setCurrentSession] = useState<any>(null);
-  const [callStatus, setCallStatus] = useState<string>('');
+  const [_, setCallStatus] = useState<string>('');
   const [endingCall, setEndingCall] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [remoteUser, setRemoteUser] = useState<Profile | null>(null);
