@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { agoraService } from "../services/agora.service.js";
-import { supabase } from "../configs/supabase.js";
+import { supabase, supabaseAdmin } from "../configs/supabase.js";
 import { AuthRequest } from "../middlewares/auth.middleware.js";
 
 /**
@@ -24,7 +24,7 @@ export const createSession = async (req: AuthRequest, res: Response) => {
 
     // Validate receiver exists
     console.log('🔍 Validating receiver:', { receiver_id });
-    const { data: receiver, error: receiverError } = await supabase
+    const { data: receiver, error: receiverError } = await supabaseAdmin
       .from('profiles')
       .select('id, email, full_name')
       .eq('id', receiver_id)
@@ -59,7 +59,7 @@ export const createSession = async (req: AuthRequest, res: Response) => {
       updated_at: new Date().toISOString(),
     };
 
-    const { data: session, error } = await supabase
+    const { data: session, error } = await supabaseAdmin
       .from("audio_sessions") // Keep same table for now
       .insert([sessionData])
       .select()
@@ -131,7 +131,7 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
     if (session_id) {
       console.log('🔍 Fetching session:', { session_id });
       
-      const { data: sessionData, error: sessionError } = await supabase
+      const { data: sessionData, error: sessionError } = await supabaseAdmin
         .from("audio_sessions")
         .select("*")
         .eq("id", session_id)
@@ -193,7 +193,7 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
     // Update session status if receiver is joining
     if (session_id && session && session.status === 'pending' && session.initiator_id !== user_id) {
       console.log('🔄 Receiver joined - updating session status to active');
-      await supabase
+      await supabaseAdmin
         .from("audio_sessions")
         .update({ 
           status: "active", 
@@ -309,7 +309,7 @@ export const getSession = async (req: AuthRequest, res: Response) => {
     const user_id = req.user!.id;
 
     // Simple select without joins
-    const { data: session, error } = await supabase
+    const { data: session, error } = await supabaseAdmin
       .from("audio_sessions")
       .select("*")
       .eq("id", session_id)
@@ -330,12 +330,12 @@ export const getSession = async (req: AuthRequest, res: Response) => {
 
     // Get user details separately
     const [initiatorResult, receiverResult] = await Promise.all([
-      supabase
+      supabaseAdmin
         .from('profiles')
         .select('id, email, full_name')
         .eq('id', session.initiator_id)
         .single(),
-      supabase
+      supabaseAdmin
         .from('profiles')
         .select('id, email, full_name')
         .eq('id', session.receiver_id)
