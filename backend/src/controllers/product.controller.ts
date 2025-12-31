@@ -65,14 +65,11 @@ export const createProduct = async (req: AuthRequest, res: Response) => {
       });
 
       const uploadRes = await new Promise<any>((resolve) => {
-        (uploadFile as any)(
-          fileReq,
-          {
-            status: () => ({
-              json: (data: any) => resolve(data),
-            }),
-          } as any
-        );
+        (uploadFile as any)(fileReq, {
+          status: () => ({
+            json: (data: any) => resolve(data),
+          }),
+        } as any);
       });
 
       if (uploadRes?.result?.secure_url) {
@@ -102,7 +99,7 @@ export const updateProduct = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const userId = (req as any).user?.id; // if you have auth
     const payload = req.body;
-console.log("Updating product:", id, payload);
+    console.log("Updating product:", id, payload);
 
     // optional: file upload handling
     if ((req as any).file) {
@@ -125,7 +122,8 @@ console.log("Updating product:", id, payload);
       .from("products")
       .update(payload)
       .eq("id", id)
-      .select().single();
+      .select()
+      .single();
 
     if (error) throw error;
     if (!data) {
@@ -139,11 +137,13 @@ console.log("Updating product:", id, payload);
   }
 };
 
-
 export const deleteProduct = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { error } = await supabaseAdmin.from("products").delete().eq("id", id);
+    const { error } = await supabaseAdmin
+      .from("products")
+      .delete()
+      .eq("id", id);
     if (error) throw error;
     res.json({ message: "Product deleted" });
   } catch (err: any) {
