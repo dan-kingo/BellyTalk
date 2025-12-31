@@ -53,6 +53,11 @@ export const createProduct = async (req: AuthRequest, res: Response) => {
     const userId = req.user?.id; // from auth middleware
     const payload = req.body;
 
+    // attach creator so queries like getMyProducts can filter correctly
+    if (userId) {
+      payload.created_by = userId;
+    }
+
     // handle file upload if exists
     if ((req as any).file) {
       const fileReq = Object.assign({}, req, {
