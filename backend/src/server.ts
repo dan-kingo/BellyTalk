@@ -32,6 +32,7 @@ app.use(cors({
     'https://bellytalk-admin.vercel.app', 
     'http://localhost:5000',
     'https://bellytalk.onrender.com',
+'http://localhost:5173',
   ],
   credentials: true,
 }));
