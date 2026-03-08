@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import Layout from '../components/layout/Layout';
-import LoadingSpinner from '../components/common/LoadingSpinner';
-import { adminService } from '../services/admin.service';
-import { Profile } from '../types';
-import { Trash2, Search } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import Layout from "../components/layout/Layout";
+import { UsersPageSkeleton } from "../components/common/PageSkeletons";
+import { adminService } from "../services/admin.service";
+import { Profile } from "../types";
+import { Trash2, Search } from "lucide-react";
 
 const UsersPage: React.FC = () => {
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
@@ -21,39 +21,44 @@ const UsersPage: React.FC = () => {
       const data = await adminService.listUsers();
       setUsers(data.users || []);
     } catch (error) {
-      console.error('Failed to load users:', error);
+      console.error("Failed to load users:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this user? This action cannot be undone.",
+      )
+    ) {
       return;
     }
 
     try {
       setDeleting(userId);
       await adminService.deleteUser(userId);
-      setUsers(users.filter(u => u.id !== userId));
+      setUsers(users.filter((u) => u.id !== userId));
     } catch (error) {
-      console.error('Failed to delete user:', error);
-      alert('Failed to delete user');
+      console.error("Failed to delete user:", error);
+      alert("Failed to delete user");
     } finally {
       setDeleting(null);
     }
   };
 
-  const filteredUsers = users.filter(user =>
-    user.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.role.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredUsers = users.filter(
+    (user) =>
+      user.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.role.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   if (loading) {
     return (
       <Layout>
-        <LoadingSpinner />
+        <UsersPageSkeleton />
       </Layout>
     );
   }
@@ -62,8 +67,12 @@ const UsersPage: React.FC = () => {
     <Layout>
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Users Management</h1>
-          <p className="text-gray-600 dark:text-gray-400">Manage all registered users</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            Users Management
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Manage all registered users
+          </p>
         </div>
 
         <div className="mb-6">
@@ -106,7 +115,10 @@ const UsersPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/30">
+                  <tr
+                    key={user.id}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-900/30"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
                         {user.full_name}
@@ -123,14 +135,16 @@ const UsersPage: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        user.role_status === 'approved'
-                          ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400'
-                          : user.role_status === 'pending'
-                          ? 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400'
-                      }`}>
-                        {user.role_status || 'active'}
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          user.role_status === "approved"
+                            ? "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400"
+                            : user.role_status === "pending"
+                              ? "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400"
+                              : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400"
+                        }`}
+                      >
+                        {user.role_status || "active"}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">

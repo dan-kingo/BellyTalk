@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import Layout from '../components/layout/Layout';
-import LoadingSpinner from '../components/common/LoadingSpinner';
-import { adminService } from '../services/admin.service';
-import { RoleRequest } from '../types';
-import { CheckCircle, XCircle, FileText } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import Layout from "../components/layout/Layout";
+import { RoleRequestsPageSkeleton } from "../components/common/PageSkeletons";
+import { adminService } from "../services/admin.service";
+import { RoleRequest } from "../types";
+import { CheckCircle, XCircle, FileText } from "lucide-react";
 
 const RoleRequestsPage: React.FC = () => {
   const [requests, setRequests] = useState<RoleRequest[]>([]);
@@ -11,7 +11,7 @@ const RoleRequestsPage: React.FC = () => {
   const [processing, setProcessing] = useState<string | null>(null);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectUserId, setRejectUserId] = useState<string | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
+  const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
     loadRequests();
@@ -23,7 +23,7 @@ const RoleRequestsPage: React.FC = () => {
       const data = await adminService.listRoleRequests();
       setRequests(data.requests || []);
     } catch (error) {
-      console.error('Failed to load role requests:', error);
+      console.error("Failed to load role requests:", error);
     } finally {
       setLoading(false);
     }
@@ -33,10 +33,10 @@ const RoleRequestsPage: React.FC = () => {
     try {
       setProcessing(userId);
       await adminService.approveRole(userId);
-      setRequests(requests.filter(r => r.id !== userId));
+      setRequests(requests.filter((r) => r.id !== userId));
     } catch (error) {
-      console.error('Failed to approve request:', error);
-      alert('Failed to approve request');
+      console.error("Failed to approve request:", error);
+      alert("Failed to approve request");
     } finally {
       setProcessing(null);
     }
@@ -48,13 +48,13 @@ const RoleRequestsPage: React.FC = () => {
     try {
       setProcessing(rejectUserId);
       await adminService.rejectRole(rejectUserId, rejectReason);
-      setRequests(requests.filter(r => r.id !== rejectUserId));
+      setRequests(requests.filter((r) => r.id !== rejectUserId));
       setShowRejectDialog(false);
       setRejectUserId(null);
-      setRejectReason('');
+      setRejectReason("");
     } catch (error) {
-      console.error('Failed to reject request:', error);
-      alert('Failed to reject request');
+      console.error("Failed to reject request:", error);
+      alert("Failed to reject request");
     } finally {
       setProcessing(null);
     }
@@ -68,7 +68,7 @@ const RoleRequestsPage: React.FC = () => {
   if (loading) {
     return (
       <Layout>
-        <LoadingSpinner />
+        <RoleRequestsPageSkeleton />
       </Layout>
     );
   }
@@ -77,14 +77,20 @@ const RoleRequestsPage: React.FC = () => {
     <Layout>
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Role Requests</h1>
-          <p className="text-gray-600 dark:text-gray-400">Review and approve role upgrade requests</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            Role Requests
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Review and approve role upgrade requests
+          </p>
         </div>
 
         {requests.length === 0 ? (
           <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow-md">
             <FileText className="w-16 h-16 mx-auto text-gray-400 dark:text-gray-600 mb-4" />
-            <p className="text-gray-600 dark:text-gray-400">No pending role requests</p>
+            <p className="text-gray-600 dark:text-gray-400">
+              No pending role requests
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6">
@@ -102,10 +108,14 @@ const RoleRequestsPage: React.FC = () => {
                       Email: {request.email}
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                      Requested Role: <span className="font-medium text-primary dark:text-secondary">{request.requested_role}</span>
+                      Requested Role:{" "}
+                      <span className="font-medium text-primary dark:text-secondary">
+                        {request.requested_role}
+                      </span>
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-500">
-                      Submitted: {new Date(request.submitted_at).toLocaleString()}
+                      Submitted:{" "}
+                      {new Date(request.submitted_at).toLocaleString()}
                     </p>
 
                     {request.documents && request.documents.length > 0 && (
@@ -177,7 +187,7 @@ const RoleRequestsPage: React.FC = () => {
                   onClick={() => {
                     setShowRejectDialog(false);
                     setRejectUserId(null);
-                    setRejectReason('');
+                    setRejectReason("");
                   }}
                   className="flex-1 px-4 cursor-pointer py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                 >

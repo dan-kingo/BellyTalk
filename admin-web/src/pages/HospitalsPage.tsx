@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import Layout from "../components/layout/Layout";
 import Dialog from "../components/common/Dialog";
+import { HospitalsPageSkeleton } from "../components/common/PageSkeletons";
 import { hospitalService } from "../services/hospital.service";
 import { Hospital } from "../types";
 import { Plus, Edit, Trash2 } from "lucide-react";
@@ -20,11 +21,11 @@ const HospitalsPage: React.FC = () => {
   }>({ page: 1, limit: 10 });
   const [showDialog, setShowDialog] = useState(false);
   const [dialogMode, setDialogMode] = useState<"add" | "edit" | "delete">(
-    "add"
+    "add",
   );
   const [editingHospital, setEditingHospital] = useState<Hospital | null>(null);
   const [deletingHospital, setDeletingHospital] = useState<Hospital | null>(
-    null
+    null,
   );
   const [formData, setFormData] = useState({
     name: "",
@@ -55,7 +56,9 @@ const HospitalsPage: React.FC = () => {
 
       // Clean up filters - remove empty values
       const cleanFilters = Object.fromEntries(
-        Object.entries(filters).filter(([_, value]) => value !== '' && value !== undefined)
+        Object.entries(filters).filter(
+          ([_, value]) => value !== "" && value !== undefined,
+        ),
       );
 
       // Load user-specific hospitals for content managers, all hospitals for mothers
@@ -182,6 +185,14 @@ const HospitalsPage: React.FC = () => {
   // Helper to check if filters are active
   const hasActiveFilters = filters.query || filters.city || filters.service;
 
+  if (loading) {
+    return (
+      <Layout>
+        <HospitalsPageSkeleton />
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="max-w-7xl mx-auto">
@@ -227,7 +238,9 @@ const HospitalsPage: React.FC = () => {
         {/* Active Filters Indicator */}
         {hasActiveFilters && (
           <div className="mb-4 flex items-center gap-2">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Active filters:
+            </span>
             {filters.query && (
               <span className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
                 Search: "{filters.query}"
@@ -428,18 +441,12 @@ const HospitalsPage: React.FC = () => {
           </div>
         </Dialog>
 
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary dark:border-secondary"></div>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">Loading hospitals...</p>
-          </div>
-        ) : hospitals.length === 0 ? (
+        {hospitals.length === 0 ? (
           <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg">
             <p className="text-gray-500 dark:text-gray-400">
-              {hasActiveFilters 
-                ? 'No hospitals found matching your filters' 
-                : 'No hospitals found'
-              }
+              {hasActiveFilters
+                ? "No hospitals found matching your filters"
+                : "No hospitals found"}
             </p>
             {hasActiveFilters && (
               <button

@@ -1,36 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import Layout from '../components/layout/Layout';
-import LoadingSpinner from '../components/common/LoadingSpinner';
-import { adminService } from '../services/admin.service';
-import { 
-  Users, 
-  FileText, 
-  MessageSquare, 
-  TrendingUp, 
+import React, { useState, useEffect } from "react";
+import Layout from "../components/layout/Layout";
+import { DashboardPageSkeleton } from "../components/common/PageSkeletons";
+import { adminService } from "../services/admin.service";
+import {
+  Users,
+  FileText,
+  MessageSquare,
+  TrendingUp,
   Activity,
   BarChart3,
   PieChart,
   Calendar,
   ArrowUp,
-  ArrowDown
-} from 'lucide-react';
-import { OverviewStats } from '../types';
+  ArrowDown,
+} from "lucide-react";
+import { OverviewStats } from "../types";
 
 // Mock data for charts
 const generateLineData = (count: number, base: number, variation: number) => {
-  return Array.from({ length: count }, (_, i) => 
-    Math.max(0, base + Math.sin(i * 0.5) * variation + (Math.random() - 0.5) * 20)
+  return Array.from({ length: count }, (_, i) =>
+    Math.max(
+      0,
+      base + Math.sin(i * 0.5) * variation + (Math.random() - 0.5) * 20,
+    ),
   );
 };
 
 const generateBarData = (count: number, max: number) => {
-  return Array.from({ length: count }, () => Math.floor(Math.random() * max) + 50);
+  return Array.from(
+    { length: count },
+    () => Math.floor(Math.random() * max) + 50,
+  );
 };
 
 const DashboardPage: React.FC = () => {
   const [stats, setStats] = useState<OverviewStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('7d');
+  const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("7d");
 
   // Mock performance data with proper values for visibility
   const [performanceData] = useState({
@@ -42,15 +48,15 @@ const DashboardPage: React.FC = () => {
       uptime: 99.8,
       responseTime: 124,
       errorRate: 0.2,
-      satisfaction: 4.7
+      satisfaction: 4.7,
     },
     topHospitals: [
-      { name: 'General Hospital', users: 245, growth: 12 },
-      { name: 'City Medical', users: 189, growth: 8 },
-      { name: 'Community Health', users: 156, growth: -2 },
-      { name: 'Regional Center', users: 134, growth: 15 },
-      { name: 'University Hospital', users: 98, growth: 5 }
-    ]
+      { name: "General Hospital", users: 245, growth: 12 },
+      { name: "City Medical", users: 189, growth: 8 },
+      { name: "Community Health", users: 156, growth: -2 },
+      { name: "Regional Center", users: 134, growth: 15 },
+      { name: "University Hospital", users: 98, growth: 5 },
+    ],
   });
 
   useEffect(() => {
@@ -63,7 +69,7 @@ const DashboardPage: React.FC = () => {
       const data = await adminService.getOverview();
       setStats(data);
     } catch (error) {
-      console.error('Failed to load overview:', error);
+      console.error("Failed to load overview:", error);
     } finally {
       setLoading(false);
     }
@@ -71,29 +77,33 @@ const DashboardPage: React.FC = () => {
 
   const getTimeLabels = () => {
     switch (timeRange) {
-      case '7d':
-        return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      case '30d':
-        return ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-      case '90d':
-        return ['Month 1', 'Month 2', 'Month 3'];
+      case "7d":
+        return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+      case "30d":
+        return ["Week 1", "Week 2", "Week 3", "Week 4"];
+      case "90d":
+        return ["Month 1", "Month 2", "Month 3"];
       default:
-        return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     }
   };
 
   const timeLabels = getTimeLabels();
 
   // Ensure we have valid data for charts
-  const hospitalData = performanceData.hospitalEngagement || [50, 75, 100, 125, 150];
-  const messageData = performanceData.messageActivity || [150, 180, 200, 220, 250, 230, 210];
+  const hospitalData = performanceData.hospitalEngagement || [
+    50, 75, 100, 125, 150,
+  ];
+  const messageData = performanceData.messageActivity || [
+    150, 180, 200, 220, 250, 230, 210,
+  ];
   const maxHospitalValue = Math.max(...hospitalData);
   const maxMessageValue = Math.max(...messageData);
 
   if (loading) {
     return (
       <Layout>
-        <LoadingSpinner />
+        <DashboardPageSkeleton />
       </Layout>
     );
   }
@@ -104,11 +114,15 @@ const DashboardPage: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Dashboard</h1>
-            <p className="text-gray-600 dark:text-gray-400">Welcome to BellyTalk Admin Panel</p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              Dashboard
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Welcome to BellyTalk Admin Panel
+            </p>
           </div>
           <div className="flex items-center gap-3">
-            <select 
+            <select
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value as any)}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -133,21 +147,29 @@ const DashboardPage: React.FC = () => {
             </div>
             <div className="flex items-center gap-1 mt-4">
               <ArrowUp className="w-4 h-4" />
-              <span className="text-sm text-blue-100">+12.5% from last period</span>
+              <span className="text-sm text-blue-100">
+                +12.5% from last period
+              </span>
             </div>
           </div>
 
           <div className="bg-linear-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-green-100 text-sm font-medium">Content Pieces</p>
-                <p className="text-3xl font-bold mt-2">{stats?.contents || 0}</p>
+                <p className="text-green-100 text-sm font-medium">
+                  Content Pieces
+                </p>
+                <p className="text-3xl font-bold mt-2">
+                  {stats?.contents || 0}
+                </p>
               </div>
               <FileText className="w-8 h-8 text-green-200" />
             </div>
             <div className="flex items-center gap-1 mt-4">
               <ArrowUp className="w-4 h-4" />
-              <span className="text-sm text-green-100">+8.3% from last period</span>
+              <span className="text-sm text-green-100">
+                +8.3% from last period
+              </span>
             </div>
           </div>
 
@@ -155,13 +177,17 @@ const DashboardPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-purple-100 text-sm font-medium">Messages</p>
-                <p className="text-3xl font-bold mt-2">{stats?.messages || 0}</p>
+                <p className="text-3xl font-bold mt-2">
+                  {stats?.messages || 0}
+                </p>
               </div>
               <MessageSquare className="w-8 h-8 text-purple-200" />
             </div>
             <div className="flex items-center gap-1 mt-4">
               <ArrowUp className="w-4 h-4" />
-              <span className="text-sm text-purple-100">+23.1% from last period</span>
+              <span className="text-sm text-purple-100">
+                +23.1% from last period
+              </span>
             </div>
           </div>
 
@@ -187,7 +213,9 @@ const DashboardPage: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <TrendingUp className="w-6 h-6 text-blue-500" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">User Growth</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  User Growth
+                </h3>
               </div>
               <span className="text-sm text-green-500 font-medium">+12.5%</span>
             </div>
@@ -196,13 +224,17 @@ const DashboardPage: React.FC = () => {
                 <div key={index} className="flex-1 flex flex-col items-center">
                   <div
                     className="w-full bg-linear-to-t from-blue-500 to-blue-600 rounded-t-lg transition-all hover:from-blue-400 hover:to-blue-500 cursor-pointer relative group"
-                    style={{ height: `${(value / Math.max(...performanceData.userGrowth)) * 80}%` }}
+                    style={{
+                      height: `${(value / Math.max(...performanceData.userGrowth)) * 80}%`,
+                    }}
                   >
                     <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       {Math.round(value)}
                     </div>
                   </div>
-                  <span className="text-xs text-gray-500 mt-2">{timeLabels[index]}</span>
+                  <span className="text-xs text-gray-500 mt-2">
+                    {timeLabels[index]}
+                  </span>
                 </div>
               ))}
             </div>
@@ -213,7 +245,9 @@ const DashboardPage: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <FileText className="w-6 h-6 text-green-500" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Content Creation</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Content Creation
+                </h3>
               </div>
               <span className="text-sm text-green-500 font-medium">+8.3%</span>
             </div>
@@ -222,13 +256,17 @@ const DashboardPage: React.FC = () => {
                 <div key={index} className="flex-1 flex flex-col items-center">
                   <div
                     className="w-full bg-linear-to-t from-green-500 to-green-600 rounded-t-lg transition-all hover:from-green-400 hover:to-green-500 cursor-pointer relative group"
-                    style={{ height: `${(value / Math.max(...performanceData.contentCreation)) * 80}%` }}
+                    style={{
+                      height: `${(value / Math.max(...performanceData.contentCreation)) * 80}%`,
+                    }}
                   >
                     <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       {Math.round(value)}
                     </div>
                   </div>
-                  <span className="text-xs text-gray-500 mt-2">{timeLabels[index]}</span>
+                  <span className="text-xs text-gray-500 mt-2">
+                    {timeLabels[index]}
+                  </span>
                 </div>
               ))}
             </div>
@@ -241,50 +279,76 @@ const DashboardPage: React.FC = () => {
           <div className="lg:col-span-1 bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3 mb-6">
               <Activity className="w-6 h-6 text-purple-500" />
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Performance</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Performance
+              </h3>
             </div>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Uptime</span>
-                <span className="text-lg font-semibold text-green-500">{performanceData.platformMetrics.uptime}%</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Uptime
+                </span>
+                <span className="text-lg font-semibold text-green-500">
+                  {performanceData.platformMetrics.uptime}%
+                </span>
               </div>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div 
-                  className="bg-green-500 h-2 rounded-full" 
-                  style={{ width: `${performanceData.platformMetrics.uptime}%` }}
+                <div
+                  className="bg-green-500 h-2 rounded-full"
+                  style={{
+                    width: `${performanceData.platformMetrics.uptime}%`,
+                  }}
                 ></div>
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Avg. Response</span>
-                <span className="text-lg font-semibold text-blue-500">{performanceData.platformMetrics.responseTime}ms</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Avg. Response
+                </span>
+                <span className="text-lg font-semibold text-blue-500">
+                  {performanceData.platformMetrics.responseTime}ms
+                </span>
               </div>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div 
-                  className="bg-blue-500 h-2 rounded-full" 
-                  style={{ width: `${(300 - performanceData.platformMetrics.responseTime) / 300 * 100}%` }}
+                <div
+                  className="bg-blue-500 h-2 rounded-full"
+                  style={{
+                    width: `${((300 - performanceData.platformMetrics.responseTime) / 300) * 100}%`,
+                  }}
                 ></div>
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Error Rate</span>
-                <span className="text-lg font-semibold text-red-500">{performanceData.platformMetrics.errorRate}%</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Error Rate
+                </span>
+                <span className="text-lg font-semibold text-red-500">
+                  {performanceData.platformMetrics.errorRate}%
+                </span>
               </div>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div 
-                  className="bg-red-500 h-2 rounded-full" 
-                  style={{ width: `${performanceData.platformMetrics.errorRate}%` }}
+                <div
+                  className="bg-red-500 h-2 rounded-full"
+                  style={{
+                    width: `${performanceData.platformMetrics.errorRate}%`,
+                  }}
                 ></div>
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Satisfaction</span>
-                <span className="text-lg font-semibold text-yellow-500">{performanceData.platformMetrics.satisfaction}/5</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Satisfaction
+                </span>
+                <span className="text-lg font-semibold text-yellow-500">
+                  {performanceData.platformMetrics.satisfaction}/5
+                </span>
               </div>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div 
-                  className="bg-yellow-500 h-2 rounded-full" 
-                  style={{ width: `${(performanceData.platformMetrics.satisfaction / 5) * 100}%` }}
+                <div
+                  className="bg-yellow-500 h-2 rounded-full"
+                  style={{
+                    width: `${(performanceData.platformMetrics.satisfaction / 5) * 100}%`,
+                  }}
                 ></div>
               </div>
             </div>
@@ -295,7 +359,9 @@ const DashboardPage: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <BarChart3 className="w-6 h-6 text-orange-500" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Hospital Engagement</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Hospital Engagement
+                </h3>
               </div>
               <span className="text-sm text-gray-500">Active Users</span>
             </div>
@@ -332,11 +398,16 @@ const DashboardPage: React.FC = () => {
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3 mb-6">
               <PieChart className="w-6 h-6 text-indigo-500" />
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Top Hospitals</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Top Hospitals
+              </h3>
             </div>
             <div className="space-y-4">
               {performanceData.topHospitals.map((hospital, index) => (
-                <div key={index} className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/20 rounded-lg flex items-center justify-center">
                       <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">
@@ -344,13 +415,25 @@ const DashboardPage: React.FC = () => {
                       </span>
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900 dark:text-white">{hospital.name}</p>
-                      <p className="text-sm text-gray-500">{hospital.users} users</p>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {hospital.name}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {hospital.users} users
+                      </p>
                     </div>
                   </div>
-                  <div className={`flex items-center gap-1 ${hospital.growth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {hospital.growth >= 0 ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
-                    <span className="text-sm font-medium">{Math.abs(hospital.growth)}%</span>
+                  <div
+                    className={`flex items-center gap-1 ${hospital.growth >= 0 ? "text-green-500" : "text-red-500"}`}
+                  >
+                    {hospital.growth >= 0 ? (
+                      <ArrowUp className="w-4 h-4" />
+                    ) : (
+                      <ArrowDown className="w-4 h-4" />
+                    )}
+                    <span className="text-sm font-medium">
+                      {Math.abs(hospital.growth)}%
+                    </span>
                   </div>
                 </div>
               ))}
@@ -362,7 +445,9 @@ const DashboardPage: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <MessageSquare className="w-6 h-6 text-cyan-500" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Message Activity</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Message Activity
+                </h3>
               </div>
               <span className="text-sm text-green-500 font-medium">+23.1%</span>
             </div>
@@ -377,7 +462,9 @@ const DashboardPage: React.FC = () => {
                       {Math.round(value)}
                     </div>
                   </div>
-                  <span className="text-xs text-gray-500 mt-2">{timeLabels[index]}</span>
+                  <span className="text-xs text-gray-500 mt-2">
+                    {timeLabels[index]}
+                  </span>
                 </div>
               ))}
             </div>
