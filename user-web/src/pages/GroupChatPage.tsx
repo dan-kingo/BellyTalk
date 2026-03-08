@@ -1,49 +1,35 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../services/supabase';
-import { groupChatService } from '../services/groupchat.service';
-import Layout from '../components/layout/Layout';
-import LoadingSpinner from '../components/common/LoadingSpinner';
-import Dialog from '../components/common/Dialog';
-import { Users, Plus, Send, ArrowLeft } from 'lucide-react';
-
-interface GroupRoom {
-  id: string;
-  name: string;
-  description?: string;
-  created_by: string;
-  created_at: string;
-  profiles?: {
-    full_name: string;
-  };
-}
-
-interface GroupMessage {
-  id: string;
-  room_id: string;
-  sender_id: string;
-  message: string;
-  created_at: string;
-  profiles?: {
-    full_name: string;
-    avatar_url?: string;
-  };
-}
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import Layout from "../components/layout/Layout";
+import LoadingSpinner from "../components/common/LoadingSpinner";
+import Dialog from "../components/common/Dialog";
+import { Users, Plus, Send, ArrowLeft } from "lucide-react";
+import { GroupRoom } from "../types";
+import { useGroupChatStore } from "../stores/groupchat.store";
 
 const GroupChatPage: React.FC = () => {
   const { user } = useAuth();
-  const [groups, setGroups] = useState<GroupRoom[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState<GroupRoom | null>(null);
-  const [messages, setMessages] = useState<GroupMessage[]>([]);
-  const [messageContent, setMessageContent] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
+  const groups = useGroupChatStore((state) => state.groups);
+  const selectedGroup = useGroupChatStore((state) => state.selectedGroup);
+  const messages = useGroupChatStore((state) => state.messages);
+  const loading = useGroupChatStore((state) => state.loading);
+  const sending = useGroupChatStore((state) => state.sending);
+  const error = useGroupChatStore((state) => state.error);
+  const fetchGroups = useGroupChatStore((state) => state.fetchGroups);
+  const createGroup = useGroupChatStore((state) => state.createGroup);
+  const sendGroupMessage = useGroupChatStore((state) => state.sendMessage);
+  const selectGroup = useGroupChatStore((state) => state.selectGroup);
+  const clearError = useGroupChatStore((state) => state.clearError);
+  const unsubscribeFromMessages = useGroupChatStore(
+    (state) => state.unsubscribeFromMessages,
+  );
+  const [messageContent, setMessageContent] = useState("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showMobileChat, setShowMobileChat] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [newGroup, setNewGroup] = useState({
-    name: '',
-    description: '',
+    name: "",
+    description: "",
   });
 
   useEffect(() => {
@@ -51,97 +37,27 @@ const GroupChatPage: React.FC = () => {
       setIsMobile(window.innerWidth < 768);
     };
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   useEffect(() => {
-    loadGroups();
-  }, []);
-
-  useEffect(() => {
-    if (selectedGroup) {
-      loadMessages(selectedGroup.id);
-      subscribeToMessages(selectedGroup.id);
-    }
-  }, [selectedGroup]);
-
-  const loadGroups = async () => {
-    try {
-      setLoading(true);
-      const response = await groupChatService.listGroups();
-      setGroups(response.groups || []);
-    } catch (error) {
-      console.error('Failed to load groups:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadMessages = async (roomId: string) => {
-    try {
-      const response = await groupChatService.listMessages(roomId);
-      setMessages(response.messages || []);
-    } catch (error) {
-      console.error('Failed to load messages:', error);
-    }
-  };
-
-  const subscribeToMessages = (roomId: string) => {
-    const channel = supabase
-      .channel(`group-messages-${roomId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'group_messages',
-          filter: `room_id=eq.${roomId}`,
-        },
-        async (payload) => {
-          const { data: newMessage } = await supabase
-            .from('group_messages')
-            .select('*, profiles(full_name, avatar_url)')
-            .eq('id', payload.new.id)
-            .single();
-
-          if (newMessage) {
-            setMessages((prev) => [...prev, newMessage]);
-          }
-        }
-      )
-      .subscribe();
+    fetchGroups();
 
     return () => {
-      channel.unsubscribe();
+      unsubscribeFromMessages();
     };
-  };
+  }, [fetchGroups, unsubscribeFromMessages]);
 
   const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await groupChatService.createGroup(newGroup.name, newGroup.description);
-      const newGroupData = response.group;
-
-      await groupChatService.joinGroup(newGroupData.id);
-
-      await loadGroups();
-      setNewGroup({ name: '', description: '' });
+      await createGroup(newGroup.name, newGroup.description);
+      setNewGroup({ name: "", description: "" });
       setShowCreateDialog(false);
     } catch (error) {
-      console.error('Failed to create group:', error);
-      alert('Failed to create group. Please try again.');
-    }
-  };
-
-  const handleJoinGroup = async (roomId: string) => {
-    try {
-      await groupChatService.joinGroup(roomId);
-    } catch (error: any) {
-      if (error.response?.status === 409 || error.response?.data?.error?.includes('already')) {
-        return;
-      }
-      console.error('Failed to join group:', error);
+      console.error("Failed to create group:", error);
+      alert("Failed to create group. Please try again.");
     }
   };
 
@@ -150,20 +66,16 @@ const GroupChatPage: React.FC = () => {
     if (!messageContent.trim() || !selectedGroup) return;
 
     try {
-      setSending(true);
-      await groupChatService.sendMessage(selectedGroup.id, messageContent);
-      setMessageContent('');
+      await sendGroupMessage(selectedGroup.id, messageContent);
+      setMessageContent("");
     } catch (error) {
-      console.error('Failed to send message:', error);
-      alert('Failed to send message. Please try again.');
-    } finally {
-      setSending(false);
+      console.error("Failed to send message:", error);
+      alert("Failed to send message. Please try again.");
     }
   };
 
   const handleSelectGroup = async (group: GroupRoom) => {
-    await handleJoinGroup(group.id);
-    setSelectedGroup(group);
+    await selectGroup(group);
     if (isMobile) {
       setShowMobileChat(true);
     }
@@ -182,10 +94,14 @@ const GroupChatPage: React.FC = () => {
   return (
     <Layout>
       <div className="flex h-[calc(100vh-8rem)] bg-white dark:bg-gray-900 rounded-lg shadow-lg overflow-hidden">
-        <div className={`${isMobile ? (showMobileChat ? 'hidden' : 'flex') : 'flex'} w-full md:w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex-col`}>
+        <div
+          className={`${isMobile ? (showMobileChat ? "hidden" : "flex") : "flex"} w-full md:w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex-col`}
+        >
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Group Chats</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                Group Chats
+              </h2>
               <button
                 onClick={() => setShowCreateDialog(true)}
                 className="p-2 cursor-pointer text-primary dark:text-secondary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
@@ -207,7 +123,9 @@ const GroupChatPage: React.FC = () => {
                     key={group.id}
                     onClick={() => handleSelectGroup(group)}
                     className={`w-full p-4 border-b cursor-pointer border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 text-left transition ${
-                      selectedGroup?.id === group.id ? 'bg-gray-100 dark:bg-gray-800' : ''
+                      selectedGroup?.id === group.id
+                        ? "bg-gray-100 dark:bg-gray-800"
+                        : ""
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -224,7 +142,7 @@ const GroupChatPage: React.FC = () => {
                           </p>
                         )}
                         <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                          Created by {group.profiles?.full_name || 'Unknown'}
+                          Created by {group.profiles?.full_name || "Unknown"}
                         </p>
                       </div>
                     </div>
@@ -235,9 +153,25 @@ const GroupChatPage: React.FC = () => {
           </div>
         </div>
 
-        <div className={`${isMobile ? (showMobileChat ? 'flex' : 'hidden') : 'flex'} flex-1 flex-col bg-gray-50 dark:bg-gray-950`}>
+        <div
+          className={`${isMobile ? (showMobileChat ? "flex" : "hidden") : "flex"} flex-1 flex-col bg-gray-50 dark:bg-gray-950`}
+        >
           {selectedGroup ? (
             <>
+              {error && (
+                <div className="mx-4 mt-4 rounded-lg bg-red-50 dark:bg-red-900/20 p-3">
+                  <p className="text-sm text-red-800 dark:text-red-200">
+                    {error}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={clearError}
+                    className="mt-2 text-xs text-red-700 dark:text-red-300 underline"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
               <div className="p-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center gap-3">
                   {isMobile && (
@@ -270,31 +204,36 @@ const GroupChatPage: React.FC = () => {
                   return (
                     <div
                       key={message.id}
-                      className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                      className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
                     >
                       <div className={`max-w-xs sm:max-w-md`}>
                         {!isOwn && (
                           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 ml-2">
-                            {message.profiles?.full_name || 'Unknown User'}
+                            {message.profiles?.full_name || "Unknown User"}
                           </p>
                         )}
                         <div
                           className={`px-4 py-2 rounded-2xl shadow-sm ${
                             isOwn
-                              ? 'bg-primary dark:bg-secondary text-white rounded-br-sm'
-                              : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm'
+                              ? "bg-primary dark:bg-secondary text-white rounded-br-sm"
+                              : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm"
                           }`}
                         >
                           <p className="text-sm">{message.message}</p>
                           <p
                             className={`text-xs mt-1 ${
-                              isOwn ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
+                              isOwn
+                                ? "text-white/70"
+                                : "text-gray-500 dark:text-gray-400"
                             }`}
                           >
-                            {new Date(message.created_at).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
+                            {new Date(message.created_at).toLocaleTimeString(
+                              [],
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              },
+                            )}
                           </p>
                         </div>
                       </div>
@@ -303,7 +242,10 @@ const GroupChatPage: React.FC = () => {
                 })}
               </div>
 
-              <form onSubmit={handleSendMessage} className="p-4 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
+              <form
+                onSubmit={handleSendMessage}
+                className="p-4 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700"
+              >
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -338,7 +280,7 @@ const GroupChatPage: React.FC = () => {
         isOpen={showCreateDialog}
         onClose={() => {
           setShowCreateDialog(false);
-          setNewGroup({ name: '', description: '' });
+          setNewGroup({ name: "", description: "" });
         }}
         title="Create New Group"
       >
@@ -350,7 +292,9 @@ const GroupChatPage: React.FC = () => {
             <input
               type="text"
               value={newGroup.name}
-              onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
+              onChange={(e) =>
+                setNewGroup({ ...newGroup, name: e.target.value })
+              }
               required
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent"
             />
@@ -362,7 +306,9 @@ const GroupChatPage: React.FC = () => {
             </label>
             <textarea
               value={newGroup.description}
-              onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
+              onChange={(e) =>
+                setNewGroup({ ...newGroup, description: e.target.value })
+              }
               rows={3}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent"
             />
@@ -379,7 +325,7 @@ const GroupChatPage: React.FC = () => {
               type="button"
               onClick={() => {
                 setShowCreateDialog(false);
-                setNewGroup({ name: '', description: '' });
+                setNewGroup({ name: "", description: "" });
               }}
               className="px-6 cursor-pointer py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
             >

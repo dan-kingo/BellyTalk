@@ -1,43 +1,53 @@
 // src/pages/VideoCallPage.tsx
-import React, { useState, useEffect } from 'react';
-import { useAgora } from '../contexts/AgoraContext';
-import { chatService } from '../services/chat.service';
-import { webSocketService } from '../services/websocket.service';
-import { useAuth } from '../contexts/AuthContext';
-import Layout from '../components/layout/Layout';
-import LoadingSpinner from '../components/common/LoadingSpinner';
-import Dialog from '../components/common/Dialog';
-import { Video, Mic, MicOff, PhoneOff, Search, Camera, CameraOff, User } from 'lucide-react';
-import { Profile } from '../types';
-import { videoService } from '../services/video.service';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import { useAgora } from "../contexts/AgoraContext";
+import { webSocketService } from "../services/websocket.service";
+import { useAuth } from "../contexts/AuthContext";
+import { useChatStore } from "../stores/chat.store";
+import Layout from "../components/layout/Layout";
+import LoadingSpinner from "../components/common/LoadingSpinner";
+import Dialog from "../components/common/Dialog";
+import {
+  Video,
+  Mic,
+  MicOff,
+  PhoneOff,
+  Search,
+  Camera,
+  CameraOff,
+  User,
+} from "lucide-react";
+import { Profile } from "../types";
+import { videoService } from "../services/video.service";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const VideoCallPage: React.FC = () => {
-  const { 
-    join, 
-    leave, 
-    mute, 
-    joinState, 
-    remoteUsers, 
-    isMuted, 
+  const {
+    join,
+    leave,
+    mute,
+    joinState,
+    remoteUsers,
+    isMuted,
     connectionState,
     localVideoTrack,
     remoteVideoTracks,
-    toggleVideo
+    toggleVideo,
   } = useAgora();
-  
+
   const { user } = useAuth();
+  const searchUsersList = useChatStore((state) => state.searchUsersList);
   const location = useLocation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [showNewCallDialog, setShowNewCallDialog] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
   const [searching, setSearching] = useState(false);
   const [currentSession, setCurrentSession] = useState<any>(null);
-  const [callStatus, setCallStatus] = useState<string>('');
+  const [callStatus, setCallStatus] = useState<string>("");
   const [endingCall, setEndingCall] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState<string>("");
   const [remoteUser, setRemoteUser] = useState<Profile | null>(null);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const [debugInfo, setDebugInfo] = useState<any>({});
@@ -46,24 +56,29 @@ const VideoCallPage: React.FC = () => {
 
   // Auto-join incoming video calls
   useEffect(() => {
-    if (location.state?.isIncomingCall && location.state?.autoJoin && !currentSession && !joinState) {
+    if (
+      location.state?.isIncomingCall &&
+      location.state?.autoJoin &&
+      !currentSession &&
+      !joinState
+    ) {
       const { session, caller } = location.state;
-      console.log('🎥 AUTO-JOINING incoming video call:', { session, caller });
-      
+      console.log("🎥 AUTO-JOINING incoming video call:", { session, caller });
+
       // Set the session and remote user
       setCurrentSession(session);
       setRemoteUser(caller);
-      
+
       // Automatically join the video call
       handleJoinIncomingCall(session);
-      
+
       // Clear the autoJoin flag to prevent re-joining
-      navigate('/video-call', { 
-        state: { 
+      navigate("/video-call", {
+        state: {
           ...location.state,
-          autoJoin: false 
+          autoJoin: false,
         },
-        replace: true 
+        replace: true,
       });
     }
   }, [location.state, currentSession, joinState, navigate]);
@@ -72,33 +87,39 @@ const VideoCallPage: React.FC = () => {
   useEffect(() => {
     if (!user?.id || !currentSession) return;
 
-    console.log('🎯 Setting up call end listener for video session:', currentSession.id);
+    console.log(
+      "🎯 Setting up call end listener for video session:",
+      currentSession.id,
+    );
 
     const handleCallEnded = async (payload: any) => {
       const endedSession = payload.new;
-      
+
       // Check if this is our current session that ended
-      if (endedSession.id === currentSession.id && endedSession.status === 'ended') {
-        console.log('📞 Video call ended by other user, leaving channel...');
-        
+      if (
+        endedSession.id === currentSession.id &&
+        endedSession.status === "ended"
+      ) {
+        console.log("📞 Video call ended by other user, leaving channel...");
+
         try {
           // Leave Agora channel
           await leave();
-          
+
           // Update local state
           setCurrentSession(null);
-          setCallStatus('Call ended by other user');
+          setCallStatus("Call ended by other user");
           setRemoteUser(null);
           setIsVideoEnabled(true);
-          
-          console.log('✅ Successfully left video call after remote end');
-          
+
+          console.log("✅ Successfully left video call after remote end");
+
           // Show call ended message for 3 seconds
           setTimeout(() => {
-            setCallStatus('');
+            setCallStatus("");
           }, 3000);
         } catch (error) {
-          console.error('❌ Error leaving video call after remote end:', error);
+          console.error("❌ Error leaving video call after remote end:", error);
         }
       }
     };
@@ -116,33 +137,36 @@ const VideoCallPage: React.FC = () => {
   useEffect(() => {
     const handleBeforeUnload = async (_: BeforeUnloadEvent) => {
       if (currentSession && joinState) {
-        console.log('🔄 Ending video call due to page unload...');
-        
+        console.log("🔄 Ending video call due to page unload...");
+
         // End the session when user leaves the page
         try {
           await videoService.endSession(currentSession.id);
         } catch (error) {
-          console.error('Error ending video session on unload:', error);
+          console.error("Error ending video session on unload:", error);
         }
       }
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [currentSession, joinState]);
 
   // Auto-play remote video tracks
   useEffect(() => {
-    Object.values(remoteVideoTracks).forEach(track => {
+    Object.values(remoteVideoTracks).forEach((track) => {
       if (track && track.isPlaying === false) {
         try {
           track.play(`remote-video-${track.getUserId()}`);
-          console.log('🎥 Auto-playing remote video for user:', track.getUserId());
+          console.log(
+            "🎥 Auto-playing remote video for user:",
+            track.getUserId(),
+          );
         } catch (error) {
-          console.error('❌ Failed to auto-play remote video:', error);
+          console.error("❌ Failed to auto-play remote video:", error);
         }
       }
     });
@@ -162,50 +186,65 @@ const VideoCallPage: React.FC = () => {
       localVideoTrack: !!localVideoTrack,
       remoteVideoTracks: Object.keys(remoteVideoTracks).length,
       isIncomingCall: location.state?.isIncomingCall || false,
-      remoteUser: remoteUser?.full_name || 'None',
-      userRole: location.state?.isIncomingCall ? 'RECEIVER' : 'CALLER'
+      remoteUser: remoteUser?.full_name || "None",
+      userRole: location.state?.isIncomingCall ? "RECEIVER" : "CALLER",
     });
-  }, [connectionState, joinState, remoteUsers, isMuted, isVideoEnabled, currentSession, localVideoTrack, remoteVideoTracks, location.state, remoteUser]);
+  }, [
+    connectionState,
+    joinState,
+    remoteUsers,
+    isMuted,
+    isVideoEnabled,
+    currentSession,
+    localVideoTrack,
+    remoteVideoTracks,
+    location.state,
+    remoteUser,
+  ]);
 
   // Function to handle joining incoming calls
   const handleJoinIncomingCall = async (session: any) => {
     try {
       setLoading(true);
-      setCallStatus('Joining video call...');
-      
-      console.log('🎥 Joining incoming video call as RECEIVER:', session.id);
-      
+      setCallStatus("Joining video call...");
+
+      console.log("🎥 Joining incoming video call as RECEIVER:", session.id);
+
       // Get auth tokens for the session
       const authResponse = await videoService.getTokens(
-        session.id, 
-        undefined, 
-        'publisher'
+        session.id,
+        undefined,
+        "publisher",
       );
 
-      console.log('✅ Receiver auth tokens received:', authResponse);
+      console.log("✅ Receiver auth tokens received:", authResponse);
 
-      setCallStatus('Enabling video and audio...');
+      setCallStatus("Enabling video and audio...");
 
       // CRITICAL: Join the Agora channel with video enabled for receiver
       const joinConfig = {
-        appId: APP_ID || 'c9b0a43d50a947a38c8ba06c6ffec555',
+        appId: APP_ID || "c9b0a43d50a947a38c8ba06c6ffec555",
         channel: authResponse.channelName,
         token: authResponse.rtcToken,
         uid: authResponse.uid,
-        enableVideo: true // THIS ENSURES RECEIVER HAS VIDEO ENABLED
+        enableVideo: true, // THIS ENSURES RECEIVER HAS VIDEO ENABLED
       };
 
-      console.log('🔗 Receiver joining Agora video channel:', joinConfig);
+      console.log("🔗 Receiver joining Agora video channel:", joinConfig);
       await join(joinConfig);
 
-      console.log('✅ Receiver video join successful! Video should be enabled.');
-      setCallStatus('Connected - Video call active');
-      
+      console.log(
+        "✅ Receiver video join successful! Video should be enabled.",
+      );
+      setCallStatus("Connected - Video call active");
     } catch (error: any) {
-      console.error('❌ Failed to join incoming video call:', error);
-      const errorMsg = error.response?.data?.error || error.message || 'Failed to join video call.';
+      console.error("❌ Failed to join incoming video call:", error);
+      const errorMsg =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to join video call.";
       setErrorMessage(errorMsg);
-      setCallStatus('Failed to connect');
+      setCallStatus("Failed to connect");
     } finally {
       setLoading(false);
     }
@@ -214,61 +253,63 @@ const VideoCallPage: React.FC = () => {
   const handleStartCall = async (receiverId: string, userProfile: Profile) => {
     try {
       setLoading(true);
-      setErrorMessage('');
-      setCallStatus('Creating session...');
+      setErrorMessage("");
+      setCallStatus("Creating session...");
       setRemoteUser(userProfile);
 
-      console.log('🚀 Starting video call process as CALLER...');
+      console.log("🚀 Starting video call process as CALLER...");
 
       // 1. Create session with Agora using VIDEO service
-      setCallStatus('Creating video session...');
+      setCallStatus("Creating video session...");
       const sessionResponse = await videoService.createSession(receiverId);
       setCurrentSession(sessionResponse.session);
-      
-      console.log('✅ Video session created:', sessionResponse.session.id);
 
-      setCallStatus('Getting auth tokens...');
-      
+      console.log("✅ Video session created:", sessionResponse.session.id);
+
+      setCallStatus("Getting auth tokens...");
+
       // 2. Get auth tokens from backend
       const authResponse = await videoService.getTokens(
-        sessionResponse.session.id, 
-        undefined, 
-        'publisher'
+        sessionResponse.session.id,
+        undefined,
+        "publisher",
       );
 
-      console.log('✅ Caller auth tokens received:', authResponse);
+      console.log("✅ Caller auth tokens received:", authResponse);
 
-      setCallStatus('Enabling video and joining...');
+      setCallStatus("Enabling video and joining...");
 
       // 3. Join the Agora channel with video enabled
       const joinConfig = {
-        appId: APP_ID || 'c9b0a43d50a947a38c8ba06c6ffec555',
+        appId: APP_ID || "c9b0a43d50a947a38c8ba06c6ffec555",
         channel: authResponse.channelName,
         token: authResponse.rtcToken,
         uid: authResponse.uid,
-        enableVideo: true // CALLER VIDEO ENABLED
+        enableVideo: true, // CALLER VIDEO ENABLED
       };
 
-      console.log('🔗 Caller joining Agora video channel:', joinConfig);
+      console.log("🔗 Caller joining Agora video channel:", joinConfig);
       await join(joinConfig);
 
-      console.log('✅ Caller video join successful!');
-      setCallStatus('Connected - Waiting for recipient...');
+      console.log("✅ Caller video join successful!");
+      setCallStatus("Connected - Waiting for recipient...");
       setShowNewCallDialog(false);
-      
     } catch (error: any) {
-      console.error('❌ Failed to start video call:', error);
-      const errorMsg = error.response?.data?.error || error.message || 'Failed to start video call. Please try again.';
+      console.error("❌ Failed to start video call:", error);
+      const errorMsg =
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to start video call. Please try again.";
       setErrorMessage(errorMsg);
-      setCallStatus('');
+      setCallStatus("");
       setRemoteUser(null);
-      
+
       // Clean up on error
       if (currentSession) {
         try {
           await videoService.endSession(currentSession.id);
         } catch (cleanupError) {
-          console.error('Cleanup error:', cleanupError);
+          console.error("Cleanup error:", cleanupError);
         }
       }
     } finally {
@@ -277,43 +318,44 @@ const VideoCallPage: React.FC = () => {
   };
 
   const handleEndCall = async () => {
-     console.log('🔍 END CALL DEBUG:', {
-    current_user: user?.id,  // From useAuth()
+    console.log("🔍 END CALL DEBUG:", {
+      current_user: user?.id, // From useAuth()
       current_session_id: currentSession.id,
       session_initiator: currentSession.initiator_id,
       session_receiver: currentSession.receiver_id,
-      user_is_participant: user?.id === currentSession.initiator_id || user?.id === currentSession.receiver_id
+      user_is_participant:
+        user?.id === currentSession.initiator_id ||
+        user?.id === currentSession.receiver_id,
     });
     try {
       setEndingCall(true);
-      setCallStatus('Ending call for both users...');
-      console.log('ENDING CALL WITH ID:', JSON.stringify(currentSession.id));
-console.log('LENGTH:', currentSession.id.length);
-      console.log('🛑 Ending video call for both users...');
-      
+      setCallStatus("Ending call for both users...");
+      console.log("ENDING CALL WITH ID:", JSON.stringify(currentSession.id));
+      console.log("LENGTH:", currentSession.id.length);
+      console.log("🛑 Ending video call for both users...");
+
       // Leave the Agora channel
       await leave();
-      
+
       // End session in backend - this will trigger WebSocket update to other user
       if (currentSession) {
         await videoService.endSession(currentSession.id);
       }
-      
+
       setCurrentSession(null);
-      setCallStatus('Call ended');
+      setCallStatus("Call ended");
       setRemoteUser(null);
       setIsVideoEnabled(true);
-      
-      console.log('✅ Video call ended successfully for both users');
-      
+
+      console.log("✅ Video call ended successfully for both users");
+
       // Clear call status after 3 seconds
       setTimeout(() => {
-        setCallStatus('');
+        setCallStatus("");
       }, 3000);
-      
     } catch (error) {
-      console.error('❌ Failed to end video call:', error);
-      setCallStatus('Failed to end call');
+      console.error("❌ Failed to end video call:", error);
+      setCallStatus("Failed to end call");
     } finally {
       setEndingCall(false);
     }
@@ -321,20 +363,20 @@ console.log('LENGTH:', currentSession.id.length);
 
   const handleToggleMute = async () => {
     try {
-      console.log('🔇 Toggling mute:', !isMuted);
+      console.log("🔇 Toggling mute:", !isMuted);
       await mute(!isMuted);
     } catch (error) {
-      console.error('❌ Failed to toggle mute:', error);
+      console.error("❌ Failed to toggle mute:", error);
     }
   };
 
   const handleToggleVideo = async () => {
     try {
-      console.log('📹 Toggling video:', !isVideoEnabled);
+      console.log("📹 Toggling video:", !isVideoEnabled);
       await toggleVideo(!isVideoEnabled);
       setIsVideoEnabled(!isVideoEnabled);
     } catch (error) {
-      console.error('❌ Failed to toggle video:', error);
+      console.error("❌ Failed to toggle video:", error);
       // If toggleVideo fails, we'll still update the UI state
       setIsVideoEnabled(!isVideoEnabled);
     }
@@ -350,10 +392,10 @@ console.log('LENGTH:', currentSession.id.length);
 
     try {
       setSearching(true);
-      const response = await chatService.searchUsers(query);
-      setSearchResults(response.users || []);
+      const users = await searchUsersList(query);
+      setSearchResults(users);
     } catch (error) {
-      console.error('Failed to search users:', error);
+      console.error("Failed to search users:", error);
     } finally {
       setSearching(false);
     }
@@ -365,7 +407,9 @@ console.log('LENGTH:', currentSession.id.length);
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <Video className="w-8 h-8 text-primary-600 dark:text-primary-400" />
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Video Call</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              Video Call
+            </h1>
           </div>
           <div className="flex gap-2">
             {location.state?.isIncomingCall && (
@@ -374,7 +418,7 @@ console.log('LENGTH:', currentSession.id.length);
               </div>
             )}
             <div className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm">
-              {location.state?.isIncomingCall ? 'Receiver' : 'Caller'}
+              {location.state?.isIncomingCall ? "Receiver" : "Caller"}
             </div>
           </div>
         </div>
@@ -386,14 +430,17 @@ console.log('LENGTH:', currentSession.id.length);
               {Object.keys(remoteVideoTracks).length > 0 ? (
                 <div className="w-full h-full grid grid-cols-1 gap-2 p-2">
                   {Object.entries(remoteVideoTracks).map(([uid, track]) => (
-                    <div key={uid} className="w-full h-full bg-black rounded-lg overflow-hidden relative">
-                      <div 
+                    <div
+                      key={uid}
+                      className="w-full h-full bg-black rounded-lg overflow-hidden relative"
+                    >
+                      <div
                         id={`remote-video-${uid}`}
                         className="w-full h-full"
                       />
                       <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
                         {remoteUser?.full_name || `User ${uid}`}
-                        {!track.isPlaying && ' (Connecting...)'}
+                        {!track.isPlaying && " (Connecting...)"}
                       </div>
                     </div>
                   ))}
@@ -402,10 +449,15 @@ console.log('LENGTH:', currentSession.id.length);
                 <div className="w-full h-full flex items-center justify-center">
                   <div className="text-center">
                     <User className="w-24 h-24 text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-400 text-lg">Waiting for other participants...</p>
+                    <p className="text-gray-400 text-lg">
+                      Waiting for other participants...
+                    </p>
                     {remoteUser && (
                       <p className="text-gray-500 text-sm mt-2">
-                        {location.state?.isIncomingCall ? 'In call with' : 'Calling'} {remoteUser.full_name}
+                        {location.state?.isIncomingCall
+                          ? "In call with"
+                          : "Calling"}{" "}
+                        {remoteUser.full_name}
                       </p>
                     )}
                     <p className="text-gray-500 text-sm mt-1">
@@ -420,7 +472,7 @@ console.log('LENGTH:', currentSession.id.length);
                 <div className="absolute bottom-4 right-4 w-8 h-8 bg-gray-800 rounded-lg overflow-hidden shadow-lg border-2 border-green-400">
                   <div id="local-video" className="w-full h-full" />
                   <div className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
-                    You {!isVideoEnabled && '(Video Off)'}
+                    You {!isVideoEnabled && "(Video Off)"}
                   </div>
                 </div>
               )}
@@ -434,7 +486,9 @@ console.log('LENGTH:', currentSession.id.length);
 
               {Object.keys(remoteVideoTracks).length === 0 && joinState && (
                 <div className="absolute top-4 left-4 bg-blue-600 rounded-lg p-2">
-                  <p className="text-white text-sm">Waiting for other user's video...</p>
+                  <p className="text-white text-sm">
+                    Waiting for other user's video...
+                  </p>
                 </div>
               )}
 
@@ -452,22 +506,30 @@ console.log('LENGTH:', currentSession.id.length);
                 onClick={handleToggleMute}
                 className={`p-4 rounded-full cursor-pointer transition ${
                   isMuted
-                    ? 'bg-red-600 hover:bg-red-700 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white'
+                    ? "bg-red-600 hover:bg-red-700 text-white"
+                    : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white"
                 }`}
               >
-                {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+                {isMuted ? (
+                  <MicOff className="w-6 h-6" />
+                ) : (
+                  <Mic className="w-6 h-6" />
+                )}
               </button>
 
               <button
                 onClick={handleToggleVideo}
                 className={`p-4 rounded-full cursor-pointer transition ${
                   !isVideoEnabled
-                    ? 'bg-red-600 hover:bg-red-700 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white'
+                    ? "bg-red-600 hover:bg-red-700 text-white"
+                    : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white"
                 }`}
               >
-                {isVideoEnabled ? <Camera className="w-6 h-6" /> : <CameraOff className="w-6 h-6" />}
+                {isVideoEnabled ? (
+                  <Camera className="w-6 h-6" />
+                ) : (
+                  <CameraOff className="w-6 h-6" />
+                )}
               </button>
 
               <button
@@ -482,49 +544,83 @@ console.log('LENGTH:', currentSession.id.length);
                 ) : (
                   <PhoneOff className="w-6 h-6" />
                 )}
-                {endingCall ? 'Ending...' : 'End Call'}
+                {endingCall ? "Ending..." : "End Call"}
               </button>
             </div>
 
             {/* Debug Information */}
             <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border-t border-blue-200 dark:border-blue-800">
-              <h3 className="font-bold text-blue-800 dark:text-blue-200 mb-2">Agora Debug Info:</h3>
+              <h3 className="font-bold text-blue-800 dark:text-blue-200 mb-2">
+                Agora Debug Info:
+              </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-blue-700 dark:text-blue-300">
                 <div>
-                  <strong>Connection:</strong> <span className="font-mono">{debugInfo.connectionState}</span>
+                  <strong>Connection:</strong>{" "}
+                  <span className="font-mono">{debugInfo.connectionState}</span>
                 </div>
                 <div>
-                  <strong>Joined:</strong> <span className="font-mono">{debugInfo.joinState ? '✅ YES' : '❌ NO'}</span>
+                  <strong>Joined:</strong>{" "}
+                  <span className="font-mono">
+                    {debugInfo.joinState ? "✅ YES" : "❌ NO"}
+                  </span>
                 </div>
                 <div>
-                  <strong>Remote Users:</strong> <span className="font-mono">{debugInfo.remoteUsersCount}</span>
+                  <strong>Remote Users:</strong>{" "}
+                  <span className="font-mono">
+                    {debugInfo.remoteUsersCount}
+                  </span>
                 </div>
                 <div>
-                  <strong>Microphone:</strong> <span className="font-mono">{debugInfo.isMuted ? '🔇 MUTED' : '🎤 ACTIVE'}</span>
+                  <strong>Microphone:</strong>{" "}
+                  <span className="font-mono">
+                    {debugInfo.isMuted ? "🔇 MUTED" : "🎤 ACTIVE"}
+                  </span>
                 </div>
                 <div>
-                  <strong>Camera:</strong> <span className="font-mono">{debugInfo.isVideoEnabled ? '📹 ON' : '📷 OFF'}</span>
+                  <strong>Camera:</strong>{" "}
+                  <span className="font-mono">
+                    {debugInfo.isVideoEnabled ? "📹 ON" : "📷 OFF"}
+                  </span>
                 </div>
                 <div>
-                  <strong>Local Video:</strong> <span className="font-mono">{debugInfo.localVideoTrack ? '✅' : '❌'}</span>
+                  <strong>Local Video:</strong>{" "}
+                  <span className="font-mono">
+                    {debugInfo.localVideoTrack ? "✅" : "❌"}
+                  </span>
                 </div>
                 <div>
-                  <strong>Remote Videos:</strong> <span className="font-mono">{debugInfo.remoteVideoTracks}</span>
+                  <strong>Remote Videos:</strong>{" "}
+                  <span className="font-mono">
+                    {debugInfo.remoteVideoTracks}
+                  </span>
                 </div>
                 <div>
-                  <strong>Session Status:</strong> <span className="font-mono">{debugInfo.sessionStatus || 'None'}</span>
+                  <strong>Session Status:</strong>{" "}
+                  <span className="font-mono">
+                    {debugInfo.sessionStatus || "None"}
+                  </span>
                 </div>
                 <div>
-                  <strong>User Role:</strong> <span className="font-mono">{debugInfo.userRole}</span>
+                  <strong>User Role:</strong>{" "}
+                  <span className="font-mono">{debugInfo.userRole}</span>
                 </div>
                 <div>
-                  <strong>Call Type:</strong> <span className="font-mono">{debugInfo.isIncomingCall ? 'INCOMING' : 'OUTGOING'}</span>
+                  <strong>Call Type:</strong>{" "}
+                  <span className="font-mono">
+                    {debugInfo.isIncomingCall ? "INCOMING" : "OUTGOING"}
+                  </span>
                 </div>
                 <div>
-                  <strong>Remote User:</strong> <span className="font-mono text-xs">{debugInfo.remoteUser}</span>
+                  <strong>Remote User:</strong>{" "}
+                  <span className="font-mono text-xs">
+                    {debugInfo.remoteUser}
+                  </span>
                 </div>
                 <div>
-                  <strong>Channel:</strong> <span className="font-mono text-xs">{debugInfo.channelName || 'None'}</span>
+                  <strong>Channel:</strong>{" "}
+                  <span className="font-mono text-xs">
+                    {debugInfo.channelName || "None"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -533,10 +629,12 @@ console.log('LENGTH:', currentSession.id.length);
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-12 text-center">
             <Video className="w-20 h-20 mx-auto text-gray-400 dark:text-gray-600 mb-6" />
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              {callStatus || 'No Active Video Call'}
+              {callStatus || "No Active Video Call"}
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-8">
-              {callStatus ? 'The video call has ended' : 'Start a video call with another user to get started'}
+              {callStatus
+                ? "The video call has ended"
+                : "Start a video call with another user to get started"}
             </p>
             {!callStatus && (
               <button
@@ -555,9 +653,9 @@ console.log('LENGTH:', currentSession.id.length);
           onClose={() => {
             if (!loading) {
               setShowNewCallDialog(false);
-              setSearchQuery('');
+              setSearchQuery("");
               setSearchResults([]);
-              setErrorMessage('');
+              setErrorMessage("");
             }
           }}
           title="Start Video Call"
@@ -565,7 +663,9 @@ console.log('LENGTH:', currentSession.id.length);
           <div className="space-y-4">
             {errorMessage && (
               <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                <p className="text-sm text-red-800 dark:text-red-200">{errorMessage}</p>
+                <p className="text-sm text-red-800 dark:text-red-200">
+                  {errorMessage}
+                </p>
               </div>
             )}
             <div className="relative">
@@ -586,14 +686,18 @@ console.log('LENGTH:', currentSession.id.length);
                 </div>
               ) : searchResults.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  {searchQuery ? 'No users found' : 'Search for users to start a video call'}
+                  {searchQuery
+                    ? "No users found"
+                    : "Search for users to start a video call"}
                 </div>
               ) : (
                 <div className="space-y-2">
                   {searchResults.map((userProfile) => (
                     <button
                       key={userProfile.id}
-                      onClick={() => handleStartCall(userProfile.id, userProfile)}
+                      onClick={() =>
+                        handleStartCall(userProfile.id, userProfile)
+                      }
                       disabled={loading}
                       className="w-full cursor-pointer p-4 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                     >

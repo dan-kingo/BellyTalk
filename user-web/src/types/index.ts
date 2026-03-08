@@ -1,4 +1,4 @@
-export type UserRole = 'mother' | 'counselor' | 'doctor' | 'admin';
+export type UserRole = "mother" | "counselor" | "doctor" | "admin";
 
 export interface User {
   id: string;
@@ -29,7 +29,12 @@ export interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, fullName: string, role: UserRole) => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    fullName: string,
+    role: UserRole,
+  ) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -93,13 +98,12 @@ export interface Cart {
   updated_at: string;
 }
 
-
 export interface Order {
   id: string;
   user_id: string;
   total_price: number;
-  payment_status: 'pending' | 'paid' | 'failed';
-  order_status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+  payment_status: "pending" | "paid" | "failed";
+  order_status: "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
   payment_intent_id?: string;
   shipping_address: ShippingAddress;
   tracking_number?: string;
@@ -172,6 +176,29 @@ export interface Message {
   seen: boolean;
   metadata?: any;
   created_at: string;
+}
+
+export interface GroupRoom {
+  id: string;
+  name: string;
+  description?: string;
+  created_by: string;
+  created_at: string;
+  profiles?: {
+    full_name: string;
+  };
+}
+
+export interface GroupMessage {
+  id: string;
+  room_id: string;
+  sender_id: string;
+  message: string;
+  created_at: string;
+  profiles?: {
+    full_name: string;
+    avatar_url?: string;
+  };
 }
 
 export interface VideoSession {

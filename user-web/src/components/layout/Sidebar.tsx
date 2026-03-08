@@ -14,8 +14,8 @@ import {
   Users,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
-import { chatService } from "../../services/chat.service";
 import { useShopStore } from "../../stores/shop.store";
+import { useChatStore } from "../../stores/chat.store";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -26,7 +26,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const location = useLocation();
   const { profile, user } = useAuth();
   const [showTitle, setShowTitle] = useState(false);
-  const [messageCount, setMessageCount] = useState(0);
+  const messageCount = useChatStore((state) => state.unreadCount);
+  const fetchUnreadCount = useChatStore((state) => state.fetchUnreadCount);
   const cartItems = useShopStore((state) => state.cartItems);
   const myOrders = useShopStore((state) => state.myOrders);
   const fetchCart = useShopStore((state) => state.fetchCart);
@@ -131,21 +132,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       return;
     }
 
-    const loadUnreadCount = async () => {
-      try {
-        const unreadRes = await chatService
-          .getUnreadCount()
-          .catch(() => ({ unread_count: 0 }));
-        setMessageCount(unreadRes.unread_count || 0);
-      } catch (error) {
-        console.error("Failed to load message count:", error);
-      }
-    };
-
-    loadUnreadCount();
-    const interval = setInterval(loadUnreadCount, 3000);
-    return () => clearInterval(interval);
-  }, [user, profile?.role]);
+    fetchUnreadCount();
+  }, [user, profile?.role, location.pathname, fetchUnreadCount]);
 
   return (
     <>

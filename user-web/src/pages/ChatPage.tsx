@@ -1,30 +1,54 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { chatService } from '../services/chat.service';
-import { presenceService } from '../services/presence.service';
-import { supabase } from '../services/supabase';
-import { Conversation, Message, Profile } from '../types';
-import LoadingSpinner from '../components/common/LoadingSpinner';
-import Layout from '../components/layout/Layout';
-import TypingIndicator from '../components/chat/TypingIndicator';
-import { Search, Paperclip, Send, Plus, X, File, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect, useRef } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { presenceService } from "../services/presence.service";
+import { supabase } from "../services/supabase";
+import { Conversation, Message } from "../types";
+import { useChatStore } from "../stores/chat.store";
+import LoadingSpinner from "../components/common/LoadingSpinner";
+import Layout from "../components/layout/Layout";
+import TypingIndicator from "../components/chat/TypingIndicator";
+import {
+  Search,
+  Paperclip,
+  Send,
+  Plus,
+  X,
+  File,
+  ArrowLeft,
+} from "lucide-react";
 
 const ChatPage: React.FC = () => {
   const { user } = useAuth();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [messageContent, setMessageContent] = useState('');
-  const [loading, setLoading] = useState(true);
+  const conversations = useChatStore((state) => state.conversations);
+  const selectedConversation = useChatStore(
+    (state) => state.selectedConversation,
+  );
+  const messages = useChatStore((state) => state.messages);
+  const loading = useChatStore((state) => state.conversationsLoading);
+  const hasMore = useChatStore((state) => state.hasMoreMessages);
+  const fetchConversations = useChatStore((state) => state.fetchConversations);
+  const fetchMessages = useChatStore((state) => state.fetchMessages);
+  const markConversationSeen = useChatStore(
+    (state) => state.markConversationSeen,
+  );
+  const selectConversation = useChatStore((state) => state.selectConversation);
+  const clearMessages = useChatStore((state) => state.clearMessages);
+  const appendIncomingMessage = useChatStore(
+    (state) => state.appendIncomingMessage,
+  );
+  const sendChatMessage = useChatStore((state) => state.sendMessage);
+  const searchQuery = useChatStore((state) => state.searchQuery);
+  const searchResults = useChatStore((state) => state.searchResults);
+  const searchingUsers = useChatStore((state) => state.searchingUsers);
+  const searchUsers = useChatStore((state) => state.searchUsers);
+  const createConversation = useChatStore((state) => state.createConversation);
+  const clearUserSearch = useChatStore((state) => state.clearUserSearch);
+  const [messageContent, setMessageContent] = useState("");
   const [sending, setSending] = useState(false);
-  const [otherUserStatus, setOtherUserStatus] = useState<string>('offline');
+  const [otherUserStatus, setOtherUserStatus] = useState<string>("offline");
   const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
   const [showNewChatDialog, setShowNewChatDialog] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Profile[]>([]);
-  const [searchingUsers, setSearchingUsers] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [showConversationList, setShowConversationList] = useState(true);
   const [showMobileChat, setShowMobileChat] = useState(false);
@@ -42,10 +66,10 @@ const ChatPage: React.FC = () => {
     };
 
     checkMobile();
-    window.addEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
 
     return () => {
-      window.removeEventListener('resize', checkMobile);
+      window.removeEventListener("resize", checkMobile);
     };
   }, []);
 
@@ -60,80 +84,82 @@ const ChatPage: React.FC = () => {
   }, [isMobile]);
 
   useEffect(() => {
-    loadConversations();
+    fetchConversations();
 
     if (user?.id) {
       // Initialize and update presence - FIXED
       presenceService.initializePresence();
-      
+
       // Update presence every 30 seconds to stay online - FIXED
       const interval = setInterval(() => {
-        presenceService.updatePresence('online');
+        presenceService.updatePresence("online");
       }, 30000);
 
       return () => {
         clearInterval(interval);
         // Set offline status when leaving - FIXED
-        presenceService.updatePresence('offline');
+        presenceService.updatePresence("offline");
         presenceService.cleanup();
       };
     }
-  }, [user]);
+  }, [user, fetchConversations]);
 
   useEffect(() => {
     if (!user?.id) return;
 
     const channel = supabase
-      .channel('messages')
+      .channel("messages")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
           filter: `receiver_id=eq.${user.id}`,
         },
         (payload) => {
           const newMessage = payload.new as Message;
-          if (selectedConversation && newMessage.conversation_id === selectedConversation.id) {
-            setMessages((prev) => [...prev, newMessage]);
-            chatService.markMessagesSeen(selectedConversation.id);
+          appendIncomingMessage(newMessage);
+          if (
+            selectedConversation &&
+            newMessage.conversation_id === selectedConversation.id
+          ) {
+            markConversationSeen(selectedConversation.id);
           }
-          loadConversations();
-        }
+          fetchConversations();
+        },
       )
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
           filter: `sender_id=eq.${user.id}`,
         },
         (payload) => {
           const newMessage = payload.new as Message;
-          if (selectedConversation && newMessage.conversation_id === selectedConversation.id) {
-            setMessages((prev) => {
-              // Check if message already exists to prevent duplicates
-              if (prev.find(m => m.id === newMessage.id)) return prev;
-              return [...prev, newMessage];
-            });
-          }
-          loadConversations();
-        }
+          appendIncomingMessage(newMessage);
+          fetchConversations();
+        },
       )
       .subscribe();
 
     return () => {
       channel.unsubscribe();
     };
-  }, [user, selectedConversation]);
+  }, [
+    user,
+    selectedConversation,
+    appendIncomingMessage,
+    fetchConversations,
+    markConversationSeen,
+  ]);
 
   useEffect(() => {
     if (selectedConversation && user) {
-      setMessages([]);
-      setHasMore(true);
-      loadMessages(selectedConversation.id);
+      clearMessages();
+      fetchMessages(selectedConversation.id);
 
       const otherUserId = getOtherParticipantId(selectedConversation);
 
@@ -141,47 +167,58 @@ const ChatPage: React.FC = () => {
       const loadInitialPresence = async () => {
         try {
           const presence = await presenceService.getPresence(otherUserId);
-          setOtherUserStatus(presence?.status || 'offline');
+          setOtherUserStatus(presence?.status || "offline");
         } catch (error) {
-          console.error('Error getting initial presence:', error);
-          setOtherUserStatus('offline');
+          console.error("Error getting initial presence:", error);
+          setOtherUserStatus("offline");
         }
       };
 
       loadInitialPresence();
 
       // Subscribe to presence changes
-     // Subscribe to presence changes
-const presenceChannel = presenceService.subscribeToPresence(otherUserId, (presence) => {
-  console.log(`Presence update for ${otherUserId}:`, presence);
-  setOtherUserStatus(presence.status); // Extract the status from the presence object
-});
+      // Subscribe to presence changes
+      const presenceChannel = presenceService.subscribeToPresence(
+        otherUserId,
+        (presence) => {
+          console.log(`Presence update for ${otherUserId}:`, presence);
+          setOtherUserStatus(presence.status); // Extract the status from the presence object
+        },
+      );
 
       // Subscribe to typing indicators
-     // Subscribe to typing indicators
-const typingChannel = presenceService.subscribeToTyping(
-  selectedConversation.id,
-  user.id,
-  (typingUserId, isTyping) => {
-    console.log(`Typing update for conversation ${selectedConversation.id}: User ${typingUserId} is ${isTyping ? 'typing' : 'not typing'}`);
-    setIsOtherUserTyping(isTyping);
-  }
-);
+      // Subscribe to typing indicators
+      const typingChannel = presenceService.subscribeToTyping(
+        selectedConversation.id,
+        user.id,
+        (typingUserId, isTyping) => {
+          console.log(
+            `Typing update for conversation ${selectedConversation.id}: User ${typingUserId} is ${isTyping ? "typing" : "not typing"}`,
+          );
+          setIsOtherUserTyping(isTyping);
+        },
+      );
       return () => {
         try {
-          if (presenceChannel && typeof presenceChannel.unsubscribe === 'function') {
+          if (
+            presenceChannel &&
+            typeof presenceChannel.unsubscribe === "function"
+          ) {
             presenceChannel.unsubscribe();
           }
-          if (typingChannel && typeof typingChannel.unsubscribe === 'function') {
+          if (
+            typingChannel &&
+            typeof typingChannel.unsubscribe === "function"
+          ) {
             typingChannel.unsubscribe();
           }
         } catch (error) {
-          console.error('Error unsubscribing channels:', error);
+          console.error("Error unsubscribing channels:", error);
         }
       };
     } else {
       // Reset status when no conversation is selected
-      setOtherUserStatus('offline');
+      setOtherUserStatus("offline");
       setIsOtherUserTyping(false);
     }
   }, [selectedConversation, user]);
@@ -192,43 +229,8 @@ const typingChannel = presenceService.subscribeToTyping(
 
   const scrollToBottom = () => {
     setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, 100);
-  };
-
-  const loadConversations = async () => {
-    try {
-      setLoading(true);
-      const response = await chatService.listConversations();
-      setConversations(response.conversations || []);
-    } catch (error) {
-      console.error('Failed to load conversations:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadMessages = async (conversationId: string, append = false) => {
-    try {
-      const oldestMessage = append && messages.length > 0 ? messages[0] : undefined;
-      const response = await chatService.getMessages(conversationId, {
-        limit: 30,
-        before: oldestMessage?.created_at
-      });
-      const newMessages = response.messages || [];
-
-      if (append) {
-        setMessages(prev => [...newMessages, ...prev]);
-        setHasMore(newMessages.length === 30);
-      } else {
-        setMessages(newMessages);
-        setHasMore(newMessages.length === 30);
-      }
-
-      await chatService.markMessagesSeen(conversationId);
-    } catch (error) {
-      console.error('Failed to load messages:', error);
-    }
   };
 
   const handleLoadMore = async () => {
@@ -237,12 +239,13 @@ const typingChannel = presenceService.subscribeToTyping(
     try {
       setLoadingMore(true);
       const prevScrollHeight = messagesContainerRef.current?.scrollHeight || 0;
-      await loadMessages(selectedConversation.id, true);
+      await fetchMessages(selectedConversation.id, true);
 
       setTimeout(() => {
         if (messagesContainerRef.current) {
           const newScrollHeight = messagesContainerRef.current.scrollHeight;
-          messagesContainerRef.current.scrollTop = newScrollHeight - prevScrollHeight;
+          messagesContainerRef.current.scrollTop =
+            newScrollHeight - prevScrollHeight;
         }
       }, 100);
     } finally {
@@ -267,13 +270,14 @@ const typingChannel = presenceService.subscribeToTyping(
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length + attachments.length > 5) {
-      alert('You can only attach up to 5 files');
+      alert("You can only attach up to 5 files");
       return;
     }
-    
+
     // Validate file types and sizes
-    const validFiles = files.filter(file => {
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+    const validFiles = files.filter((file) => {
+      if (file.size > 10 * 1024 * 1024) {
+        // 10MB limit
         alert(`File ${file.name} is too large. Maximum size is 10MB.`);
         return false;
       }
@@ -290,7 +294,11 @@ const typingChannel = presenceService.subscribeToTyping(
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if ((!messageContent.trim() && attachments.length === 0) || !selectedConversation || !user) {
+    if (
+      (!messageContent.trim() && attachments.length === 0) ||
+      !selectedConversation ||
+      !user
+    ) {
       return;
     }
 
@@ -302,100 +310,56 @@ const typingChannel = presenceService.subscribeToTyping(
       }
       presenceService.setTyping(selectedConversation.id, false); // FIXED
 
-      // Create optimistic message
-      const optimisticMessage: Message = {
-        id: `optimistic-${Date.now()}`,
-        conversation_id: selectedConversation.id,
-        sender_id: user.id,
-        receiver_id: getOtherParticipantId(selectedConversation),
-        content: messageContent,
-        created_at: new Date().toISOString(),
-        seen: false,
-        metadata: attachments.length > 0 ? { 
-          attachments: attachments.map(file => ({
-            url: URL.createObjectURL(file),
-            original_filename: file.name,
-            resource_type: file.type.startsWith('image/') ? 'image' : 'file',
-            format: file.name.split('.').pop() || '',
-            size: file.size
-          }))
-        } : undefined
-      };
-
-      // Add optimistic message immediately
-      setMessages(prev => [...prev, optimisticMessage]);
-      setMessageContent('');
+      const contentToSend = messageContent;
       const filesToUpload = [...attachments];
+      setMessageContent("");
       setAttachments([]);
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
 
-      // Prepare form data for actual upload
-      const formData = new FormData();
-      formData.append('conversationId', selectedConversation.id);
-      formData.append('content', messageContent);
-
-      filesToUpload.forEach((file) => {
-        formData.append('attachments', file);
+      await sendChatMessage({
+        conversationId: selectedConversation.id,
+        senderId: user.id,
+        receiverId: getOtherParticipantId(selectedConversation),
+        content: contentToSend,
+        attachments: filesToUpload,
       });
-
-      // Send actual message
-      await chatService.sendMessage(formData);
-      
-      // Reload messages to get the actual message with proper ID and file URLs
-      await loadMessages(selectedConversation.id);
-      
     } catch (error) {
-      console.error('Failed to send message:', error);
-      alert('Failed to send message');
-      // Remove optimistic message on error
-      setMessages(prev => prev.filter(msg => !msg.id.startsWith('optimistic-')));
+      console.error("Failed to send message:", error);
+      alert("Failed to send message");
     } finally {
       setSending(false);
     }
   };
 
   const handleSearchUsers = async (query: string) => {
-    setSearchQuery(query);
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
     try {
-      setSearchingUsers(true);
-      const response = await chatService.searchUsers(query);
-      setSearchResults(response.users || []);
+      await searchUsers(query);
     } catch (error) {
-      console.error('Failed to search users:', error);
-    } finally {
-      setSearchingUsers(false);
+      console.error("Failed to search users:", error);
     }
   };
 
   const handleStartChat = async (userId: string) => {
     try {
-      const response = await chatService.createConversation(userId);
+      const newConv = await createConversation(userId);
       setShowNewChatDialog(false);
-      setSearchQuery('');
-      setSearchResults([]);
-      await loadConversations();
-      const newConv = response.conversation;
-      setSelectedConversation(newConv);
-      
+      clearUserSearch();
+      selectConversation(newConv);
+
       if (isMobile) {
         setShowConversationList(false);
         setShowMobileChat(true);
       }
     } catch (error) {
-      console.error('Failed to create conversation:', error);
-      alert('Failed to start conversation');
+      console.error("Failed to create conversation:", error);
+      alert("Failed to start conversation");
     }
   };
 
   const handleSelectConversation = (conversation: Conversation) => {
-    setSelectedConversation(conversation);
+    selectConversation(conversation);
     if (isMobile) {
       setShowConversationList(false);
       setShowMobileChat(true);
@@ -424,28 +388,44 @@ const typingChannel = presenceService.subscribeToTyping(
   const formatTime = (date: string) => {
     const now = new Date();
     const messageDate = new Date(date);
-    const diffInHours = (now.getTime() - messageDate.getTime()) / (1000 * 60 * 60);
+    const diffInHours =
+      (now.getTime() - messageDate.getTime()) / (1000 * 60 * 60);
 
     if (diffInHours < 24) {
-      return messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return messageDate.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     } else if (diffInHours < 168) {
-      return messageDate.toLocaleDateString([], { weekday: 'short' });
+      return messageDate.toLocaleDateString([], { weekday: "short" });
     } else {
-      return messageDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      return messageDate.toLocaleDateString([], {
+        month: "short",
+        day: "numeric",
+      });
     }
   };
 
   const renderAttachment = (attachment: any) => {
-    const isImage = attachment.resource_type === 'image' || ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(attachment.format?.toLowerCase());
+    const isImage =
+      attachment.resource_type === "image" ||
+      ["jpg", "jpeg", "png", "gif", "webp"].includes(
+        attachment.format?.toLowerCase(),
+      );
 
     if (isImage) {
       return (
-        <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="block">
+        <a
+          href={attachment.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block"
+        >
           <img
             src={attachment.url}
             alt={attachment.original_filename}
             className="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-            style={{ maxWidth: 'min(300px, 85vw)' }}
+            style={{ maxWidth: "min(300px, 85vw)" }}
             loading="lazy"
           />
         </a>
@@ -458,10 +438,12 @@ const typingChannel = presenceService.subscribeToTyping(
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center gap-2 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors max-w-full"
-        style={{ maxWidth: 'min(300px, 85vw)' }}
+        style={{ maxWidth: "min(300px, 85vw)" }}
       >
         <File className="w-5 h-5 shrink-0" />
-        <span className="text-sm truncate flex-1">{attachment.original_filename}</span>
+        <span className="text-sm truncate flex-1">
+          {attachment.original_filename}
+        </span>
       </a>
     );
   };
@@ -480,10 +462,14 @@ const typingChannel = presenceService.subscribeToTyping(
     <Layout>
       <div className="flex h-[calc(100vh-8rem)] bg-white dark:bg-gray-900 rounded-lg shadow-lg overflow-hidden max-w-full">
         {/* Conversations List - Hidden on mobile when chat is open */}
-        <div className={`${isMobile ? (showConversationList ? 'flex' : 'hidden') : 'flex'} w-full md:w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex-col max-w-full`}>
+        <div
+          className={`${isMobile ? (showConversationList ? "flex" : "hidden") : "flex"} w-full md:w-96 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex-col max-w-full`}
+        >
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Messages</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                Messages
+              </h2>
               {isMobile && (
                 <button
                   onClick={() => setShowNewChatDialog(true)}
@@ -513,20 +499,22 @@ const typingChannel = presenceService.subscribeToTyping(
               <div className="max-w-full">
                 {conversations.map((conversation) => {
                   const otherProfile = getOtherParticipantProfile(conversation);
-                  const isSelected = selectedConversation?.id === conversation.id;
+                  const isSelected =
+                    selectedConversation?.id === conversation.id;
 
                   return (
                     <button
                       key={conversation.id}
                       onClick={() => handleSelectConversation(conversation)}
                       className={`w-full p-4 border-b cursor-pointer border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 text-left transition-colors max-w-full ${
-                        isSelected ? 'bg-gray-100 dark:bg-gray-800' : ''
+                        isSelected ? "bg-gray-100 dark:bg-gray-800" : ""
                       }`}
                     >
                       <div className="flex items-start gap-3 max-w-full">
                         <div className="relative shrink-0">
                           <div className="w-12 h-12 rounded-full bg-linear-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold text-lg">
-                            {otherProfile?.full_name?.charAt(0).toUpperCase() || '?'}
+                            {otherProfile?.full_name?.charAt(0).toUpperCase() ||
+                              "?"}
                           </div>
                           {conversation.unread_count! > 0 && (
                             <div className="absolute -top-1 -right-1 w-5 h-5 bg-primary dark:bg-secondary text-white text-xs font-bold rounded-full flex items-center justify-center">
@@ -537,7 +525,7 @@ const typingChannel = presenceService.subscribeToTyping(
                         <div className="flex-1 min-w-0 overflow-hidden">
                           <div className="flex items-baseline justify-between mb-1 max-w-full">
                             <h3 className="font-semibold text-gray-900 dark:text-white truncate">
-                              {otherProfile?.full_name || 'Unknown User'}
+                              {otherProfile?.full_name || "Unknown User"}
                             </h3>
                             {conversation.last_message_at && (
                               <span className="text-xs text-gray-500 dark:text-gray-400 ml-2 shrink-0">
@@ -546,11 +534,13 @@ const typingChannel = presenceService.subscribeToTyping(
                             )}
                           </div>
                           {conversation.last_message && (
-                            <p className={`text-sm truncate ${
-                              conversation.unread_count! > 0
-                                ? 'text-gray-900 dark:text-white font-medium'
-                                : 'text-gray-600 dark:text-gray-400'
-                            }`}>
+                            <p
+                              className={`text-sm truncate ${
+                                conversation.unread_count! > 0
+                                  ? "text-gray-900 dark:text-white font-medium"
+                                  : "text-gray-600 dark:text-gray-400"
+                              }`}
+                            >
                               {conversation.last_message}
                             </p>
                           )}
@@ -565,7 +555,9 @@ const typingChannel = presenceService.subscribeToTyping(
         </div>
 
         {/* Chat Area - Hidden on mobile when conversations list is open */}
-        <div className={`${isMobile ? (showMobileChat ? 'flex' : 'hidden') : 'flex'} flex-1 flex-col bg-gray-50 dark:bg-gray-950 max-w-full overflow-hidden`}>
+        <div
+          className={`${isMobile ? (showMobileChat ? "flex" : "hidden") : "flex"} flex-1 flex-col bg-gray-50 dark:bg-gray-950 max-w-full overflow-hidden`}
+        >
           {selectedConversation ? (
             <>
               <div className="p-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
@@ -579,17 +571,22 @@ const typingChannel = presenceService.subscribeToTyping(
                     </button>
                   )}
                   <div className="w-10 h-10 rounded-full bg-linear-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold shrink-0">
-                    {getOtherParticipantProfile(selectedConversation)?.full_name?.charAt(0).toUpperCase() || '?'}
+                    {getOtherParticipantProfile(selectedConversation)
+                      ?.full_name?.charAt(0)
+                      .toUpperCase() || "?"}
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 dark:text-white truncate">
-                      {getOtherParticipantProfile(selectedConversation)?.full_name || 'Unknown User'}
+                      {getOtherParticipantProfile(selectedConversation)
+                        ?.full_name || "Unknown User"}
                     </h3>
                     <div className="flex items-center gap-2 text-sm">
-                      <div className={`w-2 h-2 rounded-full ${otherUserStatus === 'online' ? 'bg-green-500' : 'bg-gray-400'} shrink-0`}></div>
+                      <div
+                        className={`w-2 h-2 rounded-full ${otherUserStatus === "online" ? "bg-green-500" : "bg-gray-400"} shrink-0`}
+                      ></div>
                       <span className="text-gray-600 dark:text-gray-400 truncate">
-                        {otherUserStatus === 'online' ? 'online' : 'offline'}
-                        {isOtherUserTyping && ' • typing...'}
+                        {otherUserStatus === "online" ? "online" : "offline"}
+                        {isOtherUserTyping && " • typing..."}
                       </span>
                     </div>
                   </div>
@@ -599,7 +596,7 @@ const typingChannel = presenceService.subscribeToTyping(
               <div
                 ref={messagesContainerRef}
                 className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-2 max-w-full"
-                style={{ overflowAnchor: 'none' }}
+                style={{ overflowAnchor: "none" }}
               >
                 {hasMore && messages.length > 0 && (
                   <div className="flex justify-center mb-4">
@@ -608,7 +605,7 @@ const typingChannel = presenceService.subscribeToTyping(
                       disabled={loadingMore}
                       className="text-sm text-primary dark:text-secondary hover:underline disabled:opacity-50"
                     >
-                      {loadingMore ? 'Loading...' : 'Load previous messages'}
+                      {loadingMore ? "Loading..." : "Load previous messages"}
                     </button>
                   </div>
                 )}
@@ -619,15 +616,15 @@ const typingChannel = presenceService.subscribeToTyping(
                   return (
                     <div
                       key={message.id}
-                      className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-1 max-w-full`}
+                      className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-1 max-w-full`}
                     >
                       <div
                         className={`max-w-[85%] sm:max-w-md px-3 py-2 rounded-2xl shadow-sm ${
                           isOwn
-                            ? 'bg-primary dark:bg-secondary text-white rounded-br-sm'
-                            : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm'
+                            ? "bg-primary dark:bg-secondary text-white rounded-br-sm"
+                            : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm"
                         }`}
-                        style={{ maxWidth: 'min(400px, 85vw)' }}
+                        style={{ maxWidth: "min(400px, 85vw)" }}
                       >
                         {attachments.length > 0 && (
                           <div className="space-y-2 mb-2 max-w-full">
@@ -639,10 +636,17 @@ const typingChannel = presenceService.subscribeToTyping(
                           </div>
                         )}
                         {message.content && (
-                          <p className="text-sm wrap-break-word whitespace-pre-wrap">{message.content}</p>
+                          <p className="text-sm wrap-break-word whitespace-pre-wrap">
+                            {message.content}
+                          </p>
                         )}
-                        <p className={`text-[10px] mt-1 text-right ${isOwn ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'}`}>
-                          {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        <p
+                          className={`text-[10px] mt-1 text-right ${isOwn ? "text-white/70" : "text-gray-500 dark:text-gray-400"}`}
+                        >
+                          {new Date(message.created_at).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </p>
                       </div>
                     </div>
@@ -650,9 +654,9 @@ const typingChannel = presenceService.subscribeToTyping(
                 })}
                 {isOtherUserTyping && (
                   <div className="flex justify-start max-w-full">
-                    <div 
+                    <div
                       className="bg-white dark:bg-gray-800 rounded-2xl px-4 py-2 shadow-sm"
-                      style={{ maxWidth: 'min(400px, 85vw)' }}
+                      style={{ maxWidth: "min(400px, 85vw)" }}
                     >
                       <TypingIndicator />
                     </div>
@@ -661,17 +665,20 @@ const typingChannel = presenceService.subscribeToTyping(
                 <div ref={messagesEndRef} className="h-px" />
               </div>
 
-              <form onSubmit={handleSendMessage} className="p-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 max-w-full">
+              <form
+                onSubmit={handleSendMessage}
+                className="p-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 max-w-full"
+              >
                 {attachments.length > 0 && (
                   <div className="flex gap-2 mb-2 overflow-x-auto pb-2 max-w-full">
                     {attachments.map((file, idx) => (
                       <div key={idx} className="relative shrink-0">
                         <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center relative">
-                          {file.type.startsWith('image/') ? (
-                            <img 
-                              src={URL.createObjectURL(file)} 
-                              alt="" 
-                              className="w-full h-full object-cover rounded-lg" 
+                          {file.type.startsWith("image/") ? (
+                            <img
+                              src={URL.createObjectURL(file)}
+                              alt=""
+                              className="w-full h-full object-cover rounded-lg"
                             />
                           ) : (
                             <File className="w-6 h-6 text-gray-400" />
@@ -684,7 +691,9 @@ const typingChannel = presenceService.subscribeToTyping(
                             <X className="w-3 h-3" />
                           </button>
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate w-16">{file.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate w-16">
+                          {file.name}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -718,7 +727,10 @@ const typingChannel = presenceService.subscribeToTyping(
                   />
                   <button
                     type="submit"
-                    disabled={sending || (!messageContent.trim() && attachments.length === 0)}
+                    disabled={
+                      sending ||
+                      (!messageContent.trim() && attachments.length === 0)
+                    }
                     className="bg-primary cursor-pointer hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white p-2 rounded-full disabled:opacity-50 transition-all shrink-0 w-10 h-10 md:w-12 md:h-12 flex items-center justify-center"
                   >
                     {sending ? (
@@ -733,7 +745,9 @@ const typingChannel = presenceService.subscribeToTyping(
           ) : (
             <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400 p-4">
               <div className="text-center max-w-full">
-                <p className="text-lg mb-2">Select a conversation to start chatting</p>
+                <p className="text-lg mb-2">
+                  Select a conversation to start chatting
+                </p>
                 <button
                   onClick={() => setShowNewChatDialog(true)}
                   className="text-primary cursor-pointer dark:text-secondary hover:underline"
@@ -750,12 +764,13 @@ const typingChannel = presenceService.subscribeToTyping(
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full max-h-[80vh] flex flex-col mx-4">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">New Chat</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                New Chat
+              </h3>
               <button
                 onClick={() => {
                   setShowNewChatDialog(false);
-                  setSearchQuery('');
-                  setSearchResults([]);
+                  clearUserSearch();
                 }}
                 className="text-gray-500 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300"
               >
@@ -781,7 +796,9 @@ const typingChannel = presenceService.subscribeToTyping(
                 </div>
               ) : searchResults.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  {searchQuery ? 'No users found' : 'Search for users to start a chat'}
+                  {searchQuery
+                    ? "No users found"
+                    : "Search for users to start a chat"}
                 </div>
               ) : (
                 <div className="space-y-1">
@@ -795,8 +812,12 @@ const typingChannel = presenceService.subscribeToTyping(
                         {userProfile.full_name.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0 text-left">
-                        <p className="font-medium text-gray-900 dark:text-white truncate">{userProfile.full_name}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{userProfile.email}</p>
+                        <p className="font-medium text-gray-900 dark:text-white truncate">
+                          {userProfile.full_name}
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                          {userProfile.email}
+                        </p>
                       </div>
                       <span className="text-xs px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded-full text-gray-700 dark:text-gray-300 shrink-0">
                         {userProfile.role}
