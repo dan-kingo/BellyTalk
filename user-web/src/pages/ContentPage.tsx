@@ -7,6 +7,8 @@ import { Plus, Edit, Trash2 } from "lucide-react";
 import { useContentStore } from "../stores/content.store";
 import { toast } from "react-toastify";
 
+const PAGE_SIZE = 9;
+
 const ContentPage: React.FC = () => {
   const { profile } = useAuth();
   const contents = useContentStore((state) => state.contents);
@@ -57,6 +59,14 @@ const ContentPage: React.FC = () => {
 
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setFilters({ ...filters, lang: e.target.value, page: 1 });
+  };
+
+  const handleLoadMore = () => {
+    setFilters((prev) => ({
+      ...prev,
+      page: 1,
+      limit: (prev.limit ?? PAGE_SIZE) + PAGE_SIZE,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -464,7 +474,7 @@ const ContentPage: React.FC = () => {
           </div>
         </Dialog>
 
-        {loading ? (
+        {loading && contents.length === 0 ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary dark:border-secondary"></div>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
@@ -569,6 +579,20 @@ const ContentPage: React.FC = () => {
             ))}
           </div>
         )}
+
+        {contents.length > 0 &&
+          contents.length >= (filters.limit ?? PAGE_SIZE) && (
+            <div className="mt-8 flex justify-center">
+              <button
+                type="button"
+                onClick={handleLoadMore}
+                disabled={loading}
+                className="px-6 py-2 rounded-lg cursor-pointer bg-primary-600 hover:bg-primary-700 text-white font-medium transition disabled:opacity-60"
+              >
+                {loading ? "Loading..." : "Load more"}
+              </button>
+            </div>
+          )}
       </div>
     </Layout>
   );

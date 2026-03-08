@@ -3,7 +3,12 @@ import { shopService } from "../services/shop.service";
 import { Cart, CartItem, CreateOrderData, Order, Product } from "../types";
 
 type OrdersScope = "all" | "my";
-type ProductQuery = { q?: string; category?: string };
+type ProductQuery = {
+  q?: string;
+  category?: string;
+  page?: number;
+  limit?: number;
+};
 
 type ShopStore = {
   products: Product[];
@@ -72,7 +77,9 @@ const MY_PRODUCTS_STALE_TIME_MS = 60_000;
 const getProductsKey = (params?: ProductQuery) => {
   const q = params?.q?.trim() || "";
   const category = params?.category?.trim() || "";
-  return `${q}|${category}`;
+  const page = params?.page ?? 1;
+  const limit = params?.limit ?? 20;
+  return `${q}|${category}|${page}|${limit}`;
 };
 
 const upsertOrder = (orders: Order[], updatedOrder: Order) => {
@@ -134,6 +141,8 @@ export const useShopStore = create<ShopStore>((set, get) => ({
         const response = await shopService.getProducts({
           q: params?.q || undefined,
           category: params?.category || undefined,
+          page: params?.page,
+          limit: params?.limit,
         });
         set((current) => ({
           products: response.products || [],
