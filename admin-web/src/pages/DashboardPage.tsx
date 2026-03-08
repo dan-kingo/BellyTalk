@@ -168,7 +168,10 @@ const DashboardPage: React.FC = () => {
   const hospitalData = selectedRangeData.hospitalEngagement || [
     50, 75, 100, 125, 150,
   ];
-  const userGrowthData = selectedRangeData.userGrowth.slice(0, timeLabels.length);
+  const userGrowthData = selectedRangeData.userGrowth.slice(
+    0,
+    timeLabels.length,
+  );
   const userGrowthDelta =
     userGrowthData.length > 1
       ? ((userGrowthData[userGrowthData.length - 1] - userGrowthData[0]) /
@@ -242,7 +245,9 @@ const DashboardPage: React.FC = () => {
   };
 
   const hospitalChartData = {
-    labels: selectedRangeData.topHospitals.map((item) => item.name.split(" ")[0]),
+    labels: selectedRangeData.topHospitals.map(
+      (item) => item.name.split(" ")[0],
+    ),
     datasets: [
       {
         label: "Active Users",
@@ -402,7 +407,7 @@ const DashboardPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-blue-100 text-sm font-medium">Total Users</p>
-                <p className="text-3xl font-bold mt-2">{stats?.users  || 0}</p>
+                <p className="text-3xl font-bold mt-2">{stats?.users || 0}</p>
               </div>
               <Users className="w-8 h-8 text-blue-200" />
             </div>
@@ -421,7 +426,7 @@ const DashboardPage: React.FC = () => {
                   Content Pieces
                 </p>
                 <p className="text-3xl font-bold mt-2">
-                  {stats?.contents  || 0}
+                  {stats?.contents || 0}
                 </p>
               </div>
               <FileText className="w-8 h-8 text-green-200" />
