@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import LoadingSpinner from "../components/common/LoadingSpinner";
 import { useAuth } from "../contexts/AuthContext";
 import Layout from "../components/layout/Layout";
 import { useShopStore } from "../stores/shop.store";
 import { Maximize2, X } from "lucide-react";
 import { Product } from "../types";
+import Skeleton from "../components/common/Skeleton";
 
 const PAGE_SIZE = 9;
 
@@ -89,8 +89,32 @@ const ShopPage: React.FC = () => {
   if (loading && products.length === 0) {
     return (
       <Layout>
-        <div className="flex justify-center items-center min-h-[60vh]">
-          <LoadingSpinner />
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-center mb-8">
+            <Skeleton className="h-9 w-32" />
+            <Skeleton className="h-10 w-28" />
+          </div>
+          <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div
+                key={index}
+                className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800"
+              >
+                <Skeleton className="h-44 w-full rounded-lg" />
+                <Skeleton className="h-5 w-3/4 mt-4" />
+                <Skeleton className="h-4 w-full mt-3" />
+                <Skeleton className="h-4 w-2/3 mt-2" />
+                <div className="flex justify-between items-center mt-4">
+                  <Skeleton className="h-6 w-20" />
+                  <Skeleton className="h-9 w-24" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </Layout>
     );

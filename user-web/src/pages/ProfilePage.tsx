@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import Layout from "../components/layout/Layout";
-import LoadingSpinner from "../components/common/LoadingSpinner";
 import { Edit2, X } from "lucide-react";
 import { useProfileStore } from "../stores/profile.store";
 import { toast } from "react-toastify";
+import Skeleton from "../components/common/Skeleton";
 
 const ProfilePage: React.FC = () => {
   const { profile, refreshProfile } = useAuth();
@@ -89,7 +89,26 @@ const ProfilePage: React.FC = () => {
   if (!profile) {
     return (
       <Layout>
-        <LoadingSpinner />
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-8 w-52" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+          <div className="rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-5 w-full" />
+                </div>
+              ))}
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+          </div>
+        </div>
       </Layout>
     );
   }

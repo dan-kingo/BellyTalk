@@ -7,6 +7,7 @@ import { Content } from "../types";
 import { BookOpen, Building2, ArrowRight } from "lucide-react";
 import Dialog from "../components/common/Dialog";
 import { useDashboardStore } from "../stores/dashboard.store";
+import Skeleton from "../components/common/Skeleton";
 
 const DashboardPage: React.FC = () => {
   const { profile } = useAuth();
@@ -84,8 +85,21 @@ const DashboardPage: React.FC = () => {
           </button>
         </div>
         {loading ? (
-          <div className="text-center py-8">
-            <LoadingSpinner />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div
+                key={index}
+                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6"
+              >
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-full mt-4" />
+                <Skeleton className="h-4 w-5/6 mt-2" />
+                <div className="flex gap-2 mt-4">
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -226,8 +240,22 @@ const DashboardPage: React.FC = () => {
           </button>
         </div>
         {loading ? (
-          <div className="text-center py-8">
-            <LoadingSpinner />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div
+                key={index}
+                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6"
+              >
+                <Skeleton className="h-6 w-2/3" />
+                <Skeleton className="h-4 w-1/3 mt-3" />
+                <Skeleton className="h-4 w-full mt-4" />
+                <Skeleton className="h-4 w-5/6 mt-2" />
+                <div className="mt-4 space-y-2">
+                  <Skeleton className="h-4 w-4/5" />
+                  <Skeleton className="h-4 w-2/3" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

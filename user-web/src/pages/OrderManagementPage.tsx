@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import Layout from "../components/layout/Layout";
-import LoadingSpinner from "../components/common/LoadingSpinner";
 import Dialog from "../components/common/Dialog";
 import {
   Package,
@@ -19,6 +18,7 @@ import {
 import { Order } from "../types";
 import { useShopStore } from "../stores/shop.store";
 import { toast } from "react-toastify";
+import Skeleton from "../components/common/Skeleton";
 
 const OrderManagementPage: React.FC = () => {
   const { profile } = useAuth();
@@ -195,8 +195,37 @@ const OrderManagementPage: React.FC = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="flex justify-center items-center min-h-[60vh]">
-          <LoadingSpinner />
+        <div className="max-w-7xl mx-auto py-8 space-y-6">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-10 w-72" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-44" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <Skeleton key={index} className="h-9 w-24 rounded-lg" />
+            ))}
+          </div>
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div
+              key={index}
+              className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6"
+            >
+              <div className="flex justify-between items-start gap-4">
+                <div className="space-y-3 flex-1">
+                  <Skeleton className="h-6 w-56" />
+                  <Skeleton className="h-4 w-64" />
+                </div>
+                <Skeleton className="h-9 w-32 rounded-full" />
+              </div>
+              <div className="space-y-3 mt-5">
+                <Skeleton className="h-16 w-full rounded-lg" />
+                <Skeleton className="h-16 w-full rounded-lg" />
+              </div>
+            </div>
+          ))}
         </div>
       </Layout>
     );

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import Layout from "../components/layout/Layout";
-import LoadingSpinner from "../components/common/LoadingSpinner";
 import Dialog from "../components/common/Dialog";
 import { Package, Plus, Edit, Trash2, Search } from "lucide-react";
 import { Product } from "../types";
 import { useShopStore } from "../stores/shop.store";
 import { toast } from "react-toastify";
+import Skeleton from "../components/common/Skeleton";
 
 const ProductManagementPage: React.FC = () => {
   const { profile } = useAuth();
@@ -162,8 +162,32 @@ const ProductManagementPage: React.FC = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="flex justify-center items-center min-h-[60vh]">
-          <LoadingSpinner />
+        <div className="max-w-7xl mx-auto py-8 space-y-6">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-10 w-64" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+          <Skeleton className="h-12 w-full rounded-lg" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div
+                key={index}
+                className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6"
+              >
+                <Skeleton className="h-40 w-full rounded-lg" />
+                <Skeleton className="h-6 w-3/4 mt-4" />
+                <Skeleton className="h-4 w-full mt-3" />
+                <div className="flex justify-between mt-4">
+                  <Skeleton className="h-6 w-20" />
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                </div>
+                <div className="flex gap-2 mt-5">
+                  <Skeleton className="h-9 w-full" />
+                  <Skeleton className="h-9 w-full" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </Layout>
     );

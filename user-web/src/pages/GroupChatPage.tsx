@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import Layout from "../components/layout/Layout";
-import LoadingSpinner from "../components/common/LoadingSpinner";
 import Dialog from "../components/common/Dialog";
 import { Users, Plus, Send, ArrowLeft } from "lucide-react";
 import { GroupRoom } from "../types";
 import { useGroupChatStore } from "../stores/groupchat.store";
 import { toast } from "react-toastify";
+import Skeleton from "../components/common/Skeleton";
 
 const GroupChatPage: React.FC = () => {
   const { user } = useAuth();
@@ -86,8 +86,31 @@ const GroupChatPage: React.FC = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="flex justify-center items-center min-h-[60vh]">
-          <LoadingSpinner />
+        <div className="flex h-[calc(100vh-8rem)] bg-white dark:bg-gray-900 rounded-lg shadow-lg overflow-hidden">
+          <div className="w-full md:w-96 border-r border-gray-200 dark:border-gray-700 p-4 space-y-4">
+            <Skeleton className="h-10 w-full" />
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="flex items-center gap-3">
+                <Skeleton className="h-12 w-12 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-3 w-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden md:flex flex-1 flex-col p-4 space-y-4">
+            <Skeleton className="h-14 w-full" />
+            <div className="flex-1 space-y-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <Skeleton
+                  key={index}
+                  className={`h-12 ${index % 2 === 0 ? "w-2/3" : "w-1/2 ml-auto"}`}
+                />
+              ))}
+            </div>
+            <Skeleton className="h-12 w-full" />
+          </div>
         </div>
       </Layout>
     );

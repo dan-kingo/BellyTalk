@@ -6,6 +6,7 @@ import { Content } from "../types";
 import { Plus, Edit, Trash2 } from "lucide-react";
 import { useContentStore } from "../stores/content.store";
 import { toast } from "react-toastify";
+import Skeleton from "../components/common/Skeleton";
 
 const PAGE_SIZE = 9;
 
@@ -475,11 +476,32 @@ const ContentPage: React.FC = () => {
         </Dialog>
 
         {loading && contents.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary dark:border-secondary"></div>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Loading content...
-            </p>
+          <div className="space-y-6 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800"
+                >
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-full mt-4" />
+                  <Skeleton className="h-4 w-5/6 mt-2" />
+                  <Skeleton className="h-4 w-4/6 mt-2" />
+                  <div className="flex gap-2 mt-5">
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                    <Skeleton className="h-6 w-20 rounded-full" />
+                  </div>
+                  <div className="flex gap-2 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <Skeleton className="h-9 w-full" />
+                    <Skeleton className="h-9 w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : contents.length === 0 ? (
           <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg">

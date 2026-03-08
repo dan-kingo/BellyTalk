@@ -1,5 +1,4 @@
 import React, { useEffect } from "react";
-import LoadingSpinner from "../components/common/LoadingSpinner";
 import Layout from "../components/layout/Layout";
 import {
   Package,
@@ -11,6 +10,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { useShopStore } from "../stores/shop.store";
+import Skeleton from "../components/common/Skeleton";
 
 const OrdersPage: React.FC = () => {
   const orders = useShopStore((state) => state.myOrders);
@@ -85,8 +85,29 @@ const OrdersPage: React.FC = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="flex justify-center items-center min-h-[60vh]">
-          <LoadingSpinner />
+        <div className="max-w-7xl mx-auto py-8 space-y-6">
+          <div className="flex items-center gap-3 mb-8">
+            <Skeleton className="h-8 w-8 rounded" />
+            <Skeleton className="h-9 w-40" />
+          </div>
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div
+              key={index}
+              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6"
+            >
+              <div className="flex justify-between items-start gap-4">
+                <div className="space-y-3 flex-1">
+                  <Skeleton className="h-6 w-48" />
+                  <Skeleton className="h-4 w-64" />
+                </div>
+                <Skeleton className="h-8 w-24 rounded-full" />
+              </div>
+              <div className="space-y-3 mt-6">
+                <Skeleton className="h-20 w-full rounded-lg" />
+                <Skeleton className="h-20 w-full rounded-lg" />
+              </div>
+            </div>
+          ))}
         </div>
       </Layout>
     );
