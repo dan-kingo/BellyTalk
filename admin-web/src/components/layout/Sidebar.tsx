@@ -1,6 +1,13 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Home, Users, FileText, X, Building2, RollerCoasterIcon } from 'lucide-react';
+import React from "react";
+import { Link, useLocation } from "react-router-dom";
+import {
+  Home,
+  Users,
+  FileText,
+  X,
+  Building2,
+  RollerCoasterIcon,
+} from "lucide-react";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -11,11 +18,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const location = useLocation();
 
   const menuItems = [
-    { path: '/dashboard', icon: Home, label: 'Dashboard' },
-    { path: '/contents', icon: FileText, label: 'Contents' },
-    { path: '/hospitals', icon: Building2, label: 'Hospitals' },
-    { path: '/users', icon: Users, label: 'Users' },
-    { path: '/role-requests', icon: RollerCoasterIcon, label: 'Role Requests' },
+    { path: "/dashboard", icon: Home, label: "Dashboard" },
+    { path: "/contents", icon: FileText, label: "Contents" },
+    { path: "/hospitals", icon: Building2, label: "Hospitals" },
+    { path: "/users", icon: Users, label: "Users" },
+    { path: "/role-requests", icon: RollerCoasterIcon, label: "Role Requests" },
     // { path: '/activity-logs', icon: Activity, label: 'Activity Logs' },
   ];
 
@@ -29,13 +36,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       )}
 
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-40 h-screen transition-transform duration-300 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        className={`fixed top-16 left-0 z-40 h-[calc(100vh-4rem)] transition-transform duration-300 ${
+          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         <div className="h-full px-4 py-6 overflow-y-auto scrollbar-hide bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 w-64">
-          <div className="flex items-center justify-between mb-6 px-2">
-            <h2 className="text-xl font-bold text-primary dark:text-secondary">Admin Panel</h2>
+          <div className="flex items-center justify-end mb-6 px-2">
             <button
               onClick={onClose}
               className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
@@ -57,8 +63,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   onClick={onClose}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                     isActive
-                      ? 'bg-primary text-white dark:bg-secondary'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      ? "bg-primary text-white dark:bg-secondary"
+                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                   }`}
                 >
                   <Icon className="w-5 h-5" />

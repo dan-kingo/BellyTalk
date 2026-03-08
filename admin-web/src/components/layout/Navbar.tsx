@@ -1,8 +1,8 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import { useTheme } from '../../contexts/ThemeContext';
-import { Menu, Sun, Moon, LogOut } from 'lucide-react';
+import React from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import { useTheme } from "../../contexts/ThemeContext";
+import { Menu, Sun, Moon, LogOut } from "lucide-react";
 
 interface NavbarProps {
   onMenuClick: () => void;
@@ -15,11 +15,11 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate("/login");
   };
 
   return (
-    <nav className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700">
+    <nav className="fixed inset-x-0 top-0 z-50 bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center gap-4">
@@ -33,7 +33,9 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
               </button>
             )}
             <Link to="/" className="flex items-center">
-              <span className="text-2xl font-bold text-primary dark:text-secondary">BellyTalk Admin</span>
+              <span className="text-2xl font-bold text-primary dark:text-secondary">
+                BellyTalk Admin
+              </span>
             </Link>
           </div>
 
@@ -53,7 +55,11 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
                   className="p-2 cursor-pointer rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all"
                   aria-label="Toggle theme"
                 >
-                  {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                  {isDark ? (
+                    <Sun className="w-5 h-5" />
+                  ) : (
+                    <Moon className="w-5 h-5" />
+                  )}
                 </button>
                 <button
                   onClick={handleLogout}
