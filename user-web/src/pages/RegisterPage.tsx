@@ -24,6 +24,12 @@ const RegisterPage: React.FC = () => {
       );
       setTimeout(() => navigate("/login"), 3000);
     } catch (err: any) {
+      if (err?.code === "ECONNABORTED") {
+        toast.error(
+          "Registration request timed out. If you received a confirmation email, verify it and then log in.",
+        );
+        return;
+      }
       toast.error(
         err.response?.data?.error || "Failed to register. Please try again.",
       );
