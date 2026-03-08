@@ -1,64 +1,52 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import Layout from '../components/layout/Layout';
-import Dialog from '../components/common/Dialog';
-import { contentService } from '../services/content.service';
-import { Content } from '../types';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import Layout from "../components/layout/Layout";
+import Dialog from "../components/common/Dialog";
+import { Content } from "../types";
+import { Plus, Edit, Trash2 } from "lucide-react";
+import { useContentStore } from "../stores/content.store";
 
 const ContentPage: React.FC = () => {
   const { profile } = useAuth();
-  const [contents, setContents] = useState<Content[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [filters, setFilters] = useState<{ query?: string; lang?: string; page?: number; limit?: number }>({ page: 1, limit: 10 });
+  const contents = useContentStore((state) => state.contents);
+  const loading = useContentStore((state) => state.loading);
+  const error = useContentStore((state) => state.error) || "";
+  const fetchContents = useContentStore((state) => state.fetchContents);
+  const createContent = useContentStore((state) => state.createContent);
+  const updateContent = useContentStore((state) => state.updateContent);
+  const deleteContent = useContentStore((state) => state.deleteContent);
+  const clearError = useContentStore((state) => state.clearError);
+  const [filters, setFilters] = useState<{
+    query?: string;
+    lang?: string;
+    page?: number;
+    limit?: number;
+  }>({ page: 1, limit: 10 });
   const [showDialog, setShowDialog] = useState(false);
-  const [dialogMode, setDialogMode] = useState<'add' | 'edit' | 'delete' | 'view'>('add');
+  const [dialogMode, setDialogMode] = useState<
+    "add" | "edit" | "delete" | "view"
+  >("add");
   const [editingContent, setEditingContent] = useState<Content | null>(null);
   const [deletingContent, setDeletingContent] = useState<Content | null>(null);
   const [viewingContent, setViewingContent] = useState<Content | null>(null);
   const [formData, setFormData] = useState({
-    title: '',
-    body: '',
-    category: '',
-    tags: '',
-    language: 'en',
+    title: "",
+    body: "",
+    category: "",
+    tags: "",
+    language: "en",
     is_published: false,
   });
 
-  const canManageContent = profile?.role === 'doctor' || profile?.role === 'counselor' || profile?.role === 'admin';
-  const isUserRole = profile?.role === 'mother';
+  const canManageContent =
+    profile?.role === "doctor" ||
+    profile?.role === "counselor" ||
+    profile?.role === "admin";
+  const isUserRole = profile?.role === "mother";
 
   useEffect(() => {
-    loadContent();
-  }, [filters]);
-
-  const loadContent = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      let response;
-      
-      // Clean up filters - remove empty values
-      const cleanFilters = Object.fromEntries(
-        Object.entries(filters).filter(([_, value]) => value !== '' && value !== undefined)
-      );
-      
-      // Load user-specific content for content managers, all content for mothers
-      if (canManageContent) {
-        response = await contentService.getMyContents(cleanFilters);
-      } else {
-        response = await contentService.getAllContent(cleanFilters);
-      }
-      
-      setContents(response.data || []);
-    } catch (err: any) {
-      console.error('Error loading content:', err);
-      setError(err.response?.data?.error || 'Failed to load content');
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchContents(canManageContent, filters);
+  }, [filters, canManageContent, fetchContents]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFilters({ ...filters, query: e.target.value, page: 1 });
@@ -70,46 +58,48 @@ const ContentPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    clearError();
 
     try {
       const contentData = {
         ...formData,
-        tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
+        tags: formData.tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
       };
 
       if (editingContent) {
-        await contentService.updateContent(editingContent.id, contentData as any);
+        await updateContent(editingContent.id, contentData as any);
       } else {
         const formData = new FormData();
-        formData.append('title', contentData.title);
-        formData.append('body', contentData.body);
-        formData.append('category', contentData.category);
-        formData.append('language', contentData.language);
-        formData.append('is_published', String(contentData.is_published));
-        contentData.tags.forEach((tag: string) => formData.append('tags', tag));
-        await contentService.createContent(formData);
+        formData.append("title", contentData.title);
+        formData.append("body", contentData.body);
+        formData.append("category", contentData.category);
+        formData.append("language", contentData.language);
+        formData.append("is_published", String(contentData.is_published));
+        contentData.tags.forEach((tag: string) => formData.append("tags", tag));
+        await createContent(formData);
       }
 
       resetForm();
-      loadContent();
       setShowDialog(false);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to save content');
+      console.error("Failed to save content:", err);
     }
   };
 
   const handleAdd = () => {
     setEditingContent(null);
     setFormData({
-      title: '',
-      body: '',
-      category: '',
-      tags: '',
-      language: 'en',
+      title: "",
+      body: "",
+      category: "",
+      tags: "",
+      language: "en",
       is_published: false,
     });
-    setDialogMode('add');
+    setDialogMode("add");
     setShowDialog(true);
   };
 
@@ -118,18 +108,18 @@ const ContentPage: React.FC = () => {
     setFormData({
       title: content.title,
       body: content.body,
-      category: content.category || '',
-      tags: content.tags?.join(', ') || '',
+      category: content.category || "",
+      tags: content.tags?.join(", ") || "",
       language: content.language,
       is_published: content.is_published,
     });
-    setDialogMode('edit');
+    setDialogMode("edit");
     setShowDialog(true);
   };
 
   const handleDeleteClick = (content: Content) => {
     setDeletingContent(content);
-    setDialogMode('delete');
+    setDialogMode("delete");
     setShowDialog(true);
   };
 
@@ -137,28 +127,27 @@ const ContentPage: React.FC = () => {
     if (!deletingContent) return;
 
     try {
-      await contentService.deleteContent(deletingContent.id);
-      loadContent();
+      await deleteContent(deletingContent.id);
       setShowDialog(false);
       setDeletingContent(null);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to delete content');
+      console.error("Failed to delete content:", err);
     }
   };
 
   const handleViewContent = (content: Content) => {
     setViewingContent(content);
-    setDialogMode('view');
+    setDialogMode("view");
     setShowDialog(true);
   };
 
   const resetForm = () => {
     setFormData({
-      title: '',
-      body: '',
-      category: '',
-      tags: '',
-      language: 'en',
+      title: "",
+      body: "",
+      category: "",
+      tags: "",
+      language: "en",
       is_published: false,
     });
     setEditingContent(null);
@@ -174,7 +163,9 @@ const ContentPage: React.FC = () => {
     <Layout>
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Educational Content</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Educational Content
+          </h1>
           {canManageContent && (
             <button
               onClick={handleAdd}
@@ -190,12 +181,12 @@ const ContentPage: React.FC = () => {
           <input
             type="text"
             placeholder="Search content..."
-            value={filters.query || ''}
+            value={filters.query || ""}
             onChange={handleSearchChange}
             className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
           />
           <select
-            value={filters.lang || ''}
+            value={filters.lang || ""}
             onChange={handleLanguageChange}
             className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
           >
@@ -209,7 +200,9 @@ const ContentPage: React.FC = () => {
         {/* Active Filters Indicator */}
         {hasActiveFilters && (
           <div className="mb-4 flex items-center gap-2">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Active filters:
+            </span>
             {filters.query && (
               <span className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
                 Search: "{filters.query}"
@@ -236,9 +229,11 @@ const ContentPage: React.FC = () => {
         )}
 
         <Dialog
-          isOpen={showDialog && dialogMode !== 'delete' && dialogMode !== 'view'}
+          isOpen={
+            showDialog && dialogMode !== "delete" && dialogMode !== "view"
+          }
           onClose={resetForm}
-          title={editingContent ? 'Edit Content' : 'Add New Content'}
+          title={editingContent ? "Edit Content" : "Add New Content"}
         >
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -249,7 +244,9 @@ const ContentPage: React.FC = () => {
                 type="text"
                 required
                 value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
               />
             </div>
@@ -261,7 +258,9 @@ const ContentPage: React.FC = () => {
               <textarea
                 required
                 value={formData.body}
-                onChange={(e) => setFormData({ ...formData, body: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, body: e.target.value })
+                }
                 rows={8}
                 className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
               />
@@ -275,7 +274,9 @@ const ContentPage: React.FC = () => {
                 <input
                   type="text"
                   value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, category: e.target.value })
+                  }
                   placeholder="e.g., Pregnancy, Nutrition"
                   className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
                 />
@@ -287,7 +288,9 @@ const ContentPage: React.FC = () => {
                 <select
                   required
                   value={formData.language}
-                  onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, language: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
                 >
                   <option value="en">English</option>
@@ -304,7 +307,9 @@ const ContentPage: React.FC = () => {
               <input
                 type="text"
                 value={formData.tags}
-                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, tags: e.target.value })
+                }
                 placeholder="e.g., health, pregnancy, tips"
                 className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-secondary focus:border-transparent"
               />
@@ -315,10 +320,15 @@ const ContentPage: React.FC = () => {
                 type="checkbox"
                 id="is_published"
                 checked={formData.is_published}
-                onChange={(e) => setFormData({ ...formData, is_published: e.target.checked })}
+                onChange={(e) =>
+                  setFormData({ ...formData, is_published: e.target.checked })
+                }
                 className="h-4 w-4 text-primary dark:text-secondary focus:ring-primary dark:focus:ring-secondary border-gray-300 dark:border-gray-600 rounded"
               />
-              <label htmlFor="is_published" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+              <label
+                htmlFor="is_published"
+                className="ml-2 block text-sm text-gray-700 dark:text-gray-300"
+              >
                 Publish immediately
               </label>
             </div>
@@ -329,7 +339,7 @@ const ContentPage: React.FC = () => {
                 disabled={loading}
                 className="flex-1 cursor-pointer bg-primary hover:bg-primary-700 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-6 py-2 rounded-lg font-medium transition"
               >
-                {editingContent ? 'Update Content' : 'Create Content'}
+                {editingContent ? "Update Content" : "Create Content"}
               </button>
               <button
                 type="button"
@@ -343,9 +353,9 @@ const ContentPage: React.FC = () => {
         </Dialog>
 
         <Dialog
-          isOpen={showDialog && dialogMode === 'view'}
+          isOpen={showDialog && dialogMode === "view"}
           onClose={resetForm}
-          title={viewingContent?.title || 'Content Details'}
+          title={viewingContent?.title || "Content Details"}
         >
           {viewingContent && (
             <div className="space-y-4">
@@ -357,18 +367,28 @@ const ContentPage: React.FC = () => {
                 />
               )}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Description</h3>
-                <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{viewingContent.body}</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                  Description
+                </h3>
+                <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                  {viewingContent.body}
+                </p>
               </div>
               {viewingContent.category && (
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Category</h3>
-                  <p className="text-gray-600 dark:text-gray-400">{viewingContent.category}</p>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                    Category
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    {viewingContent.category}
+                  </p>
                 </div>
               )}
               {viewingContent.tags && viewingContent.tags.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Tags</h3>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                    Tags
+                  </h3>
                   <div className="flex flex-wrap gap-2">
                     {viewingContent.tags.map((tag, index) => (
                       <span
@@ -382,21 +402,27 @@ const ContentPage: React.FC = () => {
                 </div>
               )}
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Language</h3>
-                <p className="text-gray-600 dark:text-gray-400">{viewingContent.language.toUpperCase()}</p>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                  Language
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400">
+                  {viewingContent.language.toUpperCase()}
+                </p>
               </div>
             </div>
           )}
         </Dialog>
 
         <Dialog
-          isOpen={showDialog && dialogMode === 'delete'}
+          isOpen={showDialog && dialogMode === "delete"}
           onClose={resetForm}
           title="Delete Content"
         >
           <div className="space-y-4">
             <p className="text-gray-700 dark:text-gray-300">
-              Are you sure you want to delete <strong>{deletingContent?.title}</strong>? This action cannot be undone.
+              Are you sure you want to delete{" "}
+              <strong>{deletingContent?.title}</strong>? This action cannot be
+              undone.
             </p>
             <div className="flex gap-3 pt-4">
               <button
@@ -420,15 +446,16 @@ const ContentPage: React.FC = () => {
         {loading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary dark:border-secondary"></div>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">Loading content...</p>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">
+              Loading content...
+            </p>
           </div>
         ) : contents.length === 0 ? (
           <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg">
             <p className="text-gray-500 dark:text-gray-400">
-              {hasActiveFilters 
-                ? 'No content found matching your filters' 
-                : 'No content found'
-              }
+              {hasActiveFilters
+                ? "No content found matching your filters"
+                : "No content found"}
             </p>
             {hasActiveFilters && (
               <button
@@ -462,7 +489,9 @@ const ContentPage: React.FC = () => {
                 </div>
 
                 <p className="text-gray-700 dark:text-gray-300 mb-3">
-                  {content.body.length > 150 ? `${content.body.substring(0, 150)}...` : content.body}
+                  {content.body.length > 150
+                    ? `${content.body.substring(0, 150)}...`
+                    : content.body}
                 </p>
                 {content.body.length > 150 && (
                   <button
@@ -475,7 +504,8 @@ const ContentPage: React.FC = () => {
 
                 {content.category && (
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    Category: <span className="font-medium">{content.category}</span>
+                    Category:{" "}
+                    <span className="font-medium">{content.category}</span>
                   </p>
                 )}
 

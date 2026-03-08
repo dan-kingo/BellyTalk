@@ -1,56 +1,47 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import Layout from '../components/layout/Layout';
-import LoadingSpinner from '../components/common/LoadingSpinner';
-import { contentService } from '../services/content.service';
-import { hospitalService } from '../services/hospital.service';
-import { Content, Hospital } from '../types';
-import { BookOpen, Building2, ArrowRight } from 'lucide-react';
-import Dialog from '../components/common/Dialog';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import Layout from "../components/layout/Layout";
+import LoadingSpinner from "../components/common/LoadingSpinner";
+import { Content } from "../types";
+import { BookOpen, Building2, ArrowRight } from "lucide-react";
+import Dialog from "../components/common/Dialog";
+import { useDashboardStore } from "../stores/dashboard.store";
 
 const DashboardPage: React.FC = () => {
   const { profile } = useAuth();
   const navigate = useNavigate();
-  const [contents, setContents] = useState<Content[]>([]);
-  const [hospitals, setHospitals] = useState<Hospital[]>([]);
-  const [loading, setLoading] = useState(true);
-const [viewingContent, setViewingContent] = useState<Content | null>(null);
-  const [dialogMode, setDialogMode] = useState<'add' | 'edit' | 'delete' | 'view'>('add');
+  const contents = useDashboardStore((state) => state.previewContents);
+  const hospitals = useDashboardStore((state) => state.previewHospitals);
+  const loading = useDashboardStore((state) => state.loading);
+  const fetchDashboardData = useDashboardStore(
+    (state) => state.fetchDashboardData,
+  );
+  const [viewingContent, setViewingContent] = useState<Content | null>(null);
+  const [dialogMode, setDialogMode] = useState<
+    "add" | "edit" | "delete" | "view"
+  >("add");
   const [showDialog, setShowDialog] = useState(false);
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const handleViewContent = (content: Content) => {
-      setViewingContent(content);
-      setDialogMode('view');
-      setShowDialog(true);
-    };
-     const canManageContent = profile?.role === 'doctor' || profile?.role === 'counselor' || profile?.role === 'admin';
-   const canManageHospitals =
+  const canManageContent =
     profile?.role === "doctor" ||
     profile?.role === "counselor" ||
     profile?.role === "admin";
-const loadDashboardData = async () => {
-  try {
-    setLoading(true);
-    
-    // Use appropriate services based on user role
-    const [contentRes, hospitalRes] = await Promise.all([
-      canManageContent ? contentService.getMyContents({ limit: 3 }) : contentService.getAllContent({ limit: 3 }),
-      canManageHospitals ? hospitalService.getMyHospitals({ limit: 3 }) : hospitalService.getHospitals({ limit: 3 }),
-    ]);
-    
-    setContents(contentRes.data || []);
-    setHospitals(hospitalRes.data || []);
-  } catch (error) {
-    console.error('Failed to load dashboard data:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+  const canManageHospitals =
+    profile?.role === "doctor" ||
+    profile?.role === "counselor" ||
+    profile?.role === "admin";
+
+  useEffect(() => {
+    if (!profile) return;
+    fetchDashboardData(canManageContent, canManageHospitals);
+  }, [profile, canManageContent, canManageHospitals, fetchDashboardData]);
+
+  const handleViewContent = (content: Content) => {
+    setViewingContent(content);
+    setDialogMode("view");
+    setShowDialog(true);
+  };
 
   if (!profile) {
     return (
@@ -59,24 +50,34 @@ const loadDashboardData = async () => {
       </Layout>
     );
   }
-  const mother = profile.role === 'mother';
-  const doctor = profile.role === 'doctor';
+  const mother = profile.role === "mother";
+  const doctor = profile.role === "doctor";
 
   const renderMotherDashboard = () => (
     <div className="space-y-8">
       <div className="bg-linear-to-r from-primary to-primary-600 dark:from-secondary dark:to-secondary/80 rounded-xl shadow-lg p-8 text-white">
-        <h2 className="text-3xl font-bold mb-2">Welcome back, {doctor ? "Dr." : mother ? "Ms." : "Mr."} {profile.full_name}!</h2>
-        <p className="text-white/90"> {mother ? "Track your pregnancy journey and stay connected with your care team." : "Manage your patients and stay updated with the latest information."}</p>
+        <h2 className="text-3xl font-bold mb-2">
+          Welcome back, {doctor ? "Dr." : mother ? "Ms." : "Mr."}{" "}
+          {profile.full_name}!
+        </h2>
+        <p className="text-white/90">
+          {" "}
+          {mother
+            ? "Track your pregnancy journey and stay connected with your care team."
+            : "Manage your patients and stay updated with the latest information."}
+        </p>
       </div>
 
       <section>
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <BookOpen className="w-6 h-6 text-primary dark:text-secondary" />
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Educational Content</h3>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Educational Content
+            </h3>
           </div>
           <button
-            onClick={() => navigate('/content')}
+            onClick={() => navigate("/content")}
             className="flex cursor-pointer items-center gap-2 text-primary dark:text-secondary hover:gap-3 transition-all"
           >
             View All <ArrowRight className="w-4 h-4" />
@@ -88,53 +89,67 @@ const loadDashboardData = async () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-             <Dialog
-          isOpen={showDialog && dialogMode === 'view'}
-          onClose={() => setShowDialog(false)}
-          title={viewingContent?.title || 'Content Details'}
-        >
-          {viewingContent && (
-            <div className="space-y-4">
-              {viewingContent.cover_url && (
-                <img
-                  src={viewingContent.cover_url}
-                  alt={viewingContent.title}
-                  className="w-full h-64 object-cover rounded-lg"
-                />
-              )}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Description</h3>
-                <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{viewingContent.body}</p>
-              </div>
-              {viewingContent.category && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Category</h3>
-                  <p className="text-gray-600 dark:text-gray-400">{viewingContent.category}</p>
-                </div>
-              )}
-              {viewingContent.tags && viewingContent.tags.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Tags</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {viewingContent.tags.map((tag, index) => (
-                      <span
-                        key={index}
-                        className="px-3 py-1 text-xs font-medium rounded-full bg-primary/10 dark:bg-secondary/10 text-primary dark:text-secondary"
-                      >
-                        #{tag}
-                      </span>
-                    ))}
+            <Dialog
+              isOpen={showDialog && dialogMode === "view"}
+              onClose={() => setShowDialog(false)}
+              title={viewingContent?.title || "Content Details"}
+            >
+              {viewingContent && (
+                <div className="space-y-4">
+                  {viewingContent.cover_url && (
+                    <img
+                      src={viewingContent.cover_url}
+                      alt={viewingContent.title}
+                      className="w-full h-64 object-cover rounded-lg"
+                    />
+                  )}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                      Description
+                    </h3>
+                    <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                      {viewingContent.body}
+                    </p>
+                  </div>
+                  {viewingContent.category && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                        Category
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        {viewingContent.category}
+                      </p>
+                    </div>
+                  )}
+                  {viewingContent.tags && viewingContent.tags.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                        Tags
+                      </h3>
+                      <div className="flex flex-wrap gap-2">
+                        {viewingContent.tags.map((tag, index) => (
+                          <span
+                            key={index}
+                            className="px-3 py-1 text-xs font-medium rounded-full bg-primary/10 dark:bg-secondary/10 text-primary dark:text-secondary"
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                      Language
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      {viewingContent.language.toUpperCase()}
+                    </p>
                   </div>
                 </div>
               )}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Language</h3>
-                <p className="text-gray-600 dark:text-gray-400">{viewingContent.language.toUpperCase()}</p>
-              </div>
-            </div>
-          )}
-        </Dialog>
-             {contents.map((content) => (
+            </Dialog>
+            {contents.map((content) => (
               <div
                 key={content.id}
                 className="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-xl transition p-6 border border-gray-100 dark:border-gray-700"
@@ -157,7 +172,7 @@ const loadDashboardData = async () => {
                 <p className="text-gray-700 dark:text-gray-300 mb-4 line-clamp-4">
                   {content.body}
                 </p>
-                  {content.body.length > 150 && (
+                {content.body.length > 150 && (
                   <button
                     onClick={() => handleViewContent(content)}
                     className="text-sm text-primary dark:text-secondary hover:underline mb-3"
@@ -168,7 +183,8 @@ const loadDashboardData = async () => {
 
                 {content.category && (
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    Category: <span className="font-medium">{content.category}</span>
+                    Category:{" "}
+                    <span className="font-medium">{content.category}</span>
                   </p>
                 )}
 
@@ -188,8 +204,6 @@ const loadDashboardData = async () => {
                 <p className="text-xs text-gray-500 dark:text-gray-500 mb-4">
                   Language: {content.language.toUpperCase()}
                 </p>
-
-              
               </div>
             ))}
           </div>
@@ -200,10 +214,12 @@ const loadDashboardData = async () => {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Building2 className="w-6 h-6 text-primary dark:text-secondary" />
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Hospitals</h3>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Hospitals
+            </h3>
           </div>
           <button
-            onClick={() => navigate('/hospitals')}
+            onClick={() => navigate("/hospitals")}
             className="flex cursor-pointer items-center gap-2 text-primary dark:text-secondary hover:gap-3 transition-all"
           >
             View All <ArrowRight className="w-4 h-4" />
@@ -260,7 +276,6 @@ const loadDashboardData = async () => {
                     </a>
                   )}
                 </div>
-               
               </div>
             ))}
           </div>
@@ -274,27 +289,27 @@ const loadDashboardData = async () => {
 
   const renderDashboardContent = () => {
     switch (profile.role) {
-      case 'mother':
+      case "mother":
         return renderMotherDashboard();
-      case 'counselor':
+      case "counselor":
         return renderCounselorDashboard();
-      case 'doctor':
+      case "doctor":
         return renderDoctorDashboard();
       default:
         return (
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-900">Welcome to BellyTalk</h2>
-            <p className="mt-2 text-gray-600">Your dashboard will appear here based on your role.</p>
+            <h2 className="text-xl font-semibold text-gray-900">
+              Welcome to BellyTalk
+            </h2>
+            <p className="mt-2 text-gray-600">
+              Your dashboard will appear here based on your role.
+            </p>
           </div>
         );
     }
   };
 
-  return (
-    <Layout>
-      {renderDashboardContent()}
-    </Layout>
-  );
+  return <Layout>{renderDashboardContent()}</Layout>;
 };
 
 export default DashboardPage;

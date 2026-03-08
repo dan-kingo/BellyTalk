@@ -2,15 +2,20 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import Layout from "../components/layout/Layout";
 import Dialog from "../components/common/Dialog";
-import { hospitalService } from "../services/hospital.service";
 import { Hospital } from "../types";
 import { Plus, Edit, Trash2 } from "lucide-react";
+import { useHospitalStore } from "../stores/hospital.store";
 
 const HospitalsPage: React.FC = () => {
   const { profile } = useAuth();
-  const [hospitals, setHospitals] = useState<Hospital[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const hospitals = useHospitalStore((state) => state.hospitals);
+  const loading = useHospitalStore((state) => state.loading);
+  const error = useHospitalStore((state) => state.error) || "";
+  const fetchHospitals = useHospitalStore((state) => state.fetchHospitals);
+  const createHospital = useHospitalStore((state) => state.createHospital);
+  const updateHospital = useHospitalStore((state) => state.updateHospital);
+  const deleteHospital = useHospitalStore((state) => state.deleteHospital);
+  const clearError = useHospitalStore((state) => state.clearError);
   const [filters, setFilters] = useState<{
     city?: string;
     service?: string;
@@ -20,11 +25,11 @@ const HospitalsPage: React.FC = () => {
   }>({ page: 1, limit: 10 });
   const [showDialog, setShowDialog] = useState(false);
   const [dialogMode, setDialogMode] = useState<"add" | "edit" | "delete">(
-    "add"
+    "add",
   );
   const [editingHospital, setEditingHospital] = useState<Hospital | null>(null);
   const [deletingHospital, setDeletingHospital] = useState<Hospital | null>(
-    null
+    null,
   );
   const [formData, setFormData] = useState({
     name: "",
@@ -44,34 +49,8 @@ const HospitalsPage: React.FC = () => {
   const isUserRole = profile?.role === "mother";
 
   useEffect(() => {
-    loadHospitals();
-  }, [filters]);
-
-  const loadHospitals = async () => {
-    try {
-      setLoading(true);
-      setError("");
-      let response;
-
-      // Clean up filters - remove empty values
-      const cleanFilters = Object.fromEntries(
-        Object.entries(filters).filter(([_, value]) => value !== '' && value !== undefined)
-      );
-
-      // Load user-specific hospitals for content managers, all hospitals for mothers
-      if (canManageHospitals) {
-        response = await hospitalService.getMyHospitals(cleanFilters);
-      } else {
-        response = await hospitalService.getHospitals(cleanFilters);
-      }
-
-      setHospitals(response.data || []);
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to load hospitals");
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchHospitals(canManageHospitals, filters);
+  }, [filters, canManageHospitals, fetchHospitals]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFilters({ ...filters, query: e.target.value, page: 1 });
@@ -87,7 +66,7 @@ const HospitalsPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    clearError();
 
     try {
       const hospitalData = {
@@ -99,16 +78,15 @@ const HospitalsPage: React.FC = () => {
       };
 
       if (editingHospital) {
-        await hospitalService.updateHospital(editingHospital.id, hospitalData);
+        await updateHospital(editingHospital.id, hospitalData);
       } else {
-        await hospitalService.createHospital(hospitalData);
+        await createHospital(hospitalData);
       }
 
       resetForm();
-      loadHospitals();
       setShowDialog(false);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to save hospital");
+      console.error("Failed to save hospital:", err);
     }
   };
 
@@ -154,12 +132,11 @@ const HospitalsPage: React.FC = () => {
     if (!deletingHospital) return;
 
     try {
-      await hospitalService.deleteHospital(deletingHospital.id);
-      loadHospitals();
+      await deleteHospital(deletingHospital.id);
       setShowDialog(false);
       setDeletingHospital(null);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to delete hospital");
+      console.error("Failed to delete hospital:", err);
     }
   };
 
@@ -227,7 +204,9 @@ const HospitalsPage: React.FC = () => {
         {/* Active Filters Indicator */}
         {hasActiveFilters && (
           <div className="mb-4 flex items-center gap-2">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Active filters:
+            </span>
             {filters.query && (
               <span className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
                 Search: "{filters.query}"
@@ -431,15 +410,16 @@ const HospitalsPage: React.FC = () => {
         {loading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary dark:border-secondary"></div>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">Loading hospitals...</p>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">
+              Loading hospitals...
+            </p>
           </div>
         ) : hospitals.length === 0 ? (
           <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg">
             <p className="text-gray-500 dark:text-gray-400">
-              {hasActiveFilters 
-                ? 'No hospitals found matching your filters' 
-                : 'No hospitals found'
-              }
+              {hasActiveFilters
+                ? "No hospitals found matching your filters"
+                : "No hospitals found"}
             </p>
             {hasActiveFilters && (
               <button
