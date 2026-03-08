@@ -1,7 +1,7 @@
 // src/pages/VideoCallPage.tsx
 import React, { useState, useEffect } from "react";
 import { useAgora } from "../contexts/AgoraContext";
-import { webSocketService } from "../services/websocket.service";
+import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useChatStore } from "../stores/chat.store";
 import Layout from "../components/layout/Layout";
@@ -76,8 +76,10 @@ const VideoCallPage: React.FC = () => {
   const [debugInfo, setDebugInfo] = useState<any>({});
   const [history, setHistory] = useState<CallHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [ringCountdown, setRingCountdown] = useState<number | null>(null);
 
   const APP_ID = import.meta.env.VITE_AGORA_APP_ID!;
+  const isIncomingCallView = Boolean(location.state?.isIncomingCall);
 
   const loadCallHistory = async () => {
     try {
@@ -133,6 +135,89 @@ const VideoCallPage: React.FC = () => {
     return `${minutes}m ${seconds}s`;
   };
 
+  const formatRingCountdown = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+      .toString()
+      .padStart(2, "0");
+    const secs = (seconds % 60).toString().padStart(2, "0");
+    return `${mins}:${secs}`;
+  };
+
+  useEffect(() => {
+    if (
+      !joinState ||
+      !currentSession ||
+      isIncomingCallView ||
+      remoteUsers.length > 0
+    ) {
+      return;
+    }
+
+    setCallStatus(`Ringing... ${formatRingCountdown(ringCountdown ?? 45)}`);
+  }, [
+    joinState,
+    currentSession,
+    isIncomingCallView,
+    remoteUsers.length,
+    ringCountdown,
+  ]);
+
+  useEffect(() => {
+    if (
+      !joinState ||
+      !currentSession ||
+      isIncomingCallView ||
+      remoteUsers.length > 0
+    ) {
+      return;
+    }
+
+    if (ringCountdown === null) {
+      setRingCountdown(45);
+      return;
+    }
+
+    if (ringCountdown <= 0) {
+      const autoEndNoAnswer = async () => {
+        try {
+          await leave();
+          await videoService.endSession(currentSession.id);
+          setCurrentSession(null);
+          setRemoteUser(null);
+          setIsVideoEnabled(true);
+          setCallStatus("No answer. Call ended.");
+          loadCallHistory();
+        } catch (error) {
+          console.error("Failed to auto-end unanswered video call:", error);
+          setCallStatus("Failed to end unanswered call");
+        }
+      };
+
+      void autoEndNoAnswer();
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setRingCountdown((previous) => (previous === null ? null : previous - 1));
+    }, 1000);
+
+    return () => clearTimeout(timeout);
+  }, [
+    ringCountdown,
+    joinState,
+    currentSession,
+    isIncomingCallView,
+    remoteUsers.length,
+    leave,
+  ]);
+
+  useEffect(() => {
+    if (remoteUsers.length > 0 && joinState) {
+      setRingCountdown(null);
+      setCallStatus("Connected to call");
+    }
+  }, [remoteUsers.length, joinState]);
+
   // Auto-join incoming video calls
   useEffect(() => {
     if (
@@ -162,55 +247,57 @@ const VideoCallPage: React.FC = () => {
     }
   }, [location.state, currentSession, joinState, navigate]);
 
-  // WebSocket listener for call end events
+  // Keep caller and receiver in sync on end/reject by watching current session directly.
   useEffect(() => {
-    if (!user?.id || !currentSession) return;
+    if (!currentSession?.id || !user?.id) return;
 
-    console.log(
-      "🎯 Setting up call end listener for video session:",
-      currentSession.id,
-    );
+    const channel = supabase
+      .channel(`video-session-${currentSession.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "audio_sessions",
+          filter: `id=eq.${currentSession.id}`,
+        },
+        async (payload) => {
+          const updatedSession = payload.new as any;
+          if (updatedSession.status !== "ended") return;
 
-    const handleCallEnded = async (payload: any) => {
-      const endedSession = payload.new;
+          try {
+            if (joinState) {
+              await leave();
+            }
+          } catch (error) {
+            console.error(
+              "Failed leaving video channel after end event:",
+              error,
+            );
+          }
 
-      // Check if this is our current session that ended
-      if (
-        endedSession.id === currentSession.id &&
-        endedSession.status === "ended"
-      ) {
-        console.log("📞 Video call ended by other user, leaving channel...");
-
-        try {
-          // Leave Agora channel
-          await leave();
-
-          // Update local state
           setCurrentSession(null);
-          setCallStatus("Call ended by other user");
           setRemoteUser(null);
           setIsVideoEnabled(true);
+          setRingCountdown(null);
+          setCallStatus(
+            updatedSession.started_at
+              ? "Call ended by other user"
+              : "Call was rejected",
+          );
+          loadCallHistory();
 
-          console.log("✅ Successfully left video call after remote end");
-
-          // Show call ended message for 3 seconds
           setTimeout(() => {
             setCallStatus("");
           }, 3000);
-        } catch (error) {
-          console.error("❌ Error leaving video call after remote end:", error);
-        }
-      }
-    };
+        },
+      )
+      .subscribe();
 
-    // Subscribe to call end events
-    webSocketService.subscribeToCallEndEvents(user.id, handleCallEnded);
-
-    // Cleanup
     return () => {
-      // WebSocket cleanup is handled by the service
+      channel.unsubscribe();
     };
-  }, [user?.id, currentSession, leave]);
+  }, [currentSession?.id, user?.id, joinState, leave]);
 
   // Handle browser/tab closing
   useEffect(() => {
@@ -374,7 +461,8 @@ const VideoCallPage: React.FC = () => {
       await join(joinConfig);
 
       console.log("✅ Caller video join successful!");
-      setCallStatus("Connected - Waiting for recipient...");
+      setRingCountdown(45);
+      setCallStatus("Ringing... 00:45");
       setShowNewCallDialog(false);
     } catch (error: any) {
       console.error("❌ Failed to start video call:", error);
@@ -385,6 +473,7 @@ const VideoCallPage: React.FC = () => {
       setErrorMessage(errorMsg);
       setCallStatus("");
       setRemoteUser(null);
+      setRingCountdown(null);
 
       // Clean up on error
       if (currentSession) {
@@ -437,6 +526,7 @@ const VideoCallPage: React.FC = () => {
       setCallStatus("Call ended");
       setRemoteUser(null);
       setIsVideoEnabled(true);
+      setRingCountdown(null);
 
       console.log("✅ Video call ended successfully for both users");
 

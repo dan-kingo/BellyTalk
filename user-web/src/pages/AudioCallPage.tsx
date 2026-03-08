@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useAgora } from "../contexts/AgoraContext";
 import { audioService } from "../services/audio.service";
-import { webSocketService } from "../services/websocket.service";
+import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useChatStore } from "../stores/chat.store";
 import Layout from "../components/layout/Layout";
@@ -71,8 +71,10 @@ const AudioCallPage: React.FC = () => {
   const [debugInfo, setDebugInfo] = useState<any>({});
   const [history, setHistory] = useState<CallHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [ringCountdown, setRingCountdown] = useState<number | null>(null);
 
   const APP_ID = import.meta.env.VITE_AGORA_APP_ID!;
+  const isIncomingCallView = Boolean(location.state?.isIncomingCall);
 
   const loadCallHistory = async () => {
     try {
@@ -128,6 +130,88 @@ const AudioCallPage: React.FC = () => {
     return `${minutes}m ${seconds}s`;
   };
 
+  const formatRingCountdown = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+      .toString()
+      .padStart(2, "0");
+    const secs = (seconds % 60).toString().padStart(2, "0");
+    return `${mins}:${secs}`;
+  };
+
+  useEffect(() => {
+    if (
+      !joinState ||
+      !currentSession ||
+      isIncomingCallView ||
+      remoteUsers.length > 0
+    ) {
+      return;
+    }
+
+    setCallStatus(`Ringing... ${formatRingCountdown(ringCountdown ?? 45)}`);
+  }, [
+    joinState,
+    currentSession,
+    isIncomingCallView,
+    remoteUsers.length,
+    ringCountdown,
+  ]);
+
+  useEffect(() => {
+    if (
+      !joinState ||
+      !currentSession ||
+      isIncomingCallView ||
+      remoteUsers.length > 0
+    ) {
+      return;
+    }
+
+    if (ringCountdown === null) {
+      setRingCountdown(45);
+      return;
+    }
+
+    if (ringCountdown <= 0) {
+      const autoEndNoAnswer = async () => {
+        try {
+          await leave();
+          await audioService.endSession(currentSession.id);
+          setCurrentSession(null);
+          setRemoteUser(null);
+          setCallStatus("No answer. Call ended.");
+          loadCallHistory();
+        } catch (error) {
+          console.error("Failed to auto-end unanswered audio call:", error);
+          setCallStatus("Failed to end unanswered call");
+        }
+      };
+
+      void autoEndNoAnswer();
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setRingCountdown((previous) => (previous === null ? null : previous - 1));
+    }, 1000);
+
+    return () => clearTimeout(timeout);
+  }, [
+    ringCountdown,
+    joinState,
+    currentSession,
+    isIncomingCallView,
+    remoteUsers.length,
+    leave,
+  ]);
+
+  useEffect(() => {
+    if (remoteUsers.length > 0 && joinState) {
+      setRingCountdown(null);
+      setCallStatus("Connected to call");
+    }
+  }, [remoteUsers.length, joinState]);
+
   // Auto-join incoming audio calls
   useEffect(() => {
     if (
@@ -157,55 +241,56 @@ const AudioCallPage: React.FC = () => {
     }
   }, [location.state, currentSession, joinState, navigate]);
 
-  // WebSocket listener for call end events
+  // Keep caller and receiver in sync on end/reject by watching current session directly.
   useEffect(() => {
-    if (!user?.id || !currentSession) return;
+    if (!currentSession?.id || !user?.id) return;
 
-    console.log(
-      "🎯 Setting up call end listener for audio session:",
-      currentSession.id,
-    );
+    const channel = supabase
+      .channel(`audio-session-${currentSession.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "audio_sessions",
+          filter: `id=eq.${currentSession.id}`,
+        },
+        async (payload) => {
+          const updatedSession = payload.new as any;
+          if (updatedSession.status !== "ended") return;
 
-    const handleCallEnded = async (payload: any) => {
-      const endedSession = payload.new;
-      console.log("ENDING CALL WITH ID:", JSON.stringify(currentSession.id));
-      console.log("LENGTH:", currentSession.id.length);
-      // Check if this is our current session that ended
-      if (
-        endedSession.id === currentSession.id &&
-        endedSession.status === "ended"
-      ) {
-        console.log("📞 Audio call ended by other user, leaving channel...");
+          try {
+            if (joinState) {
+              await leave();
+            }
+          } catch (error) {
+            console.error(
+              "Failed leaving audio channel after end event:",
+              error,
+            );
+          }
 
-        try {
-          // Leave Agora channel
-          await leave();
-
-          // Update local state
           setCurrentSession(null);
-          setCallStatus("Call ended by other user");
           setRemoteUser(null);
+          setRingCountdown(null);
+          setCallStatus(
+            updatedSession.started_at
+              ? "Call ended by other user"
+              : "Call was rejected",
+          );
+          loadCallHistory();
 
-          console.log("✅ Successfully left audio call after remote end");
-
-          // Show call ended message for 3 seconds
           setTimeout(() => {
             setCallStatus("");
           }, 3000);
-        } catch (error) {
-          console.error("❌ Error leaving call after remote end:", error);
-        }
-      }
-    };
+        },
+      )
+      .subscribe();
 
-    // Subscribe to call end events
-    webSocketService.subscribeToCallEndEvents(user.id, handleCallEnded);
-
-    // Cleanup
     return () => {
-      // WebSocket cleanup is handled by the service
+      channel.unsubscribe();
     };
-  }, [user?.id, currentSession, leave]);
+  }, [currentSession?.id, user?.id, joinState, leave]);
 
   // Handle browser/tab closing
   useEffect(() => {
@@ -385,7 +470,8 @@ const AudioCallPage: React.FC = () => {
       await join(joinConfig);
 
       console.log("✅ Caller joined successfully with UID:", authResponse.uid);
-      setCallStatus("Connected - Waiting for recipient...");
+      setRingCountdown(45);
+      setCallStatus("Ringing... 00:45");
       setShowNewCallDialog(false);
     } catch (error: any) {
       console.error("❌ Failed to start call:", error);
@@ -396,6 +482,7 @@ const AudioCallPage: React.FC = () => {
       setErrorMessage(errorMsg);
       setCallStatus("");
       setRemoteUser(null);
+      setRingCountdown(null);
     } finally {
       setLoading(false);
     }
@@ -437,6 +524,7 @@ const AudioCallPage: React.FC = () => {
       setCurrentSession(null);
       setCallStatus("Call ended");
       setRemoteUser(null);
+      setRingCountdown(null);
 
       console.log("✅ Audio call ended successfully for both users");
 
