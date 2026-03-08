@@ -2,34 +2,29 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
+import { toast } from 'react-toastify';
 
 const RegisterPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<UserRole>('mother');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
     setLoading(true);
 
     try {
       await register(email, password, fullName, role);
-      setSuccess(
-        'Registration successful! Please check your email to verify your account.'
+      toast.success(
+        'Registration successful. Please check your email to verify your account.'
       );
       setTimeout(() => navigate('/login'), 3000);
     } catch (err: any) {
-      setError(
-        err.response?.data?.error || 'Failed to register. Please try again.'
-      );
+      toast.error(err.response?.data?.error || 'Failed to register. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -54,20 +49,6 @@ const RegisterPage: React.FC = () => {
         </div>
 
         <form className="space-y-5" onSubmit={handleSubmit}>
-          {error && (
-            <div className="rounded-md bg-red-50 dark:bg-red-900/40 p-4">
-              <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
-            </div>
-          )}
-
-          {success && (
-            <div className="rounded-md bg-green-50 dark:bg-green-900/40 p-4">
-              <p className="text-sm text-green-800 dark:text-green-300">
-                {success}
-              </p>
-            </div>
-          )}
-
           <div className="space-y-4">
             <div>
               <label

@@ -4,6 +4,7 @@ import Layout from "../components/layout/Layout";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import { Edit2, X } from "lucide-react";
 import { useProfileStore } from "../stores/profile.store";
+import { toast } from "react-toastify";
 
 const ProfilePage: React.FC = () => {
   const { profile, refreshProfile } = useAuth();
@@ -13,8 +14,6 @@ const ProfilePage: React.FC = () => {
   );
   const loading = useProfileStore((state) => state.loading);
   const [editing, setEditing] = useState(false);
-  const [success, setSuccess] = useState("");
-  const [error, setError] = useState("");
   const [showRoleUpgrade, setShowRoleUpgrade] = useState(false);
   const [upgradeRole, setUpgradeRole] = useState<"doctor" | "counselor">(
     "doctor",
@@ -50,8 +49,6 @@ const ProfilePage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
 
     try {
       const data = new FormData();
@@ -60,26 +57,24 @@ const ProfilePage: React.FC = () => {
       });
       await updateProfile(data);
       await refreshProfile();
-      setSuccess("Profile updated successfully!");
+      toast.success("Profile updated successfully.");
       setEditing(false);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to update profile.");
+      toast.error(err.response?.data?.error || "Failed to update profile.");
     }
   };
 
   const handleRoleUpgrade = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
 
     try {
       await requestRoleUpgrade(upgradeRole, uploadedFiles);
       await refreshProfile();
-      setSuccess("Role upgrade request submitted successfully!");
+      toast.success("Role upgrade request submitted successfully.");
       setShowRoleUpgrade(false);
       setUploadedFiles([]);
     } catch (err: any) {
-      setError(
+      toast.error(
         err.response?.data?.error || "Failed to submit role upgrade request.",
       );
     }
@@ -119,20 +114,6 @@ const ProfilePage: React.FC = () => {
             </button>
           )}
         </div>
-
-        {/* Alerts */}
-        {success && (
-          <div className="mb-6 rounded-lg bg-green-50 dark:bg-green-900/20 p-4">
-            <p className="text-sm text-green-800 dark:text-green-300">
-              {success}
-            </p>
-          </div>
-        )}
-        {error && (
-          <div className="mb-6 rounded-lg bg-red-50 dark:bg-red-900/20 p-4">
-            <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
-          </div>
-        )}
 
         {/* Role Upgrade Section */}
         {profile.role === "mother" &&
@@ -308,8 +289,6 @@ const ProfilePage: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setEditing(false);
-                    setError("");
-                    setSuccess("");
                   }}
                   className="flex-1 cursor-pointer px-6 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition flex items-center justify-center gap-2"
                 >

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Menu, Sun, Moon, LogOut } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 interface NavbarProps {
   onMenuClick: () => void;
@@ -14,8 +15,13 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login');
+    try {
+      await logout();
+      toast.success('Logged out successfully.');
+      navigate('/login');
+    } catch {
+      toast.error('Failed to log out. Please try again.');
+    }
   };
 
   return (

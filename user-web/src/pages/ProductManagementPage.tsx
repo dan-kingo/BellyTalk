@@ -6,6 +6,7 @@ import Dialog from "../components/common/Dialog";
 import { Package, Plus, Edit, Trash2, Search } from "lucide-react";
 import { Product } from "../types";
 import { useShopStore } from "../stores/shop.store";
+import { toast } from "react-toastify";
 
 const ProductManagementPage: React.FC = () => {
   const { profile } = useAuth();
@@ -66,15 +67,17 @@ const ProductManagementPage: React.FC = () => {
 
       if (editingProduct) {
         await updateMyProduct(editingProduct.id, formDataToSend);
+        toast.success("Product updated successfully.");
       } else {
         await createMyProduct(formDataToSend);
+        toast.success("Product created successfully.");
       }
 
       setShowDialog(false);
       resetForm();
     } catch (error) {
       console.error("Failed to save product:", error);
-      alert("Failed to save product. Please try again.");
+      toast.error("Failed to save product. Please try again.");
     }
   };
 
@@ -95,9 +98,10 @@ const ProductManagementPage: React.FC = () => {
     if (window.confirm("Are you sure you want to delete this product?")) {
       try {
         await deleteMyProduct(id);
+        toast.success("Product deleted successfully.");
       } catch (error) {
         console.error("Failed to delete product:", error);
-        alert("Failed to delete product. Please try again.");
+        toast.error("Failed to delete product. Please try again.");
       }
     }
   };

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Order } from "../types";
 import { useShopStore } from "../stores/shop.store";
+import { toast } from "react-toastify";
 
 const OrderManagementPage: React.FC = () => {
   const { profile } = useAuth();
@@ -56,13 +57,14 @@ const OrderManagementPage: React.FC = () => {
       });
 
       console.log("Update response:", response);
+      toast.success("Order updated successfully.");
 
       setShowDialog(false);
       setSelectedOrder(null);
       setUpdateData({ order_status: "", tracking_number: "", notes: "" });
     } catch (error: any) {
       console.error("Failed to update order:", error);
-      alert(
+      toast.error(
         error.response?.data?.error ||
           "Failed to update order. Please try again.",
       );
@@ -71,7 +73,7 @@ const OrderManagementPage: React.FC = () => {
 
   const openUpdateDialog = (order: Order) => {
     if (!canUpdateOrder(order)) {
-      alert("You can only update orders containing your products.");
+      toast.info("You can only update orders containing your products.");
       return;
     }
 

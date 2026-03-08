@@ -16,6 +16,7 @@ import {
   File,
   ArrowLeft,
 } from "lucide-react";
+import { toast } from "react-toastify";
 
 const ChatPage: React.FC = () => {
   const { user } = useAuth();
@@ -270,7 +271,7 @@ const ChatPage: React.FC = () => {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length + attachments.length > 5) {
-      alert("You can only attach up to 5 files");
+      toast.error("You can only attach up to 5 files.");
       return;
     }
 
@@ -278,7 +279,7 @@ const ChatPage: React.FC = () => {
     const validFiles = files.filter((file) => {
       if (file.size > 10 * 1024 * 1024) {
         // 10MB limit
-        alert(`File ${file.name} is too large. Maximum size is 10MB.`);
+        toast.error(`File ${file.name} is too large. Maximum size is 10MB.`);
         return false;
       }
       return true;
@@ -327,7 +328,7 @@ const ChatPage: React.FC = () => {
       });
     } catch (error) {
       console.error("Failed to send message:", error);
-      alert("Failed to send message");
+      toast.error("Failed to send message.");
     } finally {
       setSending(false);
     }
@@ -354,7 +355,7 @@ const ChatPage: React.FC = () => {
       }
     } catch (error) {
       console.error("Failed to create conversation:", error);
-      alert("Failed to start conversation");
+      toast.error("Failed to start conversation.");
     }
   };
 

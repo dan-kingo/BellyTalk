@@ -6,6 +6,7 @@ import Dialog from "../components/common/Dialog";
 import { Users, Plus, Send, ArrowLeft } from "lucide-react";
 import { GroupRoom } from "../types";
 import { useGroupChatStore } from "../stores/groupchat.store";
+import { toast } from "react-toastify";
 
 const GroupChatPage: React.FC = () => {
   const { user } = useAuth();
@@ -55,9 +56,10 @@ const GroupChatPage: React.FC = () => {
       await createGroup(newGroup.name, newGroup.description);
       setNewGroup({ name: "", description: "" });
       setShowCreateDialog(false);
+      toast.success("Group created successfully.");
     } catch (error) {
       console.error("Failed to create group:", error);
-      alert("Failed to create group. Please try again.");
+      toast.error("Failed to create group. Please try again.");
     }
   };
 
@@ -70,7 +72,7 @@ const GroupChatPage: React.FC = () => {
       setMessageContent("");
     } catch (error) {
       console.error("Failed to send message:", error);
-      alert("Failed to send message. Please try again.");
+      toast.error("Failed to send message. Please try again.");
     }
   };
 

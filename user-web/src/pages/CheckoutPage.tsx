@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { CartItem } from "../types";
 import { useShopStore } from "../stores/shop.store";
+import { toast } from "react-toastify";
 
 const CheckoutPage: React.FC = () => {
   const location = useLocation();
@@ -92,7 +93,7 @@ const CheckoutPage: React.FC = () => {
       setCurrentStep("payment");
     } catch (error: any) {
       console.error("Failed to create order:", error);
-      alert("Failed to create order. Please try again.");
+      toast.error("Failed to create order. Please try again.");
     } finally {
       setProcessing(false);
     }
@@ -102,7 +103,7 @@ const CheckoutPage: React.FC = () => {
     e.preventDefault();
 
     if (!createdOrder) {
-      alert("No order found. Please go back and try again.");
+      toast.error("No order found. Please go back and try again.");
       return;
     }
 
@@ -121,6 +122,10 @@ const CheckoutPage: React.FC = () => {
         message: paymentResponse.message,
         order: paymentResponse.order,
       });
+
+      if (paymentResponse.success) {
+        toast.success(paymentResponse.message || "Payment processed successfully.");
+      }
 
       setCurrentStep("result");
 
@@ -149,6 +154,7 @@ const CheckoutPage: React.FC = () => {
         success: false,
         message: errorMessage,
       });
+      toast.error(errorMessage);
       setCurrentStep("result");
     } finally {
       setProcessing(false);

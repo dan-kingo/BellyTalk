@@ -24,6 +24,7 @@ import GroupChatPage from './pages/GroupChatPage';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { AgoraProvider } from './contexts/AgoraContext';
 import { GlobalCallDialog } from './components/audio/GlobalCallDialog';
+import { ToastContainer } from 'react-toastify';
 
 const App: React.FC = () => {
   return (
@@ -33,6 +34,7 @@ const App: React.FC = () => {
           <AgoraProvider>
             {/* Global Incoming Call Dialog - Works on all pages */}
             <GlobalCallDialog />
+            <ToastContainer position="top-right" autoClose={3000} pauseOnFocusLoss={false} />
             
             <Routes>
               <Route path="/" element={<HomePage />} />

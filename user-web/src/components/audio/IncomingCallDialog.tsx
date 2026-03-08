@@ -7,6 +7,7 @@ import { webSocketService } from '../../services/websocket.service';
 import Dialog from '../common/Dialog';
 import { Phone, PhoneOff, Video } from 'lucide-react';
 import { Profile } from '../../types';
+import { toast } from 'react-toastify';
 
 interface IncomingCallDialogProps {
   onCallAccepted: (session: any) => void;
@@ -172,7 +173,7 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
       
     } catch (error: any) {
       console.error('❌ Failed to accept call:', error);
-      alert('Failed to accept call: ' + (error.message || 'Please try again.'));
+      toast.error('Failed to accept call: ' + (error.message || 'Please try again.'));
     } finally {
       setIsResponding(false);
     }
@@ -202,7 +203,7 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
       setIncomingCall(null);
     } catch (error: any) {
       console.error('❌ Failed to reject call:', error);
-      alert('Failed to reject call: ' + (error.message || 'Please try again.'));
+      toast.error('Failed to reject call: ' + (error.message || 'Please try again.'));
     } finally {
       setIsResponding(false);
     }

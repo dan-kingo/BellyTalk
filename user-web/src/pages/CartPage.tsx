@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import Layout from "../components/layout/Layout";
 import { useShopStore } from "../stores/shop.store";
+import { toast } from "react-toastify";
 
 const CartPage: React.FC = () => {
   const navigate = useNavigate();
@@ -20,9 +21,10 @@ const CartPage: React.FC = () => {
     try {
       setRemoving(itemId);
       await removeFromCart(itemId);
+      toast.success("Item removed from cart.");
     } catch (error) {
       console.error("Failed to remove item:", error);
-      alert("Failed to remove item from cart");
+      toast.error("Failed to remove item from cart.");
     } finally {
       setRemoving(null);
     }
