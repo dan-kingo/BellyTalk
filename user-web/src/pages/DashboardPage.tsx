@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/layout/Layout";
-import LoadingSpinner from "../components/common/LoadingSpinner";
 import { Content } from "../types";
 import { BookOpen, Building2, ArrowRight } from "lucide-react";
 import Dialog from "../components/common/Dialog";
@@ -47,7 +46,21 @@ const DashboardPage: React.FC = () => {
   if (!profile) {
     return (
       <Layout>
-        <LoadingSpinner />
+        <div className="space-y-8 max-w-7xl mx-auto">
+          <div className="rounded-xl p-8 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+            <Skeleton className="h-8 w-72" />
+            <Skeleton className="h-4 w-full mt-4" />
+            <Skeleton className="h-4 w-2/3 mt-2" />
+          </div>
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-56" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton key={index} className="h-44 w-full rounded-xl" />
+              ))}
+            </div>
+          </div>
+        </div>
       </Layout>
     );
   }
