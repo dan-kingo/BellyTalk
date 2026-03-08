@@ -8,16 +8,37 @@ import { AuthRequest } from "../middlewares/auth.middleware.js";
  */
 export const getOverview = async (req: AuthRequest, res: Response) => {
   try {
-    const [{ count: users }, { count: contents }, { count: messages }] = await Promise.all([
-      supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }),
-      supabaseAdmin.from("educational_content").select("*", { count: "exact", head: true }),
-      supabaseAdmin.from("group_messages").select("*", { count: "exact", head: true }),
+    const [
+      { count: users },
+      { count: contents },
+      { count: hospitals },
+      { count: directMessages },
+      { count: groupMessages },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from("profiles")
+        .select("*", { count: "exact", head: true }),
+      supabaseAdmin
+        .from("educational_content")
+        .select("*", { count: "exact", head: true }),
+      supabaseAdmin
+        .from("hospitals")
+        .select("*", { count: "exact", head: true }),
+      supabaseAdmin
+        .from("messages")
+        .select("*", { count: "exact", head: true }),
+      supabaseAdmin
+        .from("group_messages")
+        .select("*", { count: "exact", head: true }),
     ]);
 
+    const totalMessages = (directMessages || 0) + (groupMessages || 0);
+
     res.json({
-      users,
-      contents,
-      messages,
+      users: users || 0,
+      contents: contents || 0,
+      hospitals: hospitals || 0,
+      messages: totalMessages,
       timestamp: new Date().toISOString(),
     });
   } catch (err: any) {

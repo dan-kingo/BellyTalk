@@ -8,6 +8,8 @@ import { Hospital } from "../types";
 import { buildHospitalKey, useAdminStore } from "../stores/admin.store";
 import { Plus, Edit, Trash2 } from "lucide-react";
 
+const EMPTY_HOSPITALS: Hospital[] = [];
+
 const HospitalsPage: React.FC = () => {
   const { profile } = useAuth();
   const [filters, setFilters] = useState<{
@@ -42,9 +44,10 @@ const HospitalsPage: React.FC = () => {
     profile?.role === "admin";
   const isUserRole = profile?.role === "mother";
   const hospitalKey = buildHospitalKey(filters, canManageHospitals);
-  const hospitals = useAdminStore(
-    (state) => state.hospitalsByKey[hospitalKey] || [],
+  const hospitalsData = useAdminStore(
+    (state) => state.hospitalsByKey[hospitalKey],
   );
+  const hospitals = hospitalsData ?? EMPTY_HOSPITALS;
   const loading = useAdminStore(
     (state) => state.hospitalsLoadingByKey[hospitalKey] || false,
   );
@@ -55,6 +58,7 @@ const HospitalsPage: React.FC = () => {
     (state) => state.hospitalsLoadedByKey[hospitalKey] || false,
   );
   const fetchHospitals = useAdminStore((state) => state.fetchHospitals);
+  const fetchOverview = useAdminStore((state) => state.fetchOverview);
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
@@ -96,6 +100,9 @@ const HospitalsPage: React.FC = () => {
 
       resetForm();
       await fetchHospitals(filters, canManageHospitals, true);
+      if (!editingHospital) {
+        await fetchOverview(true);
+      }
       setShowDialog(false);
     } catch (err: any) {
       setFormError(err.response?.data?.error || "Failed to save hospital");
@@ -146,6 +153,7 @@ const HospitalsPage: React.FC = () => {
     try {
       await hospitalService.deleteHospital(deletingHospital.id);
       await fetchHospitals(filters, canManageHospitals, true);
+      await fetchOverview(true);
       setShowDialog(false);
       setDeletingHospital(null);
     } catch (err: any) {

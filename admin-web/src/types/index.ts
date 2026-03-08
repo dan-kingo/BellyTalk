@@ -42,6 +42,7 @@ export interface RoleRequest {
 export interface OverviewStats {
   users: number;
   contents: number;
+  hospitals: number;
   messages: number;
   timestamp: string;
 }
@@ -53,7 +54,6 @@ export interface ActivityLog {
   path: string;
   timestamp: string;
 }
-
 
 export interface Content {
   id: string;
@@ -83,4 +83,3 @@ export interface Hospital {
   created_at: string;
   updated_at: string;
 }
-

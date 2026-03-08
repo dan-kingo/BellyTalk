@@ -10,6 +10,7 @@ const UsersPage: React.FC = () => {
   const loading = useAdminStore((state) => state.usersLoading);
   const usersLoaded = useAdminStore((state) => state.usersLoaded);
   const fetchUsers = useAdminStore((state) => state.fetchUsers);
+  const fetchOverview = useAdminStore((state) => state.fetchOverview);
   const removeUserFromCache = useAdminStore(
     (state) => state.removeUserFromCache,
   );
@@ -35,6 +36,7 @@ const UsersPage: React.FC = () => {
       setDeleting(userId);
       await adminService.deleteUser(userId);
       removeUserFromCache(userId);
+      await fetchOverview(true);
     } catch (error) {
       console.error("Failed to delete user:", error);
       alert("Failed to delete user");

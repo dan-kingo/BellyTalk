@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Layout from "../components/layout/Layout";
 import { DashboardPageSkeleton } from "../components/common/PageSkeletons";
-import { adminService } from "../services/admin.service";
+import { useAdminStore } from "../stores/admin.store";
 import {
   Users,
   FileText,
@@ -14,7 +14,6 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
-import { OverviewStats } from "../types";
 
 // Mock data for charts
 const generateLineData = (count: number, base: number, variation: number) => {
@@ -34,8 +33,10 @@ const generateBarData = (count: number, max: number) => {
 };
 
 const DashboardPage: React.FC = () => {
-  const [stats, setStats] = useState<OverviewStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const stats = useAdminStore((state) => state.overview);
+  const loading = useAdminStore((state) => state.overviewLoading);
+  const overviewLoaded = useAdminStore((state) => state.overviewLoaded);
+  const fetchOverview = useAdminStore((state) => state.fetchOverview);
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("7d");
 
   // Mock performance data with proper values for visibility
@@ -60,20 +61,10 @@ const DashboardPage: React.FC = () => {
   });
 
   useEffect(() => {
-    loadOverview();
-  }, []);
-
-  const loadOverview = async () => {
-    try {
-      setLoading(true);
-      const data = await adminService.getOverview();
-      setStats(data);
-    } catch (error) {
-      console.error("Failed to load overview:", error);
-    } finally {
-      setLoading(false);
+    if (!overviewLoaded) {
+      fetchOverview();
     }
-  };
+  }, [overviewLoaded, fetchOverview]);
 
   const getTimeLabels = () => {
     switch (timeRange) {
@@ -195,7 +186,9 @@ const DashboardPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-orange-100 text-sm font-medium">Hospitals</p>
-                <p className="text-3xl font-bold mt-2">24</p>
+                <p className="text-3xl font-bold mt-2">
+                  {stats?.hospitals || 0}
+                </p>
               </div>
               <Activity className="w-8 h-8 text-orange-200" />
             </div>

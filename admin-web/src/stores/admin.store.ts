@@ -3,7 +3,13 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { adminService } from "../services/admin.service";
 import { contentService } from "../services/content.service";
 import { hospitalService } from "../services/hospital.service";
-import { Content, Hospital, Profile, RoleRequest } from "../types";
+import {
+  Content,
+  Hospital,
+  OverviewStats,
+  Profile,
+  RoleRequest,
+} from "../types";
 
 type ContentFilters = {
   query?: string;
@@ -42,6 +48,11 @@ export const buildHospitalKey = (
 ) => buildKey(canManage ? "my-hospitals" : "all-hospitals", filters);
 
 interface AdminStoreState {
+  overview: OverviewStats | null;
+  overviewLoaded: boolean;
+  overviewLoading: boolean;
+  overviewError: string;
+
   users: Profile[];
   usersLoaded: boolean;
   usersLoading: boolean;
@@ -64,6 +75,10 @@ interface AdminStoreState {
 
   fetchUsers: (force?: boolean) => Promise<void>;
   removeUserFromCache: (userId: string) => void;
+  invalidateOverview: () => void;
+  clearAdminCache: () => void;
+
+  fetchOverview: (force?: boolean) => Promise<void>;
 
   fetchRoleRequests: (force?: boolean) => Promise<void>;
   removeRoleRequestFromCache: (userId: string) => void;
@@ -83,6 +98,11 @@ interface AdminStoreState {
 export const useAdminStore = create<AdminStoreState>()(
   persist(
     (set, get) => ({
+      overview: null,
+      overviewLoaded: false,
+      overviewLoading: false,
+      overviewError: "",
+
       users: [],
       usersLoaded: false,
       usersLoading: false,
@@ -102,6 +122,32 @@ export const useAdminStore = create<AdminStoreState>()(
       hospitalsLoadedByKey: {},
       hospitalsLoadingByKey: {},
       hospitalsErrorByKey: {},
+
+      fetchOverview: async (force = false) => {
+        const { overviewLoaded, overviewLoading } = get();
+
+        if (!force && (overviewLoaded || overviewLoading)) {
+          return;
+        }
+
+        set({ overviewLoading: true, overviewError: "" });
+
+        try {
+          const data = await adminService.getOverview();
+          set({
+            overview: data || null,
+            overviewLoaded: true,
+            overviewLoading: false,
+            overviewError: "",
+          });
+        } catch (error: any) {
+          set({
+            overviewLoading: false,
+            overviewError:
+              error?.response?.data?.error || "Failed to load overview",
+          });
+        }
+      },
 
       fetchUsers: async (force = false) => {
         const { usersLoaded, usersLoading } = get();
@@ -132,6 +178,38 @@ export const useAdminStore = create<AdminStoreState>()(
         set((state) => ({
           users: state.users.filter((user) => user.id !== userId),
         }));
+      },
+
+      invalidateOverview: () => {
+        set({
+          overviewLoaded: false,
+          overviewError: "",
+        });
+      },
+
+      clearAdminCache: () => {
+        set({
+          overview: null,
+          overviewLoaded: false,
+          overviewLoading: false,
+          overviewError: "",
+          users: [],
+          usersLoaded: false,
+          usersLoading: false,
+          usersError: "",
+          roleRequests: [],
+          roleRequestsLoaded: false,
+          roleRequestsLoading: false,
+          roleRequestsError: "",
+          contentByKey: {},
+          contentLoadedByKey: {},
+          contentLoadingByKey: {},
+          contentErrorByKey: {},
+          hospitalsByKey: {},
+          hospitalsLoadedByKey: {},
+          hospitalsLoadingByKey: {},
+          hospitalsErrorByKey: {},
+        });
       },
 
       fetchRoleRequests: async (force = false) => {
@@ -278,6 +356,8 @@ export const useAdminStore = create<AdminStoreState>()(
       name: "admin-zustand-cache",
       storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({
+        overview: state.overview,
+        overviewLoaded: state.overviewLoaded,
         users: state.users,
         usersLoaded: state.usersLoaded,
         roleRequests: state.roleRequests,

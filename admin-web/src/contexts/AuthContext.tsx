@@ -1,11 +1,14 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../services/supabase';
-import { authService } from '../services/auth.service';
-import { AuthContextType, User, Profile } from '../types';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { supabase } from "../services/supabase";
+import { authService } from "../services/auth.service";
+import { useAdminStore } from "../stores/admin.store";
+import { AuthContextType, User, Profile } from "../types";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -15,7 +18,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const profileData = await authService.getProfile();
       setProfile(profileData);
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error("Error fetching profile:", error);
     }
   };
 
@@ -27,6 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     await authService.logout();
+    useAdminStore.getState().clearAdminCache();
     setUser(null);
     setProfile(null);
   };
@@ -36,11 +40,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const initAuth = async () => {
       try {
-        let { data: { session } } = await supabase.auth.getSession();
+        let {
+          data: { session },
+        } = await supabase.auth.getSession();
 
         if (!session) {
-          const access_token = localStorage.getItem('admin_access_token');
-          const refresh_token = localStorage.getItem('admin_refresh_token');
+          const access_token = localStorage.getItem("admin_access_token");
+          const refresh_token = localStorage.getItem("admin_refresh_token");
 
           if (access_token && refresh_token) {
             const { data, error } = await supabase.auth.setSession({
@@ -48,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               refresh_token,
             });
 
-            if (error) console.error('Error restoring session:', error);
+            if (error) console.error("Error restoring session:", error);
             session = data?.session;
           }
         }
@@ -61,7 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setProfile(null);
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        console.error("Error initializing auth:", error);
         if (mounted) {
           setUser(null);
           setProfile(null);
@@ -73,18 +79,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       (async () => {
         if (session) {
-          localStorage.setItem('admin_access_token', session.access_token);
+          localStorage.setItem("admin_access_token", session.access_token);
           if (session.refresh_token) {
-            localStorage.setItem('admin_refresh_token', session.refresh_token);
+            localStorage.setItem("admin_refresh_token", session.refresh_token);
           }
           setUser(session.user as User);
           await refreshProfile();
         } else {
-          localStorage.removeItem('admin_access_token');
-          localStorage.removeItem('admin_refresh_token');
+          localStorage.removeItem("admin_access_token");
+          localStorage.removeItem("admin_refresh_token");
+          useAdminStore.getState().clearAdminCache();
           setUser(null);
           setProfile(null);
         }
@@ -98,7 +107,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, logout, refreshProfile }}>
+    <AuthContext.Provider
+      value={{ user, profile, loading, login, logout, refreshProfile }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -107,7 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

@@ -8,6 +8,8 @@ import { Content } from "../types";
 import { buildContentKey, useAdminStore } from "../stores/admin.store";
 import { Plus, Edit, Trash2 } from "lucide-react";
 
+const EMPTY_CONTENTS: Content[] = [];
+
 const ContentPage: React.FC = () => {
   const { profile } = useAuth();
   const [filters, setFilters] = useState<{
@@ -38,9 +40,8 @@ const ContentPage: React.FC = () => {
     profile?.role === "admin";
   const isUserRole = profile?.role === "mother";
   const contentKey = buildContentKey(filters, canManageContent);
-  const contents = useAdminStore(
-    (state) => state.contentByKey[contentKey] || [],
-  );
+  const contentsData = useAdminStore((state) => state.contentByKey[contentKey]);
+  const contents = contentsData ?? EMPTY_CONTENTS;
   const loading = useAdminStore(
     (state) => state.contentLoadingByKey[contentKey] || false,
   );
@@ -51,6 +52,7 @@ const ContentPage: React.FC = () => {
     (state) => state.contentLoadedByKey[contentKey] || false,
   );
   const fetchContents = useAdminStore((state) => state.fetchContents);
+  const fetchOverview = useAdminStore((state) => state.fetchOverview);
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
@@ -98,6 +100,9 @@ const ContentPage: React.FC = () => {
 
       resetForm();
       await fetchContents(filters, canManageContent, true);
+      if (!editingContent) {
+        await fetchOverview(true);
+      }
       setShowDialog(false);
     } catch (err: any) {
       setFormError(err.response?.data?.error || "Failed to save content");
@@ -144,6 +149,7 @@ const ContentPage: React.FC = () => {
     try {
       await contentService.deleteContent(deletingContent.id);
       await fetchContents(filters, canManageContent, true);
+      await fetchOverview(true);
       setShowDialog(false);
       setDeletingContent(null);
     } catch (err: any) {
