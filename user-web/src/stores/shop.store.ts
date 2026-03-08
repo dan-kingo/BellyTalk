@@ -8,6 +8,8 @@ type ProductQuery = { q?: string; category?: string };
 type ShopStore = {
   products: Product[];
   productsLoading: boolean;
+  myProducts: Product[];
+  myProductsLoading: boolean;
   cart: Cart | null;
   cartItems: CartItem[];
   orders: Order[];
@@ -19,11 +21,17 @@ type ShopStore = {
   currentProductsKey: string;
   lastProductsFetched: Record<string, number | null>;
   productRequests: Record<string, Promise<void> | null>;
+  lastMyProductsFetched: number | null;
+  myProductsRequest: Promise<void> | null;
   lastCartFetched: number | null;
   lastOrdersFetched: Record<OrdersScope, number | null>;
   cartRequest: Promise<void> | null;
   orderRequests: Record<OrdersScope, Promise<void> | null>;
   fetchProducts: (params?: ProductQuery, force?: boolean) => Promise<void>;
+  fetchMyProducts: (force?: boolean) => Promise<void>;
+  createMyProduct: (data: FormData) => Promise<void>;
+  updateMyProduct: (id: string, data: FormData) => Promise<void>;
+  deleteMyProduct: (id: string) => Promise<void>;
   fetchCart: (force?: boolean) => Promise<void>;
   fetchOrders: (scope?: OrdersScope, force?: boolean) => Promise<void>;
   addToCart: (productId: string, quantity: number) => Promise<void>;
@@ -59,6 +67,7 @@ type ShopStore = {
 const CART_STALE_TIME_MS = 20_000;
 const ORDERS_STALE_TIME_MS = 45_000;
 const PRODUCTS_STALE_TIME_MS = 60_000;
+const MY_PRODUCTS_STALE_TIME_MS = 60_000;
 
 const getProductsKey = (params?: ProductQuery) => {
   const q = params?.q?.trim() || "";
@@ -80,6 +89,8 @@ const upsertOrder = (orders: Order[], updatedOrder: Order) => {
 export const useShopStore = create<ShopStore>((set, get) => ({
   products: [],
   productsLoading: false,
+  myProducts: [],
+  myProductsLoading: false,
   cart: null,
   cartItems: [],
   orders: [],
@@ -91,6 +102,8 @@ export const useShopStore = create<ShopStore>((set, get) => ({
   currentProductsKey: "|",
   lastProductsFetched: {},
   productRequests: {},
+  lastMyProductsFetched: null,
+  myProductsRequest: null,
   lastCartFetched: null,
   lastOrdersFetched: { all: null, my: null },
   cartRequest: null,
@@ -153,6 +166,82 @@ export const useShopStore = create<ShopStore>((set, get) => ({
     }));
 
     return request;
+  },
+
+  fetchMyProducts: async (force = false) => {
+    const state = get();
+
+    if (state.myProductsRequest) {
+      return state.myProductsRequest;
+    }
+
+    const isFresh =
+      state.lastMyProductsFetched !== null &&
+      Date.now() - state.lastMyProductsFetched < MY_PRODUCTS_STALE_TIME_MS;
+
+    if (!force && isFresh && state.myProducts.length > 0) {
+      return;
+    }
+
+    const request = (async () => {
+      set({ myProductsLoading: true, error: null });
+      try {
+        const response = await shopService.getMyProducts();
+        set({
+          myProducts: response.products || [],
+          myProductsLoading: false,
+          lastMyProductsFetched: Date.now(),
+        });
+      } catch (error) {
+        console.error("Failed to load my products:", error);
+        set({ myProductsLoading: false, error: "Failed to load products" });
+        throw error;
+      } finally {
+        set({ myProductsRequest: null });
+      }
+    })();
+
+    set({ myProductsRequest: request });
+    return request;
+  },
+
+  createMyProduct: async (data) => {
+    set({ error: null });
+    try {
+      await shopService.createProduct(data);
+      await get().fetchMyProducts(true);
+    } catch (error) {
+      console.error("Failed to create product:", error);
+      set({ error: "Failed to create product" });
+      throw error;
+    }
+  },
+
+  updateMyProduct: async (id, data) => {
+    set({ error: null });
+    try {
+      await shopService.updateProduct(id, data);
+      await get().fetchMyProducts(true);
+    } catch (error) {
+      console.error("Failed to update product:", error);
+      set({ error: "Failed to update product" });
+      throw error;
+    }
+  },
+
+  deleteMyProduct: async (id) => {
+    set({ error: null });
+    try {
+      await shopService.deleteProduct(id);
+      set((state) => ({
+        myProducts: state.myProducts.filter((product) => product.id !== id),
+        lastMyProductsFetched: Date.now(),
+      }));
+    } catch (error) {
+      console.error("Failed to delete product:", error);
+      set({ error: "Failed to delete product" });
+      throw error;
+    }
   },
 
   fetchCart: async (force = false) => {

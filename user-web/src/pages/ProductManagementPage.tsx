@@ -1,48 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import { shopService } from '../services/shop.service';
-import { useAuth } from '../contexts/AuthContext';
-import Layout from '../components/layout/Layout';
-import LoadingSpinner from '../components/common/LoadingSpinner';
-import Dialog from '../components/common/Dialog';
-import { Package, Plus, Edit, Trash2, Search } from 'lucide-react';
-import { Product } from '../types';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import Layout from "../components/layout/Layout";
+import LoadingSpinner from "../components/common/LoadingSpinner";
+import Dialog from "../components/common/Dialog";
+import { Package, Plus, Edit, Trash2, Search } from "lucide-react";
+import { Product } from "../types";
+import { useShopStore } from "../stores/shop.store";
 
 const ProductManagementPage: React.FC = () => {
   const { profile } = useAuth();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const products = useShopStore((state) => state.myProducts);
+  const loading = useShopStore((state) => state.myProductsLoading);
+  const fetchMyProducts = useShopStore((state) => state.fetchMyProducts);
+  const createMyProduct = useShopStore((state) => state.createMyProduct);
+  const updateMyProduct = useShopStore((state) => state.updateMyProduct);
+  const deleteMyProduct = useShopStore((state) => state.deleteMyProduct);
   const [showDialog, setShowDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    price: '',
-    category: '',
-    stock: '',
-    image_url: '',
+    title: "",
+    description: "",
+    price: "",
+    category: "",
+    stock: "",
+    image_url: "",
   });
 
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   useEffect(() => {
-    loadProducts();
-  }, []);
+    fetchMyProducts();
+  }, [fetchMyProducts]);
 
-  const loadProducts = async () => {
-    try {
-      setLoading(true);
-      const response = await shopService.getMyProducts();
-      setProducts(response.products || []);
-    } catch (error) {
-      console.error('Failed to load products:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
@@ -58,30 +52,29 @@ const ProductManagementPage: React.FC = () => {
 
     try {
       const formDataToSend = new FormData();
-      formDataToSend.append('title', formData.title);
-      formDataToSend.append('description', formData.description);
-      formDataToSend.append('price', formData.price);
-      formDataToSend.append('category', formData.category);
-      formDataToSend.append('stock', formData.stock);
+      formDataToSend.append("title", formData.title);
+      formDataToSend.append("description", formData.description);
+      formDataToSend.append("price", formData.price);
+      formDataToSend.append("category", formData.category);
+      formDataToSend.append("stock", formData.stock);
 
       if (imageFile) {
-        formDataToSend.append('file', imageFile);
+        formDataToSend.append("file", imageFile);
       } else if (formData.image_url) {
-        formDataToSend.append('image_url', formData.image_url);
+        formDataToSend.append("image_url", formData.image_url);
       }
 
       if (editingProduct) {
-        await shopService.updateProduct(editingProduct.id, formDataToSend);
+        await updateMyProduct(editingProduct.id, formDataToSend);
       } else {
-        await shopService.createProduct(formDataToSend);
+        await createMyProduct(formDataToSend);
       }
 
       setShowDialog(false);
       resetForm();
-      loadProducts();
     } catch (error) {
-      console.error('Failed to save product:', error);
-      alert('Failed to save product. Please try again.');
+      console.error("Failed to save product:", error);
+      alert("Failed to save product. Please try again.");
     }
   };
 
@@ -89,35 +82,34 @@ const ProductManagementPage: React.FC = () => {
     setEditingProduct(product);
     setFormData({
       title: product.title,
-      description: product.description || '',
+      description: product.description || "",
       price: product.price.toString(),
-      category: product.category || '',
+      category: product.category || "",
       stock: product.stock.toString(),
-      image_url: product.image_url || '',
+      image_url: product.image_url || "",
     });
     setShowDialog(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this product?')) {
+    if (window.confirm("Are you sure you want to delete this product?")) {
       try {
-        await shopService.deleteProduct(id);
-        loadProducts();
+        await deleteMyProduct(id);
       } catch (error) {
-        console.error('Failed to delete product:', error);
-        alert('Failed to delete product. Please try again.');
+        console.error("Failed to delete product:", error);
+        alert("Failed to delete product. Please try again.");
       }
     }
   };
 
   const resetForm = () => {
     setFormData({
-      title: '',
-      description: '',
-      price: '',
-      category: '',
-      stock: '',
-      image_url: '',
+      title: "",
+      description: "",
+      price: "",
+      category: "",
+      stock: "",
+      image_url: "",
     });
     setImageFile(null);
     setEditingProduct(null);
@@ -128,17 +120,26 @@ const ProductManagementPage: React.FC = () => {
     setShowDialog(true);
   };
 
-  const filteredProducts = products.filter(product =>
-    product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.category?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredProducts = products.filter(
+    (product) =>
+      product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.category?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  if (profile?.role !== 'doctor' && profile?.role !== 'admin' && profile?.role !== 'counselor') {
+  if (
+    profile?.role !== "doctor" &&
+    profile?.role !== "admin" &&
+    profile?.role !== "counselor"
+  ) {
     return (
       <Layout>
         <div className="max-w-4xl mx-auto py-12 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Access Denied</h2>
-          <p className="text-gray-600 dark:text-gray-400">You need doctor, counselor, or admin privileges to manage products.</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            Access Denied
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            You need doctor, counselor, or admin privileges to manage products.
+          </p>
         </div>
       </Layout>
     );
@@ -160,7 +161,9 @@ const ProductManagementPage: React.FC = () => {
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <Package className="w-8 h-8 text-primary-600 dark:text-primary-400" />
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Product Management</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              Product Management
+            </h1>
           </div>
           <button
             onClick={openNewProductDialog}
@@ -187,8 +190,12 @@ const ProductManagementPage: React.FC = () => {
         {filteredProducts.length === 0 ? (
           <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
             <Package className="w-20 h-20 mx-auto text-gray-400 dark:text-gray-600 mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No products found</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">Create your first product to get started</p>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              No products found
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Create your first product to get started
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -205,7 +212,9 @@ const ProductManagementPage: React.FC = () => {
                   />
                 )}
                 <div className="p-6">
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{product.title}</h3>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                    {product.title}
+                  </h3>
                   {product.description && (
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
                       {product.description}
@@ -215,7 +224,9 @@ const ProductManagementPage: React.FC = () => {
                     <span className="text-2xl font-bold text-primary-600 dark:text-primary-400">
                       ${product.price.toFixed(2)}
                     </span>
-                    <span className={`px-3 py-1 text-xs font-semibold rounded-full ${product.stock > 0 ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'}`}>
+                    <span
+                      className={`px-3 py-1 text-xs font-semibold rounded-full ${product.stock > 0 ? "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400" : "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400"}`}
+                    >
                       Stock: {product.stock}
                     </span>
                   </div>
@@ -252,7 +263,7 @@ const ProductManagementPage: React.FC = () => {
             setShowDialog(false);
             resetForm();
           }}
-          title={editingProduct ? 'Edit Product' : 'Add New Product'}
+          title={editingProduct ? "Edit Product" : "Add New Product"}
         >
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -359,7 +370,7 @@ const ProductManagementPage: React.FC = () => {
                 type="submit"
                 className="flex-1 cursor-pointer px-4 py-2 bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white rounded-lg transition font-medium"
               >
-                {editingProduct ? 'Update Product' : 'Create Product'}
+                {editingProduct ? "Update Product" : "Create Product"}
               </button>
             </div>
           </form>

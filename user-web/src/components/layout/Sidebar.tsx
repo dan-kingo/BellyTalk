@@ -121,7 +121,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       fetchCart();
       fetchOrders("my");
     }
-  }, [user, profile?.role, location.pathname, fetchCart, fetchOrders]);
+  }, [user, profile?.role, fetchCart, fetchOrders]);
 
   useEffect(() => {
     if (
@@ -133,7 +133,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     }
 
     fetchUnreadCount();
-  }, [user, profile?.role, location.pathname, fetchUnreadCount]);
+  }, [user, profile?.role, fetchUnreadCount]);
 
   return (
     <>
