@@ -5,13 +5,11 @@ import Dialog from "../components/common/Dialog";
 import { ContentPageSkeleton } from "../components/common/PageSkeletons";
 import { contentService } from "../services/content.service";
 import { Content } from "../types";
+import { buildContentKey, useAdminStore } from "../stores/admin.store";
 import { Plus, Edit, Trash2 } from "lucide-react";
 
 const ContentPage: React.FC = () => {
   const { profile } = useAuth();
-  const [contents, setContents] = useState<Content[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [filters, setFilters] = useState<{
     query?: string;
     lang?: string;
@@ -39,39 +37,27 @@ const ContentPage: React.FC = () => {
     profile?.role === "counselor" ||
     profile?.role === "admin";
   const isUserRole = profile?.role === "mother";
+  const contentKey = buildContentKey(filters, canManageContent);
+  const contents = useAdminStore(
+    (state) => state.contentByKey[contentKey] || [],
+  );
+  const loading = useAdminStore(
+    (state) => state.contentLoadingByKey[contentKey] || false,
+  );
+  const error = useAdminStore(
+    (state) => state.contentErrorByKey[contentKey] || "",
+  );
+  const isLoaded = useAdminStore(
+    (state) => state.contentLoadedByKey[contentKey] || false,
+  );
+  const fetchContents = useAdminStore((state) => state.fetchContents);
+  const [formError, setFormError] = useState("");
 
   useEffect(() => {
-    loadContent();
-  }, [filters]);
-
-  const loadContent = async () => {
-    try {
-      setLoading(true);
-      setError("");
-      let response;
-
-      // Clean up filters - remove empty values
-      const cleanFilters = Object.fromEntries(
-        Object.entries(filters).filter(
-          ([_, value]) => value !== "" && value !== undefined,
-        ),
-      );
-
-      // Load user-specific content for content managers, all content for mothers
-      if (canManageContent) {
-        response = await contentService.getMyContents(cleanFilters);
-      } else {
-        response = await contentService.getAllContent(cleanFilters);
-      }
-
-      setContents(response.data || []);
-    } catch (err: any) {
-      console.error("Error loading content:", err);
-      setError(err.response?.data?.error || "Failed to load content");
-    } finally {
-      setLoading(false);
+    if (!isLoaded) {
+      fetchContents(filters, canManageContent);
     }
-  };
+  }, [isLoaded, fetchContents, filters, canManageContent]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFilters({ ...filters, query: e.target.value, page: 1 });
@@ -83,7 +69,7 @@ const ContentPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setFormError("");
 
     try {
       const contentData = {
@@ -111,10 +97,10 @@ const ContentPage: React.FC = () => {
       }
 
       resetForm();
-      loadContent();
+      await fetchContents(filters, canManageContent, true);
       setShowDialog(false);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to save content");
+      setFormError(err.response?.data?.error || "Failed to save content");
     }
   };
 
@@ -157,11 +143,11 @@ const ContentPage: React.FC = () => {
 
     try {
       await contentService.deleteContent(deletingContent.id);
-      loadContent();
+      await fetchContents(filters, canManageContent, true);
       setShowDialog(false);
       setDeletingContent(null);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to delete content");
+      setFormError(err.response?.data?.error || "Failed to delete content");
     }
   };
 
@@ -263,6 +249,14 @@ const ContentPage: React.FC = () => {
         {error && (
           <div className="mb-6 rounded-lg bg-red-50 dark:bg-red-900/20 p-4">
             <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+          </div>
+        )}
+
+        {formError && (
+          <div className="mb-6 rounded-lg bg-red-50 dark:bg-red-900/20 p-4">
+            <p className="text-sm text-red-800 dark:text-red-200">
+              {formError}
+            </p>
           </div>
         )}
 

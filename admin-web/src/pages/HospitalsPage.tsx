@@ -5,13 +5,11 @@ import Dialog from "../components/common/Dialog";
 import { HospitalsPageSkeleton } from "../components/common/PageSkeletons";
 import { hospitalService } from "../services/hospital.service";
 import { Hospital } from "../types";
+import { buildHospitalKey, useAdminStore } from "../stores/admin.store";
 import { Plus, Edit, Trash2 } from "lucide-react";
 
 const HospitalsPage: React.FC = () => {
   const { profile } = useAuth();
-  const [hospitals, setHospitals] = useState<Hospital[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [filters, setFilters] = useState<{
     city?: string;
     service?: string;
@@ -43,38 +41,27 @@ const HospitalsPage: React.FC = () => {
     profile?.role === "counselor" ||
     profile?.role === "admin";
   const isUserRole = profile?.role === "mother";
+  const hospitalKey = buildHospitalKey(filters, canManageHospitals);
+  const hospitals = useAdminStore(
+    (state) => state.hospitalsByKey[hospitalKey] || [],
+  );
+  const loading = useAdminStore(
+    (state) => state.hospitalsLoadingByKey[hospitalKey] || false,
+  );
+  const error = useAdminStore(
+    (state) => state.hospitalsErrorByKey[hospitalKey] || "",
+  );
+  const isLoaded = useAdminStore(
+    (state) => state.hospitalsLoadedByKey[hospitalKey] || false,
+  );
+  const fetchHospitals = useAdminStore((state) => state.fetchHospitals);
+  const [formError, setFormError] = useState("");
 
   useEffect(() => {
-    loadHospitals();
-  }, [filters]);
-
-  const loadHospitals = async () => {
-    try {
-      setLoading(true);
-      setError("");
-      let response;
-
-      // Clean up filters - remove empty values
-      const cleanFilters = Object.fromEntries(
-        Object.entries(filters).filter(
-          ([_, value]) => value !== "" && value !== undefined,
-        ),
-      );
-
-      // Load user-specific hospitals for content managers, all hospitals for mothers
-      if (canManageHospitals) {
-        response = await hospitalService.getMyHospitals(cleanFilters);
-      } else {
-        response = await hospitalService.getHospitals(cleanFilters);
-      }
-
-      setHospitals(response.data || []);
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to load hospitals");
-    } finally {
-      setLoading(false);
+    if (!isLoaded) {
+      fetchHospitals(filters, canManageHospitals);
     }
-  };
+  }, [isLoaded, fetchHospitals, filters, canManageHospitals]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFilters({ ...filters, query: e.target.value, page: 1 });
@@ -90,7 +77,7 @@ const HospitalsPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setFormError("");
 
     try {
       const hospitalData = {
@@ -108,10 +95,10 @@ const HospitalsPage: React.FC = () => {
       }
 
       resetForm();
-      loadHospitals();
+      await fetchHospitals(filters, canManageHospitals, true);
       setShowDialog(false);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to save hospital");
+      setFormError(err.response?.data?.error || "Failed to save hospital");
     }
   };
 
@@ -158,11 +145,11 @@ const HospitalsPage: React.FC = () => {
 
     try {
       await hospitalService.deleteHospital(deletingHospital.id);
-      loadHospitals();
+      await fetchHospitals(filters, canManageHospitals, true);
       setShowDialog(false);
       setDeletingHospital(null);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to delete hospital");
+      setFormError(err.response?.data?.error || "Failed to delete hospital");
     }
   };
 
@@ -268,6 +255,14 @@ const HospitalsPage: React.FC = () => {
         {error && (
           <div className="mb-6 rounded-lg bg-red-50 dark:bg-red-900/20 p-4">
             <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+          </div>
+        )}
+
+        {formError && (
+          <div className="mb-6 rounded-lg bg-red-50 dark:bg-red-900/20 p-4">
+            <p className="text-sm text-red-800 dark:text-red-200">
+              {formError}
+            </p>
           </div>
         )}
 

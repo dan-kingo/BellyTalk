@@ -2,30 +2,25 @@ import React, { useState, useEffect } from "react";
 import Layout from "../components/layout/Layout";
 import { UsersPageSkeleton } from "../components/common/PageSkeletons";
 import { adminService } from "../services/admin.service";
-import { Profile } from "../types";
+import { useAdminStore } from "../stores/admin.store";
 import { Trash2, Search } from "lucide-react";
 
 const UsersPage: React.FC = () => {
-  const [users, setUsers] = useState<Profile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const users = useAdminStore((state) => state.users);
+  const loading = useAdminStore((state) => state.usersLoading);
+  const usersLoaded = useAdminStore((state) => state.usersLoaded);
+  const fetchUsers = useAdminStore((state) => state.fetchUsers);
+  const removeUserFromCache = useAdminStore(
+    (state) => state.removeUserFromCache,
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
-    loadUsers();
-  }, []);
-
-  const loadUsers = async () => {
-    try {
-      setLoading(true);
-      const data = await adminService.listUsers();
-      setUsers(data.users || []);
-    } catch (error) {
-      console.error("Failed to load users:", error);
-    } finally {
-      setLoading(false);
+    if (!usersLoaded) {
+      fetchUsers();
     }
-  };
+  }, [usersLoaded, fetchUsers]);
 
   const handleDeleteUser = async (userId: string) => {
     if (
@@ -39,7 +34,7 @@ const UsersPage: React.FC = () => {
     try {
       setDeleting(userId);
       await adminService.deleteUser(userId);
-      setUsers(users.filter((u) => u.id !== userId));
+      removeUserFromCache(userId);
     } catch (error) {
       console.error("Failed to delete user:", error);
       alert("Failed to delete user");

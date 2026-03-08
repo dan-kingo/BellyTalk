@@ -2,38 +2,33 @@ import React, { useState, useEffect } from "react";
 import Layout from "../components/layout/Layout";
 import { RoleRequestsPageSkeleton } from "../components/common/PageSkeletons";
 import { adminService } from "../services/admin.service";
-import { RoleRequest } from "../types";
+import { useAdminStore } from "../stores/admin.store";
 import { CheckCircle, XCircle, FileText } from "lucide-react";
 
 const RoleRequestsPage: React.FC = () => {
-  const [requests, setRequests] = useState<RoleRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const requests = useAdminStore((state) => state.roleRequests);
+  const loading = useAdminStore((state) => state.roleRequestsLoading);
+  const roleRequestsLoaded = useAdminStore((state) => state.roleRequestsLoaded);
+  const fetchRoleRequests = useAdminStore((state) => state.fetchRoleRequests);
+  const removeRoleRequestFromCache = useAdminStore(
+    (state) => state.removeRoleRequestFromCache,
+  );
   const [processing, setProcessing] = useState<string | null>(null);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectUserId, setRejectUserId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
-    loadRequests();
-  }, []);
-
-  const loadRequests = async () => {
-    try {
-      setLoading(true);
-      const data = await adminService.listRoleRequests();
-      setRequests(data.requests || []);
-    } catch (error) {
-      console.error("Failed to load role requests:", error);
-    } finally {
-      setLoading(false);
+    if (!roleRequestsLoaded) {
+      fetchRoleRequests();
     }
-  };
+  }, [roleRequestsLoaded, fetchRoleRequests]);
 
   const handleApprove = async (userId: string) => {
     try {
       setProcessing(userId);
       await adminService.approveRole(userId);
-      setRequests(requests.filter((r) => r.id !== userId));
+      removeRoleRequestFromCache(userId);
     } catch (error) {
       console.error("Failed to approve request:", error);
       alert("Failed to approve request");
@@ -48,7 +43,7 @@ const RoleRequestsPage: React.FC = () => {
     try {
       setProcessing(rejectUserId);
       await adminService.rejectRole(rejectUserId, rejectReason);
-      setRequests(requests.filter((r) => r.id !== rejectUserId));
+      removeRoleRequestFromCache(rejectUserId);
       setShowRejectDialog(false);
       setRejectUserId(null);
       setRejectReason("");
