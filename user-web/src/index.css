@@ -76,63 +76,107 @@ code {
   display: none;
 }
 
-/* Global smooth, thin scrollbar styling */
+/* Global smooth scrolling with hidden scrollbars */
 html {
   scroll-behavior: smooth;
 }
 
 * {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(107, 114, 128, 0.45) transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 0;
+  height: 0;
+  display: none;
 }
 
-*::-webkit-scrollbar-track {
-  background: transparent;
+@keyframes soft-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
-*::-webkit-scrollbar-thumb {
-  background: linear-gradient(
-    180deg,
-    rgba(148, 163, 184, 0.85),
-    rgba(107, 114, 128, 0.85)
-  );
-  border-radius: 9999px;
-  border: 2px solid transparent;
-  background-clip: content-box;
+@keyframes pulse-slow {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 0.92;
+  }
 }
 
-*::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(
-    180deg,
-    rgba(100, 116, 139, 0.95),
-    rgba(75, 85, 99, 0.95)
-  );
-  background-clip: content-box;
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-body.dark * {
-  scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+@keyframes badge-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
-body.dark *::-webkit-scrollbar-thumb {
-  background: linear-gradient(
-    180deg,
-    rgba(203, 213, 225, 0.55),
-    rgba(148, 163, 184, 0.55)
-  );
-  background-clip: content-box;
+.animate-soft-float {
+  animation: soft-float 6s ease-in-out infinite;
 }
 
-body.dark *::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(
-    180deg,
-    rgba(226, 232, 240, 0.7),
-    rgba(148, 163, 184, 0.7)
-  );
-  background-clip: content-box;
+.animate-pulse-slow {
+  animation: pulse-slow 3s ease-in-out infinite;
+}
+
+.animate-rise-in {
+  animation: rise-in 0.6s ease forwards;
+}
+
+.animate-badge-bounce {
+  animation: badge-bounce 2.2s ease-in-out infinite;
+}
+
+.animate-badge-bounce-delay {
+  animation: badge-bounce 2.2s ease-in-out infinite;
+  animation-delay: 300ms;
+}
+
+.stagger-rise > * {
+  opacity: 0;
+  animation: rise-in 0.55s ease forwards;
+}
+
+.stagger-rise > *:nth-child(1) {
+  animation-delay: 70ms;
+}
+
+.stagger-rise > *:nth-child(2) {
+  animation-delay: 140ms;
+}
+
+.stagger-rise > *:nth-child(3) {
+  animation-delay: 210ms;
+}
+
+.stagger-rise > *:nth-child(4) {
+  animation-delay: 280ms;
+}
+
+.stagger-rise > *:nth-child(5) {
+  animation-delay: 350ms;
 }
