@@ -1,5 +1,4 @@
 import api from "./api";
-import { UserRole } from "../types";
 import { supabase } from "./supabase";
 
 export const authService = {
@@ -15,19 +14,13 @@ export const authService = {
     return response.data;
   },
 
-  async register(
-    email: string,
-    password: string,
-    full_name: string,
-    role: UserRole,
-  ) {
+  async register(email: string, password: string, full_name: string) {
     const response = await api.post(
       "/auth/register",
       {
         email,
         password,
         full_name,
-        role,
         language: "en",
       },
       {

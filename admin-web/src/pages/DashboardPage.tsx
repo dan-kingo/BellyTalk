@@ -59,19 +59,27 @@ const generateBarData = (count: number, max: number) => {
   );
 };
 
-const DashboardPage: React.FC = () => {
-  const stats = useAdminStore((state) => state.overview);
-  const loading = useAdminStore((state) => state.overviewLoading);
-  const overviewLoaded = useAdminStore((state) => state.overviewLoaded);
-  const fetchOverview = useAdminStore((state) => state.fetchOverview);
-  const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("7d");
-
-  // Mock performance data with proper values for visibility
-  const [performanceData] = useState({
+const rangeMockData: Record<
+  "7d" | "30d" | "90d",
+  {
+    userGrowth: number[];
+    contentCreation: number[];
+    messageActivity: number[];
+    hospitalEngagement: number[];
+    platformMetrics: {
+      uptime: number;
+      responseTime: number;
+      errorRate: number;
+      satisfaction: number;
+    };
+    topHospitals: Array<{ name: string; users: number; growth: number }>;
+  }
+> = {
+  "7d": {
     userGrowth: generateLineData(7, 100, 30),
     contentCreation: generateLineData(7, 50, 20),
-    hospitalEngagement: generateBarData(5, 150), // Increased max value for better visibility
-    messageActivity: generateLineData(7, 200, 80), // Increased base and variation
+    messageActivity: generateLineData(7, 200, 80),
+    hospitalEngagement: generateBarData(5, 150),
     platformMetrics: {
       uptime: 99.8,
       responseTime: 124,
@@ -85,7 +93,55 @@ const DashboardPage: React.FC = () => {
       { name: "Regional Center", users: 134, growth: 15 },
       { name: "University Hospital", users: 98, growth: 5 },
     ],
-  });
+  },
+  "30d": {
+    userGrowth: generateLineData(4, 130, 40),
+    contentCreation: generateLineData(4, 70, 25),
+    messageActivity: generateLineData(4, 260, 95),
+    hospitalEngagement: generateBarData(5, 200),
+    platformMetrics: {
+      uptime: 99.5,
+      responseTime: 138,
+      errorRate: 0.35,
+      satisfaction: 4.5,
+    },
+    topHospitals: [
+      { name: "General Hospital", users: 820, growth: 18 },
+      { name: "City Medical", users: 744, growth: 14 },
+      { name: "Community Health", users: 692, growth: 9 },
+      { name: "Regional Center", users: 621, growth: 11 },
+      { name: "University Hospital", users: 575, growth: 7 },
+    ],
+  },
+  "90d": {
+    userGrowth: generateLineData(3, 170, 55),
+    contentCreation: generateLineData(3, 95, 30),
+    messageActivity: generateLineData(3, 350, 120),
+    hospitalEngagement: generateBarData(5, 280),
+    platformMetrics: {
+      uptime: 99.2,
+      responseTime: 151,
+      errorRate: 0.48,
+      satisfaction: 4.3,
+    },
+    topHospitals: [
+      { name: "General Hospital", users: 2140, growth: 24 },
+      { name: "City Medical", users: 2015, growth: 21 },
+      { name: "Community Health", users: 1884, growth: 17 },
+      { name: "Regional Center", users: 1731, growth: 16 },
+      { name: "University Hospital", users: 1650, growth: 14 },
+    ],
+  },
+};
+
+const DashboardPage: React.FC = () => {
+  const stats = useAdminStore((state) => state.overview);
+  const loading = useAdminStore((state) => state.overviewLoading);
+  const overviewLoaded = useAdminStore((state) => state.overviewLoaded);
+  const fetchOverview = useAdminStore((state) => state.fetchOverview);
+  const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("7d");
+
+  const selectedRangeData = rangeMockData[timeRange];
 
   useEffect(() => {
     if (!overviewLoaded) {
@@ -109,21 +165,21 @@ const DashboardPage: React.FC = () => {
   const timeLabels = getTimeLabels();
 
   // Ensure we have valid data for charts
-  const hospitalData = performanceData.hospitalEngagement || [
+  const hospitalData = selectedRangeData.hospitalEngagement || [
     50, 75, 100, 125, 150,
   ];
-  const userGrowthData = performanceData.userGrowth.slice(0, timeLabels.length);
+  const userGrowthData = selectedRangeData.userGrowth.slice(0, timeLabels.length);
   const userGrowthDelta =
     userGrowthData.length > 1
       ? ((userGrowthData[userGrowthData.length - 1] - userGrowthData[0]) /
           Math.max(userGrowthData[0], 1)) *
         100
       : 0;
-  const contentGrowthData = performanceData.contentCreation.slice(
+  const contentGrowthData = selectedRangeData.contentCreation.slice(
     0,
     timeLabels.length,
   );
-  const messageData = performanceData.messageActivity || [
+  const messageData = selectedRangeData.messageActivity || [
     150, 180, 200, 220, 250, 230, 210,
   ];
   const scopedMessageData = messageData.slice(0, timeLabels.length);
@@ -186,7 +242,7 @@ const DashboardPage: React.FC = () => {
   };
 
   const hospitalChartData = {
-    labels: performanceData.topHospitals.map((item) => item.name.split(" ")[0]),
+    labels: selectedRangeData.topHospitals.map((item) => item.name.split(" ")[0]),
     datasets: [
       {
         label: "Active Users",
@@ -230,10 +286,10 @@ const DashboardPage: React.FC = () => {
       {
         label: "Platform Score",
         data: [
-          performanceData.platformMetrics.uptime,
-          ((300 - performanceData.platformMetrics.responseTime) / 300) * 100,
-          100 - performanceData.platformMetrics.errorRate,
-          (performanceData.platformMetrics.satisfaction / 5) * 100,
+          selectedRangeData.platformMetrics.uptime,
+          ((300 - selectedRangeData.platformMetrics.responseTime) / 300) * 100,
+          100 - selectedRangeData.platformMetrics.errorRate,
+          (selectedRangeData.platformMetrics.satisfaction / 5) * 100,
         ],
         borderColor: "#7C3AED",
         backgroundColor: "rgba(124, 58, 237, 0.2)",
@@ -259,10 +315,10 @@ const DashboardPage: React.FC = () => {
   };
 
   const topHospitalsChartData = {
-    labels: performanceData.topHospitals.map((item) => item.name),
+    labels: selectedRangeData.topHospitals.map((item) => item.name),
     datasets: [
       {
-        data: performanceData.topHospitals.map((item) => item.users),
+        data: selectedRangeData.topHospitals.map((item) => item.users),
         backgroundColor: [
           "#4F46E5",
           "#06B6D4",
@@ -482,25 +538,25 @@ const DashboardPage: React.FC = () => {
               <p>
                 Uptime:{" "}
                 <span className="font-semibold text-green-500">
-                  {performanceData.platformMetrics.uptime}%
+                  {selectedRangeData.platformMetrics.uptime}%
                 </span>
               </p>
               <p>
                 Response:{" "}
                 <span className="font-semibold text-blue-500">
-                  {performanceData.platformMetrics.responseTime}ms
+                  {selectedRangeData.platformMetrics.responseTime}ms
                 </span>
               </p>
               <p>
                 Error:{" "}
                 <span className="font-semibold text-red-500">
-                  {performanceData.platformMetrics.errorRate}%
+                  {selectedRangeData.platformMetrics.errorRate}%
                 </span>
               </p>
               <p>
                 Satisfaction:{" "}
                 <span className="font-semibold text-yellow-500">
-                  {performanceData.platformMetrics.satisfaction}/5
+                  {selectedRangeData.platformMetrics.satisfaction}/5
                 </span>
               </p>
             </div>

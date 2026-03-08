@@ -1,14 +1,12 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { UserRole } from "../types";
 import { toast } from "react-toastify";
 
 const RegisterPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState<UserRole>("mother");
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -18,7 +16,7 @@ const RegisterPage: React.FC = () => {
     setLoading(true);
 
     try {
-      await register(email, password, fullName, role);
+      await register(email, password, fullName);
       toast.success(
         "Registration successful. Please check your email to verify your account.",
       );
@@ -112,25 +110,6 @@ const RegisterPage: React.FC = () => {
                 className="block w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 bg-transparent focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                 placeholder="Create a password"
               />
-            </div>
-
-            <div>
-              <label
-                htmlFor="role"
-                className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1"
-              >
-                I am a
-              </label>
-              <select
-                id="role"
-                value={role}
-                onChange={(e) => setRole(e.target.value as UserRole)}
-                className="block w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 bg-transparent focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-              >
-                <option value="mother">Mother</option>
-                <option value="counselor">Counselor</option>
-                <option value="doctor">Doctor</option>
-              </select>
             </div>
           </div>
 
