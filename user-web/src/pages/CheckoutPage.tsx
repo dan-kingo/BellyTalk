@@ -124,7 +124,9 @@ const CheckoutPage: React.FC = () => {
       });
 
       if (paymentResponse.success) {
-        toast.success(paymentResponse.message || "Payment processed successfully.");
+        toast.success(
+          paymentResponse.message || "Payment processed successfully.",
+        );
       }
 
       setCurrentStep("result");

@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { toast } from 'react-toastify';
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { toast } from "react-toastify";
 
 const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -16,12 +16,12 @@ const LoginPage: React.FC = () => {
 
     try {
       await login(email, password);
-      toast.success('Logged in successfully.');
-      navigate('/dashboard');
+      toast.success("Logged in successfully.");
+      navigate("/dashboard");
     } catch (err: any) {
       const errorMessage =
         err.response?.data?.error ||
-        'Failed to login. Please check your credentials.';
+        "Failed to login. Please check your credentials.";
       toast.error(errorMessage);
     } finally {
       setLoading(false);
@@ -36,7 +36,7 @@ const LoginPage: React.FC = () => {
             Sign in to your account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-            Or{' '}
+            Or{" "}
             <Link
               to="/register"
               className="font-medium text-primary-600 dark:text-primary-400 hover:underline"
@@ -90,7 +90,7 @@ const LoginPage: React.FC = () => {
             disabled={loading}
             className="w-full cursor-pointer py-2 px-4 rounded-xl text-white font-semibold bg-primary-600 hover:bg-primary-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Signing in...' : 'Sign in'}
+            {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
       </div>

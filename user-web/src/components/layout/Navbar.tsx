@@ -1,9 +1,9 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import { useTheme } from '../../contexts/ThemeContext';
-import { Menu, Sun, Moon, LogOut } from 'lucide-react';
-import { toast } from 'react-toastify';
+import React from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import { useTheme } from "../../contexts/ThemeContext";
+import { Menu, Sun, Moon, LogOut } from "lucide-react";
+import { toast } from "react-toastify";
 
 interface NavbarProps {
   onMenuClick: () => void;
@@ -17,10 +17,10 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
   const handleLogout = async () => {
     try {
       await logout();
-      toast.success('Logged out successfully.');
-      navigate('/login');
+      toast.success("Logged out successfully.");
+      navigate("/login");
     } catch {
-      toast.error('Failed to log out. Please try again.');
+      toast.error("Failed to log out. Please try again.");
     }
   };
 
@@ -39,7 +39,9 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
               </button>
             )}
             <Link to="/" className="flex items-center">
-              <span className="text-2xl font-bold text-primary dark:text-secondary">BellyTalk</span>
+              <span className="text-2xl font-bold text-primary dark:text-secondary">
+                BellyTalk
+              </span>
             </Link>
           </div>
 
@@ -59,7 +61,11 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
                   className="p-2 cursor-pointer rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all"
                   aria-label="Toggle theme"
                 >
-                  {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                  {isDark ? (
+                    <Sun className="w-5 h-5" />
+                  ) : (
+                    <Moon className="w-5 h-5" />
+                  )}
                 </button>
                 <button
                   onClick={handleLogout}
@@ -76,12 +82,22 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
                   className="p-2 cursor-pointer rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all"
                   aria-label="Toggle theme"
                 >
-                  {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                  {isDark ? (
+                    <Sun className="w-5 h-5" />
+                  ) : (
+                    <Moon className="w-5 h-5" />
+                  )}
                 </button>
-                <Link to="/login" className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-secondary px-3 py-2 rounded-md text-sm font-medium transition">
+                <Link
+                  to="/login"
+                  className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-secondary px-3 py-2 rounded-md text-sm font-medium transition"
+                >
                   Login
                 </Link>
-                <Link to="/register" className="bg-primary hover:bg-primary-700 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-4 py-2 rounded-md text-sm font-medium transition">
+                <Link
+                  to="/register"
+                  className="bg-primary hover:bg-primary-700 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-4 py-2 rounded-md text-sm font-medium transition"
+                >
                   Sign Up
                 </Link>
               </>

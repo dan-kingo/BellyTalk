@@ -1,13 +1,13 @@
 // src/components/audio/IncomingCallDialog.tsx
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { audioService } from '../../services/audio.service';
-import { videoService } from '../../services/video.service';
-import { webSocketService } from '../../services/websocket.service';
-import Dialog from '../common/Dialog';
-import { Phone, PhoneOff, Video } from 'lucide-react';
-import { Profile } from '../../types';
-import { toast } from 'react-toastify';
+import React, { useEffect, useState } from "react";
+import { useAuth } from "../../contexts/AuthContext";
+import { audioService } from "../../services/audio.service";
+import { videoService } from "../../services/video.service";
+import { webSocketService } from "../../services/websocket.service";
+import Dialog from "../common/Dialog";
+import { Phone, PhoneOff, Video } from "lucide-react";
+import { Profile } from "../../types";
+import { toast } from "react-toastify";
 
 interface IncomingCallDialogProps {
   onCallAccepted: (session: any) => void;
@@ -22,7 +22,7 @@ interface IncomingCall {
 
 export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
   onCallAccepted,
-  onCallRejected
+  onCallRejected,
 }) => {
   const { user } = useAuth();
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
@@ -32,32 +32,32 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
 
   useEffect(() => {
     if (!user?.id) {
-      console.log('❌ No user ID available for WebSocket subscription');
+      console.log("❌ No user ID available for WebSocket subscription");
       return;
     }
 
-    console.log('🎯 Setting up WebSocket listener for user:', user.id);
+    console.log("🎯 Setting up WebSocket listener for user:", user.id);
 
     const handleIncomingCall = async (payload: any) => {
-      console.log('📞 WebSocket event received:', payload);
+      console.log("📞 WebSocket event received:", payload);
 
       const session = payload.new;
-      
+
       // Handle new incoming calls and existing pending calls
-      if (session.status === 'pending') {
-        console.log('🚨 INCOMING CALL!', session);
-        
+      if (session.status === "pending") {
+        console.log("🚨 INCOMING CALL!", session);
+
         try {
-          console.log('🎯 Getting session details for:', session.id);
+          console.log("🎯 Getting session details for:", session.id);
           const sessionDetails = await audioService.getSession(session.id);
-          console.log('✅ Session details received:', sessionDetails);
-          
+          console.log("✅ Session details received:", sessionDetails);
+
           // Check if this is a video call
-          const isVideoCall = sessionDetails.session.call_type === 'video';
+          const isVideoCall = sessionDetails.session.call_type === "video";
           const caller = sessionDetails.session.initiator;
-          
-          console.log('👤 Caller details:', { caller, isVideoCall });
-          
+
+          console.log("👤 Caller details:", { caller, isVideoCall });
+
           // Clear any existing timeout
           if (callTimeout) {
             clearTimeout(callTimeout);
@@ -66,61 +66,60 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
           setIncomingCall({
             session: sessionDetails.session,
             caller,
-            isVideoCall
+            isVideoCall,
           });
           setIsVisible(true);
-          
+
           // Auto-dismiss after 45 seconds if not answered
           const timeout = setTimeout(() => {
-            console.log('⏰ Auto-dismissing call after timeout');
+            console.log("⏰ Auto-dismissing call after timeout");
             if (isVisible && incomingCall?.session.id === session.id) {
               handleRejectCall();
             }
           }, 45000);
-          
+
           setCallTimeout(timeout);
-          
         } catch (error: any) {
-          console.error('❌ Failed to fetch session details:', error);
-          
+          console.error("❌ Failed to fetch session details:", error);
+
           // Fallback with basic data
-          const isVideoCall = session.call_type === 'video';
+          const isVideoCall = session.call_type === "video";
           const basicCall: IncomingCall = {
             session: {
               ...session,
               initiator: {
                 id: session.initiator_id,
-                full_name: 'User',
-                email: 'user@example.com'
-              }
+                full_name: "User",
+                email: "user@example.com",
+              },
             },
             caller: {
               id: session.initiator_id,
-              full_name: 'User',
-              email: 'user@example.com'
+              full_name: "User",
+              email: "user@example.com",
             },
-            isVideoCall
+            isVideoCall,
           };
-          
-          console.log('🔄 Using basic call data:', basicCall);
+
+          console.log("🔄 Using basic call data:", basicCall);
           setIncomingCall(basicCall);
           setIsVisible(true);
-          
+
           // Auto-dismiss after 45 seconds if not answered
           const timeout = setTimeout(() => {
-            console.log('⏰ Auto-dismissing call after timeout (fallback)');
+            console.log("⏰ Auto-dismissing call after timeout (fallback)");
             if (isVisible && basicCall.session.id === session.id) {
               handleRejectCall();
             }
           }, 45000);
-          
+
           setCallTimeout(timeout);
         }
       }
-      
+
       // Handle call cancellation by caller
-      if (payload.eventType === 'UPDATE' && payload.new.status === 'ended') {
-        console.log('📞 Call ended by caller:', payload.new.id);
+      if (payload.eventType === "UPDATE" && payload.new.status === "ended") {
+        console.log("📞 Call ended by caller:", payload.new.id);
         if (incomingCall?.session.id === payload.new.id) {
           setIncomingCall(null);
           setIsVisible(false);
@@ -136,7 +135,7 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
 
     // Cleanup on unmount
     return () => {
-      console.log('🧹 Cleaning up WebSocket subscription in dialog');
+      console.log("🧹 Cleaning up WebSocket subscription in dialog");
       if (callTimeout) {
         clearTimeout(callTimeout);
       }
@@ -149,31 +148,32 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
 
     try {
       setIsResponding(true);
-      console.log('✅ Accepting call:', incomingCall.session.id);
-      
+      console.log("✅ Accepting call:", incomingCall.session.id);
+
       // Clear timeout
       if (callTimeout) {
         clearTimeout(callTimeout);
       }
-      
+
       // Get tokens first to ensure session is ready
       if (incomingCall.isVideoCall) {
         await videoService.getTokens(incomingCall.session.id);
       } else {
         await audioService.getTokens(incomingCall.session.id);
       }
-      
+
       setIsVisible(false);
-      
+
       // Pass the session to the parent component for handling
       onCallAccepted({
         ...incomingCall.session,
-        isVideoCall: incomingCall.isVideoCall
+        isVideoCall: incomingCall.isVideoCall,
       });
-      
     } catch (error: any) {
-      console.error('❌ Failed to accept call:', error);
-      toast.error('Failed to accept call: ' + (error.message || 'Please try again.'));
+      console.error("❌ Failed to accept call:", error);
+      toast.error(
+        "Failed to accept call: " + (error.message || "Please try again."),
+      );
     } finally {
       setIsResponding(false);
     }
@@ -184,26 +184,28 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
 
     try {
       setIsResponding(true);
-      console.log('❌ Rejecting call:', incomingCall.session.id);
-      
+      console.log("❌ Rejecting call:", incomingCall.session.id);
+
       // Clear timeout
       if (callTimeout) {
         clearTimeout(callTimeout);
       }
-      
+
       // Use appropriate service based on call type
       if (incomingCall.isVideoCall) {
         await videoService.endSession(incomingCall.session.id);
       } else {
         await audioService.endSession(incomingCall.session.id);
       }
-      
+
       setIsVisible(false);
       onCallRejected(incomingCall.session.id);
       setIncomingCall(null);
     } catch (error: any) {
-      console.error('❌ Failed to reject call:', error);
-      toast.error('Failed to reject call: ' + (error.message || 'Please try again.'));
+      console.error("❌ Failed to reject call:", error);
+      toast.error(
+        "Failed to reject call: " + (error.message || "Please try again."),
+      );
     } finally {
       setIsResponding(false);
     }
@@ -217,14 +219,16 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
 
   if (!isVisible || !incomingCall) return null;
 
-  const callType = incomingCall.isVideoCall ? 'Video' : 'Audio';
-  const callIcon = incomingCall.isVideoCall ? 
-    <Video className="w-10 h-10 text-white" /> : 
-    <Phone className="w-10 h-10 text-white" />;
-  
-  const gradientClass = incomingCall.isVideoCall ? 
-    'from-purple-500 to-pink-600' : 
-    'from-green-500 to-blue-600';
+  const callType = incomingCall.isVideoCall ? "Video" : "Audio";
+  const callIcon = incomingCall.isVideoCall ? (
+    <Video className="w-10 h-10 text-white" />
+  ) : (
+    <Phone className="w-10 h-10 text-white" />
+  );
+
+  const gradientClass = incomingCall.isVideoCall
+    ? "from-purple-500 to-pink-600"
+    : "from-green-500 to-blue-600";
 
   return (
     <Dialog
@@ -234,21 +238,23 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
     >
       <div className="text-center p-6">
         <div className="animate-pulse">
-          <div className={`w-20 h-20 mx-auto rounded-full bg-linear-to-br ${gradientClass} flex items-center justify-center mb-4`}>
+          <div
+            className={`w-20 h-20 mx-auto rounded-full bg-linear-to-br ${gradientClass} flex items-center justify-center mb-4`}
+          >
             {callIcon}
           </div>
         </div>
-        
+
         <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
           {incomingCall.caller.full_name}
         </h3>
-        
+
         <p className="text-gray-600 dark:text-gray-400 mb-2">
           {incomingCall.caller.email}
         </p>
-        
+
         <p className="text-lg font-semibold text-primary-600 dark:text-primary-400 mb-6">
-          is {incomingCall.isVideoCall ? 'video' : 'audio'} calling you...
+          is {incomingCall.isVideoCall ? "video" : "audio"} calling you...
         </p>
 
         <div className="flex justify-center gap-6">
@@ -261,7 +267,7 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
             <PhoneOff className="w-6 h-6" />
             <span className="text-xs">Reject</span>
           </button>
-          
+
           <button
             onClick={handleAcceptCall}
             disabled={isResponding}
@@ -274,7 +280,7 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
         </div>
 
         <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-          {isResponding ? 'Connecting...' : 'Ringring...'}
+          {isResponding ? "Connecting..." : "Ringring..."}
         </div>
 
         {/* Debug Info */}
@@ -286,7 +292,8 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
             <strong>Session ID:</strong> {incomingCall.session.id}
           </p>
           <p className="text-xs text-gray-600 dark:text-gray-400">
-            <strong>Route:</strong> {incomingCall.isVideoCall ? 'Video Page' : 'Audio Page'}
+            <strong>Route:</strong>{" "}
+            {incomingCall.isVideoCall ? "Video Page" : "Audio Page"}
           </p>
         </div>
       </div>

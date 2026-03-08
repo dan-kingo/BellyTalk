@@ -1,30 +1,35 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
-import { ThemeProvider } from './contexts/ThemeContext';
-import PrivateRoute from './components/common/PrivateRoute';
-import HomePage from './pages/HomePage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import DashboardPage from './pages/DashboardPage';
-import ProfilePage from './pages/ProfilePage';
-import UnauthorizedPage from './pages/UnauthorizedPage';
-import HospitalsPage from './pages/HospitalsPage';
-import ContentPage from './pages/ContentPage';
-import ShopPage from './pages/ShopPage';
-import CartPage from './pages/CartPage';
-import ChatPage from './pages/ChatPage';
-import OrdersPage from './pages/OrdersPage';
-import CheckoutPage from './pages/CheckoutPage';
-import ProductManagementPage from './pages/ProductManagementPage';
-import OrderManagementPage from './pages/OrderManagementPage';
-import AudioCallPage from './pages/AudioCallPage';
-import VideoCallPage from './pages/VideoCallPage';
-import GroupChatPage from './pages/GroupChatPage';
-import ErrorBoundary from './components/common/ErrorBoundary';
-import { AgoraProvider } from './contexts/AgoraContext';
-import { GlobalCallDialog } from './components/audio/GlobalCallDialog';
-import { ToastContainer } from 'react-toastify';
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
+import PrivateRoute from "./components/common/PrivateRoute";
+import HomePage from "./pages/HomePage";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import DashboardPage from "./pages/DashboardPage";
+import ProfilePage from "./pages/ProfilePage";
+import UnauthorizedPage from "./pages/UnauthorizedPage";
+import HospitalsPage from "./pages/HospitalsPage";
+import ContentPage from "./pages/ContentPage";
+import ShopPage from "./pages/ShopPage";
+import CartPage from "./pages/CartPage";
+import ChatPage from "./pages/ChatPage";
+import OrdersPage from "./pages/OrdersPage";
+import CheckoutPage from "./pages/CheckoutPage";
+import ProductManagementPage from "./pages/ProductManagementPage";
+import OrderManagementPage from "./pages/OrderManagementPage";
+import AudioCallPage from "./pages/AudioCallPage";
+import VideoCallPage from "./pages/VideoCallPage";
+import GroupChatPage from "./pages/GroupChatPage";
+import ErrorBoundary from "./components/common/ErrorBoundary";
+import { AgoraProvider } from "./contexts/AgoraContext";
+import { GlobalCallDialog } from "./components/audio/GlobalCallDialog";
+import { ToastContainer } from "react-toastify";
 
 const App: React.FC = () => {
   return (
@@ -34,8 +39,12 @@ const App: React.FC = () => {
           <AgoraProvider>
             {/* Global Incoming Call Dialog - Works on all pages */}
             <GlobalCallDialog />
-            <ToastContainer position="top-right" autoClose={3000} pauseOnFocusLoss={false} />
-            
+            <ToastContainer
+              position="top-right"
+              autoClose={3000}
+              pauseOnFocusLoss={false}
+            />
+
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/login" element={<LoginPage />} />

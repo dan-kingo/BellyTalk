@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { UserRole } from '../types';
-import { toast } from 'react-toastify';
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { UserRole } from "../types";
+import { toast } from "react-toastify";
 
 const RegisterPage: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<UserRole>('mother');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [role, setRole] = useState<UserRole>("mother");
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -20,11 +20,13 @@ const RegisterPage: React.FC = () => {
     try {
       await register(email, password, fullName, role);
       toast.success(
-        'Registration successful. Please check your email to verify your account.'
+        "Registration successful. Please check your email to verify your account.",
       );
-      setTimeout(() => navigate('/login'), 3000);
+      setTimeout(() => navigate("/login"), 3000);
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to register. Please try again.');
+      toast.error(
+        err.response?.data?.error || "Failed to register. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -38,7 +40,7 @@ const RegisterPage: React.FC = () => {
             Create your account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-            Already have an account?{' '}
+            Already have an account?{" "}
             <Link
               to="/login"
               className="font-medium text-primary-600 dark:text-primary-400 hover:underline"
@@ -131,7 +133,7 @@ const RegisterPage: React.FC = () => {
             disabled={loading}
             className="w-full py-2 cursor-pointer px-4 rounded-xl text-white font-semibold bg-primary-600 hover:bg-primary-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Creating account...' : 'Create account'}
+            {loading ? "Creating account..." : "Create account"}
           </button>
         </form>
       </div>
