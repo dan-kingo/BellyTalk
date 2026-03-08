@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from "react";
 
 interface ThemeContextType {
   isDark: boolean;
@@ -7,24 +7,31 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [isDark, setIsDark] = useState(() => {
-    const saved = localStorage.getItem('admin_theme');
-    return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const saved = localStorage.getItem("admin_theme");
+    return (
+      saved === "dark" ||
+      (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches)
+    );
   });
 
   useEffect(() => {
     if (isDark) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('admin_theme', 'dark');
+      document.documentElement.classList.add("dark");
+      document.body.classList.add("dark");
+      localStorage.setItem("admin_theme", "dark");
     } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('admin_theme', 'light');
+      document.documentElement.classList.remove("dark");
+      document.body.classList.remove("dark");
+      localStorage.setItem("admin_theme", "light");
     }
   }, [isDark]);
 
   const toggleTheme = () => {
-    setIsDark(prev => !prev);
+    setIsDark((prev) => !prev);
   };
 
   return (
@@ -37,7 +44,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
+    throw new Error("useTheme must be used within a ThemeProvider");
   }
   return context;
 };

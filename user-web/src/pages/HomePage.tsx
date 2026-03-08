@@ -116,7 +116,7 @@ const HomePage: React.FC = () => {
                     </Link>
                     <Link
                       to="/login"
-                      className="bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-700 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-700 px-7 py-3 rounded-xl text-base sm:text-lg font-semibold transition-transform hover:-translate-y-0.5"
+                      className="bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-primary-700/10 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-700 px-7 py-3 rounded-xl text-base sm:text-lg font-semibold transition-transform hover:-translate-y-0.5"
                     >
                       Sign In
                     </Link>
@@ -218,17 +218,17 @@ const HomePage: React.FC = () => {
 
         {/* Feedback Section */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <div className="rounded-3xl bg-gray-900 dark:bg-gray-950 p-8 sm:p-10 lg:p-12">
+          <div className="rounded-3xl border border-primary-100 dark:border-gray-700 bg-linear-to-br from-white via-primary-50/40 to-white dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-8 sm:p-10 lg:p-12 shadow-lg">
             <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
               <div>
-                <p className="text-primary-300 font-semibold uppercase tracking-[0.15em] text-sm">
+                <p className="text-primary-600 dark:text-primary-300 font-semibold uppercase tracking-[0.15em] text-sm">
                   Feedback
                 </p>
-                <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold text-white max-w-2xl">
+                <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white max-w-2xl">
                   Families and care professionals trust BellyTalk daily
                 </h2>
               </div>
-              <p className="text-gray-300 max-w-lg">
+              <p className="text-gray-600 dark:text-gray-300 max-w-lg">
                 Real outcomes from real users who need fast support, clear
                 communication, and continuity of care.
               </p>
@@ -238,14 +238,18 @@ const HomePage: React.FC = () => {
               {testimonials.map((item, index) => (
                 <article
                   key={item.name}
-                  className="bg-white/10 border border-white/15 rounded-2xl p-6 text-white animate-rise-in"
+                  className="bg-white/90 dark:bg-gray-900/70 border border-primary-100 dark:border-gray-700 rounded-2xl p-6 text-gray-900 dark:text-white shadow-sm dark:shadow-none animate-rise-in"
                   style={{ animationDelay: `${index * 110}ms` }}
                 >
-                  <p className="text-gray-100 leading-relaxed">
+                  <p className="text-gray-700 dark:text-gray-100 leading-relaxed">
                     &quot;{item.quote}&quot;
                   </p>
-                  <p className="mt-5 font-semibold">{item.name}</p>
-                  <p className="text-sm text-primary-200">{item.role}</p>
+                  <p className="mt-5 font-semibold text-gray-900 dark:text-white">
+                    {item.name}
+                  </p>
+                  <p className="text-sm text-primary-600 dark:text-primary-300">
+                    {item.role}
+                  </p>
                 </article>
               ))}
             </div>
@@ -285,15 +289,16 @@ const HomePage: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <footer className="relative border-t border-primary-100 dark:border-gray-800 bg-linear-to-b from-white/85 via-primary-50/30 to-white dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 text-gray-800 dark:text-gray-100">
+        <div className="absolute inset-0 pointer-events-none opacity-70 dark:opacity-40 bg-[radial-gradient(circle_at_top_left,rgba(236,72,153,0.09)_0%,transparent_42%)]" />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {/* Company Info */}
             <div className="md:col-span-1">
-              <h3 className="text-2xl font-bold text-primary-400 mb-4">
+              <h3 className="text-2xl font-bold text-primary-600 dark:text-primary-400 mb-4">
                 BellyTalk
               </h3>
-              <p className="text-gray-400 mb-4">
+              <p className="text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
                 Connecting mothers with healthcare professionals for
                 comprehensive prenatal and postnatal care support.
               </p>
@@ -301,7 +306,7 @@ const HomePage: React.FC = () => {
                 <a
                   key="mail"
                   href="#"
-                  className="text-gray-400 hover:text-primary-400 transition-colors duration-300"
+                  className="text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-300 transition-colors duration-300"
                   aria-label="mail"
                 >
                   <svg
@@ -337,7 +342,7 @@ const HomePage: React.FC = () => {
                 <a
                   key="twitter"
                   href="#"
-                  className="text-gray-400 hover:text-primary-400 transition-colors duration-300"
+                  className="text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-300 transition-colors duration-300"
                   aria-label="twitter"
                 >
                   <svg
@@ -352,7 +357,7 @@ const HomePage: React.FC = () => {
                 <a
                   key="instagram"
                   href="#"
-                  className="text-gray-400 hover:text-primary-400 transition-colors duration-300"
+                  className="text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-300 transition-colors duration-300"
                   aria-label="instagram"
                 >
                   <svg
@@ -389,7 +394,7 @@ const HomePage: React.FC = () => {
                 <a
                   key="linkedin"
                   href="#"
-                  className="text-gray-400 hover:text-primary-400 transition-colors duration-300"
+                  className="text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-300 transition-colors duration-300"
                   aria-label="linkedin"
                 >
                   <svg
@@ -433,7 +438,7 @@ const HomePage: React.FC = () => {
 
             {/* Quick Links */}
             <div>
-              <h4 className="text-lg font-semibold mb-4 text-white">
+              <h4 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
                 Quick Links
               </h4>
               <ul className="space-y-2">
@@ -442,7 +447,7 @@ const HomePage: React.FC = () => {
                     <li key={item}>
                       <Link
                         to={`/${item.toLowerCase() === "home" ? "" : item.toLowerCase()}`}
-                        className="text-gray-400 hover:text-primary-400 transition-colors duration-300"
+                        className="text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-300 transition-colors duration-300"
                       >
                         {item}
                       </Link>
@@ -454,7 +459,7 @@ const HomePage: React.FC = () => {
 
             {/* Resources */}
             <div>
-              <h4 className="text-lg font-semibold mb-4 text-white">
+              <h4 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
                 Resources
               </h4>
               <ul className="space-y-2">
@@ -468,7 +473,7 @@ const HomePage: React.FC = () => {
                   <li key={item}>
                     <a
                       href="#"
-                      className="text-gray-400 hover:text-primary-400 transition-colors duration-300"
+                      className="text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-300 transition-colors duration-300"
                     >
                       {item}
                     </a>
@@ -479,13 +484,13 @@ const HomePage: React.FC = () => {
 
             {/* Contact Info */}
             <div>
-              <h4 className="text-lg font-semibold mb-4 text-white">
+              <h4 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
                 Contact Us
               </h4>
-              <ul className="space-y-2 text-gray-400">
+              <ul className="space-y-2 text-gray-600 dark:text-gray-300">
                 <li className="flex items-center">
                   <svg
-                    className="w-4 h-4 mr-2"
+                    className="w-4 h-4 mr-2 text-primary-500 dark:text-primary-400"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -507,7 +512,7 @@ const HomePage: React.FC = () => {
                 </li>
                 <li className="flex items-center">
                   <svg
-                    className="w-4 h-4 mr-2"
+                    className="w-4 h-4 mr-2 text-primary-500 dark:text-primary-400"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -523,7 +528,7 @@ const HomePage: React.FC = () => {
                 </li>
                 <li className="flex items-center">
                   <svg
-                    className="w-4 h-4 mr-2"
+                    className="w-4 h-4 mr-2 text-primary-500 dark:text-primary-400"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -542,29 +547,29 @@ const HomePage: React.FC = () => {
           </div>
 
           {/* Bottom Bar */}
-          <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-400 text-sm">
+          <div className="border-t border-primary-100 dark:border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-gray-600 dark:text-gray-300 text-sm text-center md:text-left">
               © {currentYear} BellyTalk. All rights reserved.
-              <span className="text-primary-400 ml-1">
+              <span className="text-primary-600 dark:text-primary-300 ml-1">
                 Empowering mothers through every step of their journey.
               </span>
             </p>
             <div className="mt-4 md:mt-0 flex space-x-6">
               <a
                 href="#"
-                className="text-gray-400 hover:text-primary-400 text-sm transition-colors duration-300"
+                className="text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-300 text-sm transition-colors duration-300"
               >
                 Privacy Policy
               </a>
               <a
                 href="#"
-                className="text-gray-400 hover:text-primary-400 text-sm transition-colors duration-300"
+                className="text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-300 text-sm transition-colors duration-300"
               >
                 Terms of Service
               </a>
               <a
                 href="#"
-                className="text-gray-400 hover:text-primary-400 text-sm transition-colors duration-300"
+                className="text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-300 text-sm transition-colors duration-300"
               >
                 Cookie Policy
               </a>
