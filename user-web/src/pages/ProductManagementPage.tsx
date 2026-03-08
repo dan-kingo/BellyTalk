@@ -19,6 +19,10 @@ const ProductManagementPage: React.FC = () => {
   const [showDialog, setShowDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [savingProduct, setSavingProduct] = useState(false);
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(
+    null,
+  );
 
   const [formData, setFormData] = useState({
     title: "",
@@ -50,6 +54,7 @@ const ProductManagementPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSavingProduct(true);
 
     try {
       const formDataToSend = new FormData();
@@ -78,6 +83,8 @@ const ProductManagementPage: React.FC = () => {
     } catch (error) {
       console.error("Failed to save product:", error);
       toast.error("Failed to save product. Please try again.");
+    } finally {
+      setSavingProduct(false);
     }
   };
 
@@ -97,11 +104,14 @@ const ProductManagementPage: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
       try {
+        setDeletingProductId(id);
         await deleteMyProduct(id);
         toast.success("Product deleted successfully.");
       } catch (error) {
         console.error("Failed to delete product:", error);
         toast.error("Failed to delete product. Please try again.");
+      } finally {
+        setDeletingProductId(null);
       }
     }
   };
@@ -249,10 +259,13 @@ const ProductManagementPage: React.FC = () => {
                     </button>
                     <button
                       onClick={() => handleDelete(product.id)}
-                      className="flex-1 cursor-pointer flex items-center justify-center gap-2 bg-red-100 dark:bg-red-900/20 hover:bg-red-200 dark:hover:bg-red-900/40 text-red-700 dark:text-red-400 px-4 py-2 rounded-lg transition"
+                      disabled={deletingProductId === product.id}
+                      className="flex-1 cursor-pointer flex items-center justify-center gap-2 bg-red-100 dark:bg-red-900/20 hover:bg-red-200 dark:hover:bg-red-900/40 text-red-700 dark:text-red-400 px-4 py-2 rounded-lg transition disabled:opacity-60"
                     >
                       <Trash2 className="w-4 h-4" />
-                      Delete
+                      {deletingProductId === product.id
+                        ? "Deleting..."
+                        : "Delete"}
                     </button>
                   </div>
                 </div>
@@ -372,9 +385,16 @@ const ProductManagementPage: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="flex-1 cursor-pointer px-4 py-2 bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white rounded-lg transition font-medium"
+                disabled={savingProduct}
+                className="flex-1 cursor-pointer px-4 py-2 bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white rounded-lg transition font-medium disabled:opacity-60"
               >
-                {editingProduct ? "Update Product" : "Create Product"}
+                {savingProduct
+                  ? editingProduct
+                    ? "Updating..."
+                    : "Creating..."
+                  : editingProduct
+                    ? "Update Product"
+                    : "Create Product"}
               </button>
             </div>
           </form>

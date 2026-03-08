@@ -5,6 +5,7 @@ import Dialog from "../components/common/Dialog";
 import { Hospital } from "../types";
 import { Plus, Edit, Trash2 } from "lucide-react";
 import { useHospitalStore } from "../stores/hospital.store";
+import { toast } from "react-toastify";
 
 const HospitalsPage: React.FC = () => {
   const { profile } = useAuth();
@@ -31,6 +32,8 @@ const HospitalsPage: React.FC = () => {
   const [deletingHospital, setDeletingHospital] = useState<Hospital | null>(
     null,
   );
+  const [savingHospital, setSavingHospital] = useState(false);
+  const [deletingHospitalLoading, setDeletingHospitalLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -67,6 +70,7 @@ const HospitalsPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
+    setSavingHospital(true);
 
     try {
       const hospitalData = {
@@ -79,14 +83,19 @@ const HospitalsPage: React.FC = () => {
 
       if (editingHospital) {
         await updateHospital(editingHospital.id, hospitalData);
+        toast.success("Hospital updated successfully.");
       } else {
         await createHospital(hospitalData);
+        toast.success("Hospital created successfully.");
       }
 
       resetForm();
       setShowDialog(false);
     } catch (err: any) {
       console.error("Failed to save hospital:", err);
+      toast.error(err?.response?.data?.error || "Failed to save hospital.");
+    } finally {
+      setSavingHospital(false);
     }
   };
 
@@ -130,13 +139,18 @@ const HospitalsPage: React.FC = () => {
 
   const handleDeleteConfirm = async () => {
     if (!deletingHospital) return;
+    setDeletingHospitalLoading(true);
 
     try {
       await deleteHospital(deletingHospital.id);
+      toast.success("Hospital deleted successfully.");
       setShowDialog(false);
       setDeletingHospital(null);
     } catch (err: any) {
       console.error("Failed to delete hospital:", err);
+      toast.error(err?.response?.data?.error || "Failed to delete hospital.");
+    } finally {
+      setDeletingHospitalLoading(false);
     }
   };
 
@@ -361,10 +375,16 @@ const HospitalsPage: React.FC = () => {
             <div className="flex gap-3 pt-4">
               <button
                 type="submit"
-                disabled={loading}
+                disabled={savingHospital}
                 className="flex-1 cursor-pointer bg-primary hover:bg-primary-700 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-6 py-2 rounded-lg font-medium transition"
               >
-                {editingHospital ? "Update Hospital" : "Create Hospital"}
+                {savingHospital
+                  ? editingHospital
+                    ? "Updating..."
+                    : "Creating..."
+                  : editingHospital
+                    ? "Update Hospital"
+                    : "Create Hospital"}
               </button>
               <button
                 type="button"
@@ -392,9 +412,10 @@ const HospitalsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleDeleteConfirm}
+                disabled={deletingHospitalLoading}
                 className="flex-1 cursor-pointer bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition"
               >
-                Delete
+                {deletingHospitalLoading ? "Deleting..." : "Delete"}
               </button>
               <button
                 type="button"

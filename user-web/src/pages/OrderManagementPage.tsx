@@ -30,6 +30,7 @@ const OrderManagementPage: React.FC = () => {
   const [showDialog, setShowDialog] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [updatingOrder, setUpdatingOrder] = useState(false);
   const [viewFilter, setViewFilter] = useState<"all" | "my_products">(
     "my_products",
   );
@@ -48,6 +49,7 @@ const OrderManagementPage: React.FC = () => {
   const handleUpdateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrder) return;
+    setUpdatingOrder(true);
 
     try {
       const response = await updateOrderStatus(selectedOrder.id, {
@@ -68,6 +70,8 @@ const OrderManagementPage: React.FC = () => {
         error.response?.data?.error ||
           "Failed to update order. Please try again.",
       );
+    } finally {
+      setUpdatingOrder(false);
     }
   };
 
@@ -579,9 +583,10 @@ const OrderManagementPage: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-2  bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white rounded-lg transition font-medium cursor-pointer"
+                disabled={updatingOrder}
+                className="flex-1 px-4 py-2  bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white rounded-lg transition font-medium cursor-pointer disabled:opacity-60"
               >
-                Update Order
+                {updatingOrder ? "Updating..." : "Update Order"}
               </button>
             </div>
           </form>

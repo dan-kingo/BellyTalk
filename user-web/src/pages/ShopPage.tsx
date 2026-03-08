@@ -4,12 +4,15 @@ import LoadingSpinner from "../components/common/LoadingSpinner";
 import { useAuth } from "../contexts/AuthContext";
 import Layout from "../components/layout/Layout";
 import { useShopStore } from "../stores/shop.store";
+import { Maximize2, X } from "lucide-react";
+import { Product } from "../types";
 
 const ShopPage: React.FC = () => {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("");
   const [updatingCart, setUpdatingCart] = useState<string | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const products = useShopStore((state) => state.products);
   const loading = useShopStore((state) => state.productsLoading);
   const fetchProducts = useShopStore((state) => state.fetchProducts);
@@ -36,6 +39,18 @@ const ShopPage: React.FC = () => {
       fetchCart();
     }
   }, [searchQuery, category, user, fetchProducts, fetchCart]);
+
+  useEffect(() => {
+    if (selectedProduct) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [selectedProduct]);
 
   const updateCartQuantity = async (productId: string, newQuantity: number) => {
     if (!user) {
@@ -119,8 +134,17 @@ const ShopPage: React.FC = () => {
             {products.map((product) => (
               <div
                 key={product.id}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                className="relative bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
               >
+                <button
+                  type="button"
+                  onClick={() => setSelectedProduct(product)}
+                  className="absolute top-3 right-3 z-10 rounded-full bg-white/90 dark:bg-gray-900/85 p-2 cursor-pointer text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-900 transition"
+                  aria-label={`View details for ${product.title}`}
+                  title="View details"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                </button>
                 {product.image_url && (
                   <img
                     src={product.image_url}
@@ -207,6 +231,148 @@ const ShopPage: React.FC = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {selectedProduct && (
+          <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-[2px] flex items-center justify-center p-3 sm:p-5">
+            <div
+              className="absolute inset-0"
+              onClick={() => setSelectedProduct(null)}
+              aria-hidden="true"
+            />
+            <div className="relative z-10 w-full max-w-6xl h-[94vh] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700">
+              <div className="h-full overflow-y-auto scrollbar-hide">
+                <div className="sticky top-0 z-10 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-4 flex items-center justify-between">
+                  <h2 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white pr-4">
+                    {selectedProduct.title}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProduct(null)}
+                    className="rounded-full p-2 cursor-pointer text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition"
+                    aria-label="Close product details"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4 sm:p-6">
+                  <div className="rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 min-h-[280px] sm:min-h-[420px]">
+                    {selectedProduct.image_url ? (
+                      <img
+                        src={selectedProduct.image_url}
+                        alt={selectedProduct.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+                        No image available
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <span className="text-3xl sm:text-4xl font-bold text-primary-600 dark:text-primary-400">
+                        ${selectedProduct.price.toFixed(2)}
+                      </span>
+                      {selectedProduct.stock !== undefined && (
+                        <span
+                          className={`px-3 py-1 text-xs sm:text-sm font-semibold rounded-full ${
+                            selectedProduct.stock > 0
+                              ? "bg-green-100 dark:bg-green-900/25 text-green-700 dark:text-green-300"
+                              : "bg-red-100 dark:bg-red-900/25 text-red-700 dark:text-red-300"
+                          }`}
+                        >
+                          {selectedProduct.stock > 0
+                            ? `${selectedProduct.stock} in stock`
+                            : "Out of stock"}
+                        </span>
+                      )}
+                    </div>
+
+                    {selectedProduct.category && (
+                      <p className="px-3 py-1 w-fit text-sm font-medium rounded-full bg-primary/10 dark:bg-secondary/10 text-primary dark:text-secondary border border-primary/20 dark:border-secondary/20">
+                        {selectedProduct.category}
+                      </p>
+                    )}
+
+                    <div>
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
+                        Description
+                      </h3>
+                      <p className="text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">
+                        {selectedProduct.description ||
+                          "No description available for this product yet."}
+                      </p>
+                    </div>
+
+                    {user && (
+                      <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                        <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-3">
+                          Quick Add
+                        </h3>
+                        {cartQuantityMap[selectedProduct.id] > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() =>
+                                updateCartQuantity(
+                                  selectedProduct.id,
+                                  cartQuantityMap[selectedProduct.id] - 1,
+                                )
+                              }
+                              disabled={updatingCart === selectedProduct.id}
+                              className="bg-gray-200 cursor-pointer dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white w-10 h-10 rounded-lg text-lg font-bold disabled:opacity-50 transition-colors flex items-center justify-center"
+                            >
+                              -
+                            </button>
+                            <input
+                              type="text"
+                              pattern="[0-9]*"
+                              inputMode="numeric"
+                              value={cartQuantityMap[selectedProduct.id]}
+                              onChange={(e) =>
+                                handleQuantityChange(
+                                  selectedProduct.id,
+                                  e.target.value,
+                                )
+                              }
+                              disabled={updatingCart === selectedProduct.id}
+                              className="w-14 text-center border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white py-2 disabled:opacity-50"
+                            />
+                            <button
+                              onClick={() =>
+                                updateCartQuantity(
+                                  selectedProduct.id,
+                                  cartQuantityMap[selectedProduct.id] + 1,
+                                )
+                              }
+                              disabled={updatingCart === selectedProduct.id}
+                              className="bg-primary cursor-pointer hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white w-10 h-10 rounded-lg text-lg font-bold disabled:opacity-50 transition-colors flex items-center justify-center"
+                            >
+                              +
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() =>
+                              updateCartQuantity(selectedProduct.id, 1)
+                            }
+                            disabled={updatingCart === selectedProduct.id}
+                            className="bg-primary cursor-pointer hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-5 py-3 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
+                          >
+                            {updatingCart === selectedProduct.id
+                              ? "Adding..."
+                              : "Add to Cart"}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

@@ -5,6 +5,7 @@ import Dialog from "../components/common/Dialog";
 import { Content } from "../types";
 import { Plus, Edit, Trash2 } from "lucide-react";
 import { useContentStore } from "../stores/content.store";
+import { toast } from "react-toastify";
 
 const ContentPage: React.FC = () => {
   const { profile } = useAuth();
@@ -29,6 +30,8 @@ const ContentPage: React.FC = () => {
   const [editingContent, setEditingContent] = useState<Content | null>(null);
   const [deletingContent, setDeletingContent] = useState<Content | null>(null);
   const [viewingContent, setViewingContent] = useState<Content | null>(null);
+  const [savingContent, setSavingContent] = useState(false);
+  const [deletingContentLoading, setDeletingContentLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     body: "",
@@ -59,6 +62,7 @@ const ContentPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
+    setSavingContent(true);
 
     try {
       const contentData = {
@@ -71,6 +75,7 @@ const ContentPage: React.FC = () => {
 
       if (editingContent) {
         await updateContent(editingContent.id, contentData as any);
+        toast.success("Content updated successfully.");
       } else {
         const formData = new FormData();
         formData.append("title", contentData.title);
@@ -80,12 +85,16 @@ const ContentPage: React.FC = () => {
         formData.append("is_published", String(contentData.is_published));
         contentData.tags.forEach((tag: string) => formData.append("tags", tag));
         await createContent(formData);
+        toast.success("Content created successfully.");
       }
 
       resetForm();
       setShowDialog(false);
     } catch (err: any) {
       console.error("Failed to save content:", err);
+      toast.error(err?.response?.data?.error || "Failed to save content.");
+    } finally {
+      setSavingContent(false);
     }
   };
 
@@ -125,13 +134,18 @@ const ContentPage: React.FC = () => {
 
   const handleDeleteConfirm = async () => {
     if (!deletingContent) return;
+    setDeletingContentLoading(true);
 
     try {
       await deleteContent(deletingContent.id);
+      toast.success("Content deleted successfully.");
       setShowDialog(false);
       setDeletingContent(null);
     } catch (err: any) {
       console.error("Failed to delete content:", err);
+      toast.error(err?.response?.data?.error || "Failed to delete content.");
+    } finally {
+      setDeletingContentLoading(false);
     }
   };
 
@@ -336,10 +350,16 @@ const ContentPage: React.FC = () => {
             <div className="flex gap-3 pt-4">
               <button
                 type="submit"
-                disabled={loading}
+                disabled={savingContent}
                 className="flex-1 cursor-pointer bg-primary hover:bg-primary-700 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-6 py-2 rounded-lg font-medium transition"
               >
-                {editingContent ? "Update Content" : "Create Content"}
+                {savingContent
+                  ? editingContent
+                    ? "Updating..."
+                    : "Creating..."
+                  : editingContent
+                    ? "Update Content"
+                    : "Create Content"}
               </button>
               <button
                 type="button"
@@ -428,9 +448,10 @@ const ContentPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleDeleteConfirm}
+                disabled={deletingContentLoading}
                 className="flex-1 cursor-pointer bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition"
               >
-                Delete
+                {deletingContentLoading ? "Deleting..." : "Delete"}
               </button>
               <button
                 type="button"
