@@ -1,10 +1,13 @@
 import { create } from "zustand";
 import { shopService } from "../services/shop.service";
-import { Cart, CartItem, CreateOrderData, Order } from "../types";
+import { Cart, CartItem, CreateOrderData, Order, Product } from "../types";
 
 type OrdersScope = "all" | "my";
+type ProductQuery = { q?: string; category?: string };
 
 type ShopStore = {
+  products: Product[];
+  productsLoading: boolean;
   cart: Cart | null;
   cartItems: CartItem[];
   orders: Order[];
@@ -13,10 +16,14 @@ type ShopStore = {
   ordersLoading: boolean;
   checkoutLoading: boolean;
   error: string | null;
+  currentProductsKey: string;
+  lastProductsFetched: Record<string, number | null>;
+  productRequests: Record<string, Promise<void> | null>;
   lastCartFetched: number | null;
   lastOrdersFetched: Record<OrdersScope, number | null>;
   cartRequest: Promise<void> | null;
   orderRequests: Record<OrdersScope, Promise<void> | null>;
+  fetchProducts: (params?: ProductQuery, force?: boolean) => Promise<void>;
   fetchCart: (force?: boolean) => Promise<void>;
   fetchOrders: (scope?: OrdersScope, force?: boolean) => Promise<void>;
   addToCart: (productId: string, quantity: number) => Promise<void>;
@@ -51,6 +58,13 @@ type ShopStore = {
 
 const CART_STALE_TIME_MS = 20_000;
 const ORDERS_STALE_TIME_MS = 45_000;
+const PRODUCTS_STALE_TIME_MS = 60_000;
+
+const getProductsKey = (params?: ProductQuery) => {
+  const q = params?.q?.trim() || "";
+  const category = params?.category?.trim() || "";
+  return `${q}|${category}`;
+};
 
 const upsertOrder = (orders: Order[], updatedOrder: Order) => {
   const index = orders.findIndex((order) => order.id === updatedOrder.id);
@@ -64,6 +78,8 @@ const upsertOrder = (orders: Order[], updatedOrder: Order) => {
 };
 
 export const useShopStore = create<ShopStore>((set, get) => ({
+  products: [],
+  productsLoading: false,
   cart: null,
   cartItems: [],
   orders: [],
@@ -72,10 +88,72 @@ export const useShopStore = create<ShopStore>((set, get) => ({
   ordersLoading: false,
   checkoutLoading: false,
   error: null,
+  currentProductsKey: "|",
+  lastProductsFetched: {},
+  productRequests: {},
   lastCartFetched: null,
   lastOrdersFetched: { all: null, my: null },
   cartRequest: null,
   orderRequests: { all: null, my: null },
+
+  fetchProducts: async (params, force = false) => {
+    const state = get();
+    const key = getProductsKey(params);
+    const inFlight = state.productRequests[key];
+
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const lastFetched = state.lastProductsFetched[key] ?? null;
+    const hasCachedProducts =
+      state.currentProductsKey === key && state.products.length > 0;
+    const isFresh =
+      lastFetched !== null && Date.now() - lastFetched < PRODUCTS_STALE_TIME_MS;
+
+    if (!force && hasCachedProducts && isFresh) {
+      return;
+    }
+
+    const request = (async () => {
+      set({ productsLoading: true, error: null });
+      try {
+        const response = await shopService.getProducts({
+          q: params?.q || undefined,
+          category: params?.category || undefined,
+        });
+        set((current) => ({
+          products: response.products || [],
+          productsLoading: false,
+          currentProductsKey: key,
+          lastProductsFetched: {
+            ...current.lastProductsFetched,
+            [key]: Date.now(),
+          },
+        }));
+      } catch (error) {
+        console.error("Failed to load products:", error);
+        set({ productsLoading: false, error: "Failed to load products" });
+        throw error;
+      } finally {
+        set((current) => ({
+          productRequests: {
+            ...current.productRequests,
+            [key]: null,
+          },
+        }));
+      }
+    })();
+
+    set((current) => ({
+      productRequests: {
+        ...current.productRequests,
+        [key]: request,
+      },
+    }));
+
+    return request;
+  },
 
   fetchCart: async (force = false) => {
     const state = get();

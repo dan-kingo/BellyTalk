@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { shopService } from "../services/shop.service";
-import { Product } from "../types";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import { useAuth } from "../contexts/AuthContext";
 import Layout from "../components/layout/Layout";
@@ -9,11 +7,12 @@ import { useShopStore } from "../stores/shop.store";
 
 const ShopPage: React.FC = () => {
   const { user } = useAuth();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("");
   const [updatingCart, setUpdatingCart] = useState<string | null>(null);
+  const products = useShopStore((state) => state.products);
+  const loading = useShopStore((state) => state.productsLoading);
+  const fetchProducts = useShopStore((state) => state.fetchProducts);
   const cartItems = useShopStore((state) => state.cartItems);
   const fetchCart = useShopStore((state) => state.fetchCart);
   const updateCartItemQuantity = useShopStore(
@@ -29,26 +28,14 @@ const ShopPage: React.FC = () => {
   );
 
   useEffect(() => {
-    loadProducts();
+    fetchProducts({
+      q: searchQuery,
+      category: category || undefined,
+    });
     if (user) {
       fetchCart();
     }
-  }, [searchQuery, category, user, fetchCart]);
-
-  const loadProducts = async () => {
-    try {
-      setLoading(true);
-      const response = await shopService.getProducts({
-        q: searchQuery,
-        category: category || undefined,
-      });
-      setProducts(response.products || []);
-    } catch (error) {
-      console.error("Failed to load products:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [searchQuery, category, user, fetchProducts, fetchCart]);
 
   const updateCartQuantity = async (productId: string, newQuantity: number) => {
     if (!user) {
