@@ -1,36 +1,55 @@
-import React, { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { shopService } from '../services/shop.service';
-import Layout from '../components/layout/Layout';
-import { CreditCard, Lock, ArrowLeft, MapPin, Package, CheckCircle, XCircle } from 'lucide-react';
-import { CartItem } from '../types';
+import React, { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import Layout from "../components/layout/Layout";
+import {
+  CreditCard,
+  Lock,
+  ArrowLeft,
+  MapPin,
+  Package,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
+import { CartItem } from "../types";
+import { useShopStore } from "../stores/shop.store";
 
 const CheckoutPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { cartItems, total } = location.state as { cartItems: CartItem[]; total: number } || { cartItems: [], total: 0 };
+  const { cartItems, total } = (location.state as {
+    cartItems: CartItem[];
+    total: number;
+  }) || { cartItems: [], total: 0 };
 
   const [processing, setProcessing] = useState(false);
-  const [currentStep, setCurrentStep] = useState<'shipping' | 'payment' | 'processing' | 'result'>('shipping');
-  const [paymentResult, setPaymentResult] = useState<{ success: boolean; message: string; order?: any } | null>(null);
+  const [currentStep, setCurrentStep] = useState<
+    "shipping" | "payment" | "processing" | "result"
+  >("shipping");
+  const [paymentResult, setPaymentResult] = useState<{
+    success: boolean;
+    message: string;
+    order?: any;
+  } | null>(null);
   const [createdOrder, setCreatedOrder] = useState<any>(null);
 
   const [shippingData, setShippingData] = useState({
-    address: '',
-    city: '',
-    zipCode: '',
-    country: '',
-    phone: '',
+    address: "",
+    city: "",
+    zipCode: "",
+    country: "",
+    phone: "",
   });
 
   const [paymentData, setPaymentData] = useState({
-    cardNumber: '',
-    cardName: '',
-    expiryDate: '',
-    cvv: '',
+    cardNumber: "",
+    cardName: "",
+    expiryDate: "",
+    cvv: "",
   });
 
-  const [orderNotes, setOrderNotes] = useState('');
+  const [orderNotes, setOrderNotes] = useState("");
+  const createOrder = useShopStore((state) => state.createOrder);
+  const processPayment = useShopStore((state) => state.processPayment);
 
   const handleShippingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -43,8 +62,8 @@ const CheckoutPage: React.FC = () => {
   };
 
   const formatCardNumber = (value: string) => {
-    const cleaned = value.replace(/\s/g, '');
-    const formatted = cleaned.match(/.{1,4}/g)?.join(' ') || cleaned;
+    const cleaned = value.replace(/\s/g, "");
+    const formatted = cleaned.match(/.{1,4}/g)?.join(" ") || cleaned;
     return formatted.slice(0, 19);
   };
 
@@ -55,26 +74,25 @@ const CheckoutPage: React.FC = () => {
 
   const handleShippingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       setProcessing(true);
-      
-      console.log('Creating order with shipping data:', shippingData);
-      
+
+      console.log("Creating order with shipping data:", shippingData);
+
       // Create the order when moving to payment step
-      const orderResponse = await shopService.createOrder({
+      const order = await createOrder({
         shipping_address: shippingData,
         notes: orderNotes,
       });
 
-      console.log('Order created successfully:', orderResponse);
-      const order = orderResponse.order;
+      console.log("Order created successfully:", order);
       setCreatedOrder(order);
-      
-      setCurrentStep('payment');
+
+      setCurrentStep("payment");
     } catch (error: any) {
-      console.error('Failed to create order:', error);
-      alert('Failed to create order. Please try again.');
+      console.error("Failed to create order:", error);
+      alert("Failed to create order. Please try again.");
     } finally {
       setProcessing(false);
     }
@@ -84,53 +102,54 @@ const CheckoutPage: React.FC = () => {
     e.preventDefault();
 
     if (!createdOrder) {
-      alert('No order found. Please go back and try again.');
+      alert("No order found. Please go back and try again.");
       return;
     }
 
     try {
       setProcessing(true);
-      setCurrentStep('processing');
+      setCurrentStep("processing");
 
-      console.log('Processing payment for order:', createdOrder.id);
-      
+      console.log("Processing payment for order:", createdOrder.id);
+
       // Step 2: Process payment for the created order
-      const paymentResponse = await shopService.processPayment(createdOrder.id, 'mock');
-      console.log('Payment response:', paymentResponse);
+      const paymentResponse = await processPayment(createdOrder.id, "mock");
+      console.log("Payment response:", paymentResponse);
 
       setPaymentResult({
         success: paymentResponse.success,
         message: paymentResponse.message,
-        order: paymentResponse.order
+        order: paymentResponse.order,
       });
 
-      setCurrentStep('result');
+      setCurrentStep("result");
 
       // Redirect to orders page after delay if successful
       if (paymentResponse.success) {
         setTimeout(() => {
-          navigate('/orders');
+          navigate("/orders");
         }, 3000);
       }
-
     } catch (error: any) {
-      console.error('Payment processing failed:', error);
-      
-      let errorMessage = 'Payment failed. Please try again.';
-      
+      console.error("Payment processing failed:", error);
+
+      let errorMessage = "Payment failed. Please try again.";
+
       if (error.response) {
-        errorMessage = error.response.data?.error || `Server error: ${error.response.status}`;
+        errorMessage =
+          error.response.data?.error ||
+          `Server error: ${error.response.status}`;
       } else if (error.request) {
-        errorMessage = 'Network error. Please check your connection.';
+        errorMessage = "Network error. Please check your connection.";
       } else {
-        errorMessage = error.message || 'An unexpected error occurred.';
+        errorMessage = error.message || "An unexpected error occurred.";
       }
 
       setPaymentResult({
         success: false,
-        message: errorMessage
+        message: errorMessage,
       });
-      setCurrentStep('result');
+      setCurrentStep("result");
     } finally {
       setProcessing(false);
     }
@@ -138,39 +157,41 @@ const CheckoutPage: React.FC = () => {
 
   const retryPayment = () => {
     if (createdOrder) {
-      setCurrentStep('payment');
+      setCurrentStep("payment");
       setPaymentResult(null);
     } else {
       // If no order was created, go back to shipping
-      setCurrentStep('shipping');
+      setCurrentStep("shipping");
       setPaymentResult(null);
     }
   };
 
   const createNewOrder = () => {
     // Reset everything and start over
-    setCurrentStep('shipping');
+    setCurrentStep("shipping");
     setPaymentResult(null);
     setCreatedOrder(null);
   };
 
   const goBackToShipping = () => {
-    setCurrentStep('shipping');
+    setCurrentStep("shipping");
     setPaymentResult(null);
     // Note: We keep the createdOrder since it exists in the database
     // User can choose to continue with the same order or create a new one
   };
 
-  if (currentStep === 'result' && paymentResult) {
+  if (currentStep === "result" && paymentResult) {
     return (
       <Layout>
         <div className="max-w-2xl mx-auto py-12">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center">
-            <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ${
-              paymentResult.success 
-                ? 'bg-green-100 dark:bg-green-900/20' 
-                : 'bg-red-100 dark:bg-red-900/20'
-            }`}>
+            <div
+              className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ${
+                paymentResult.success
+                  ? "bg-green-100 dark:bg-green-900/20"
+                  : "bg-red-100 dark:bg-red-900/20"
+              }`}
+            >
               {paymentResult.success ? (
                 <CheckCircle className="w-10 h-10 text-green-600 dark:text-green-400" />
               ) : (
@@ -178,16 +199,20 @@ const CheckoutPage: React.FC = () => {
               )}
             </div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              {paymentResult.success ? 'Order Placed Successfully!' : 'Payment Failed'}
+              {paymentResult.success
+                ? "Order Placed Successfully!"
+                : "Payment Failed"}
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
               {paymentResult.message}
             </p>
-            
+
             {paymentResult.success ? (
               <>
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 dark:border-primary-400 mb-4"></div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Redirecting to orders...</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Redirecting to orders...
+                </p>
               </>
             ) : (
               <div className="flex gap-3 justify-center flex-wrap">
@@ -215,13 +240,13 @@ const CheckoutPage: React.FC = () => {
                   </button>
                 )}
                 <button
-                  onClick={() => navigate('/orders')}
+                  onClick={() => navigate("/orders")}
                   className="bg-green-600 cursor-pointer hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white px-6 py-3 rounded-lg transition font-medium"
                 >
                   View Orders
                 </button>
                 <button
-                  onClick={() => navigate('/cart')}
+                  onClick={() => navigate("/cart")}
                   className="bg-orange-600 cursor-pointer hover:bg-orange-700 dark:bg-orange-500 dark:hover:bg-orange-600 text-white px-6 py-3 rounded-lg transition font-medium"
                 >
                   Back to Cart
@@ -234,20 +259,19 @@ const CheckoutPage: React.FC = () => {
     );
   }
 
-  if (currentStep === 'processing') {
+  if (currentStep === "processing") {
     return (
       <Layout>
         <div className="max-w-2xl mx-auto py-12">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center">
             <div className="inline-block animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600 dark:border-primary-400 mx-auto mb-6"></div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              {createdOrder ? 'Processing Payment...' : 'Creating Order...'}
+              {createdOrder ? "Processing Payment..." : "Creating Order..."}
             </h2>
             <p className="text-gray-600 dark:text-gray-400">
-              {createdOrder 
-                ? 'Please wait while we process your payment...'
-                : 'Please wait while we create your order...'
-              }
+              {createdOrder
+                ? "Please wait while we process your payment..."
+                : "Please wait while we create your order..."}
             </p>
             {createdOrder && (
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
@@ -260,15 +284,17 @@ const CheckoutPage: React.FC = () => {
     );
   }
 
-  if (cartItems.length === 0 && currentStep !== 'result') {
+  if (cartItems.length === 0 && currentStep !== "result") {
     return (
       <Layout>
         <div className="max-w-2xl mx-auto py-12">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center">
             <Package className="w-16 h-16 mx-auto text-gray-400 dark:text-gray-600 mb-4" />
-            <p className="text-gray-600 dark:text-gray-400 mb-6">Your cart is empty</p>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Your cart is empty
+            </p>
             <button
-              onClick={() => navigate('/shop')}
+              onClick={() => navigate("/shop")}
               className="bg-primary-600 cursor-pointer hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white px-6 py-3 rounded-lg transition font-medium"
             >
               Continue Shopping
@@ -284,29 +310,37 @@ const CheckoutPage: React.FC = () => {
       <div className="max-w-7xl mx-auto py-8">
         <button
           onClick={() => {
-            if (currentStep === 'payment') {
-              setCurrentStep('shipping');
+            if (currentStep === "payment") {
+              setCurrentStep("shipping");
             } else {
-              navigate('/cart');
+              navigate("/cart");
             }
           }}
           className="flex items-center gap-2 cursor-pointer text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition"
         >
           <ArrowLeft className="w-5 h-5" />
-          {currentStep === 'payment' ? 'Back to Shipping' : 'Back to Cart'}
+          {currentStep === "payment" ? "Back to Shipping" : "Back to Cart"}
         </button>
 
         <div className="mb-8">
           <div className="flex items-center justify-center gap-4">
-            <div className={`flex items-center gap-2 ${currentStep === 'shipping' ? 'text-primary-600 dark:text-primary-400' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${currentStep === 'shipping' ? 'bg-primary-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
+            <div
+              className={`flex items-center gap-2 ${currentStep === "shipping" ? "text-primary-600 dark:text-primary-400" : "text-gray-400"}`}
+            >
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${currentStep === "shipping" ? "bg-primary-600 text-white" : "bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400"}`}
+              >
                 1
               </div>
               <span className="font-medium">Shipping</span>
             </div>
             <div className="w-24 h-1 bg-gray-300 dark:bg-gray-700"></div>
-            <div className={`flex items-center gap-2 ${currentStep === 'payment' ? 'text-primary-600 dark:text-primary-400' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${currentStep === 'payment' ? 'bg-primary-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
+            <div
+              className={`flex items-center gap-2 ${currentStep === "payment" ? "text-primary-600 dark:text-primary-400" : "text-gray-400"}`}
+            >
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${currentStep === "payment" ? "bg-primary-600 text-white" : "bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400"}`}
+              >
                 2
               </div>
               <span className="font-medium">Payment</span>
@@ -314,7 +348,7 @@ const CheckoutPage: React.FC = () => {
           </div>
         </div>
 
-        {createdOrder && currentStep === 'payment' && (
+        {createdOrder && currentStep === "payment" && (
           <div className="mb-6 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -322,7 +356,8 @@ const CheckoutPage: React.FC = () => {
                   Order Created Successfully
                 </p>
                 <p className="text-xs text-primary-600 dark:text-primary-400">
-                  Order ID: {createdOrder.id.substring(0, 8).toUpperCase()} • Total: ${createdOrder.total_price.toFixed(2)}
+                  Order ID: {createdOrder.id.substring(0, 8).toUpperCase()} •
+                  Total: ${createdOrder.total_price.toFixed(2)}
                 </p>
               </div>
               <span className="px-2 py-1 text-xs bg-primary-100 dark:bg-primary-800 text-primary-800 dark:text-primary-200 rounded-full">
@@ -334,11 +369,13 @@ const CheckoutPage: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            {currentStep === 'shipping' && (
+            {currentStep === "shipping" && (
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
                 <div className="flex items-center gap-3 mb-6">
                   <MapPin className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Shipping Address</h2>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    Shipping Address
+                  </h2>
                 </div>
 
                 <form onSubmit={handleShippingSubmit} className="space-y-4">
@@ -442,24 +479,27 @@ const CheckoutPage: React.FC = () => {
                         Creating Order...
                       </>
                     ) : (
-                      'Continue to Payment'
+                      "Continue to Payment"
                     )}
                   </button>
                 </form>
               </div>
             )}
 
-            {currentStep === 'payment' && (
+            {currentStep === "payment" && (
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
                 <div className="flex items-center gap-3 mb-6">
                   <CreditCard className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Payment Information</h2>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    Payment Information
+                  </h2>
                 </div>
 
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
                   <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                    <strong>Demo Payment:</strong> This is a mock payment system. Use any card details. 
-                    Payment has an 80% success rate for testing purposes.
+                    <strong>Demo Payment:</strong> This is a mock payment
+                    system. Use any card details. Payment has an 80% success
+                    rate for testing purposes.
                   </p>
                 </div>
 
@@ -541,7 +581,9 @@ const CheckoutPage: React.FC = () => {
                     ) : (
                       <>
                         <Lock className="w-5 h-5" />
-                        Complete Payment - ${createdOrder?.total_price?.toFixed(2) || total.toFixed(2)}
+                        Complete Payment - $
+                        {createdOrder?.total_price?.toFixed(2) ||
+                          total.toFixed(2)}
                       </>
                     )}
                   </button>
@@ -556,7 +598,9 @@ const CheckoutPage: React.FC = () => {
 
           <div className="lg:col-span-1">
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 sticky top-8">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Order Summary</h3>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                Order Summary
+              </h3>
 
               <div className="space-y-3 mb-6 max-h-64 overflow-y-auto">
                 {cartItems.map((item) => (
@@ -570,13 +614,16 @@ const CheckoutPage: React.FC = () => {
                     )}
                     <div className="flex-1">
                       <p className="text-sm text-gray-900 dark:text-white font-medium">
-                        {item.products?.title || 'Product'}
+                        {item.products?.title || "Product"}
                       </p>
                       <p className="text-xs text-gray-600 dark:text-gray-400">
                         Qty: {item.quantity}
                       </p>
                       <p className="text-sm text-gray-900 dark:text-white font-semibold">
-                        ${((item.products?.price || 0) * item.quantity).toFixed(2)}
+                        $
+                        {((item.products?.price || 0) * item.quantity).toFixed(
+                          2,
+                        )}
                       </p>
                     </div>
                   </div>
@@ -590,7 +637,9 @@ const CheckoutPage: React.FC = () => {
                 </div>
                 <div className="flex justify-between text-gray-600 dark:text-gray-400">
                   <span>Shipping</span>
-                  <span className="text-green-600 dark:text-green-400 font-medium">Free</span>
+                  <span className="text-green-600 dark:text-green-400 font-medium">
+                    Free
+                  </span>
                 </div>
                 <div className="flex justify-between text-xl font-bold text-gray-900 dark:text-white pt-2 border-t border-gray-200 dark:border-gray-700">
                   <span>Total</span>
@@ -601,7 +650,10 @@ const CheckoutPage: React.FC = () => {
               {createdOrder && (
                 <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
                   <p className="text-xs text-gray-600 dark:text-gray-400">
-                    Order Reference: <span className="font-mono">{createdOrder.id.substring(0, 8).toUpperCase()}</span>
+                    Order Reference:{" "}
+                    <span className="font-mono">
+                      {createdOrder.id.substring(0, 8).toUpperCase()}
+                    </span>
                   </p>
                 </div>
               )}

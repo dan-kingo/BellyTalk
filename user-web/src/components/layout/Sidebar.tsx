@@ -1,9 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Home, Building2, FileText, User, X, ShoppingCart, MessageSquare, ShoppingBag, Phone, Video, Users } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
-import { shopService } from '../../services/shop.service';
-import { chatService } from '../../services/chat.service';
+import React, { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import {
+  Home,
+  Building2,
+  FileText,
+  User,
+  X,
+  ShoppingCart,
+  MessageSquare,
+  ShoppingBag,
+  Phone,
+  Video,
+  Users,
+} from "lucide-react";
+import { useAuth } from "../../contexts/AuthContext";
+import { chatService } from "../../services/chat.service";
+import { useShopStore } from "../../stores/shop.store";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -14,28 +26,84 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const location = useLocation();
   const { profile, user } = useAuth();
   const [showTitle, setShowTitle] = useState(false);
-  const [cartCount, setCartCount] = useState(0);
-  const [orderCount, setOrderCount] = useState(0);
   const [messageCount, setMessageCount] = useState(0);
+  const cartItems = useShopStore((state) => state.cartItems);
+  const myOrders = useShopStore((state) => state.myOrders);
+  const fetchCart = useShopStore((state) => state.fetchCart);
+  const fetchOrders = useShopStore((state) => state.fetchOrders);
+  const cartCount = cartItems.length;
+  const orderCount = myOrders.filter(
+    (order) => order.order_status === "pending",
+  ).length;
 
   const menuItems = [
-    { path: '/dashboard', icon: Home, label: 'Dashboard', roles: ['mother', 'doctor', 'counselor', 'admin'] },
-    { path: '/content', icon: FileText, label: 'Content', roles: ['mother', 'doctor', 'counselor', 'admin'] },
-    { path: '/hospitals', icon: Building2, label: 'Hospitals', roles: ['mother', 'doctor', 'counselor', 'admin'] },
-    { path: '/shop', icon: ShoppingBag, label: 'Shop', roles: ['mother'] },
-    { path: '/cart', icon: ShoppingCart, label: 'Cart', roles: ['mother'] },
-    { path: '/orders', icon: ShoppingCart, label: 'Orders', roles: ['mother'] },
-    { path: '/manage/products', icon: ShoppingBag, label: 'Manage Products', roles: ['admin', 'doctor', 'counselor'] },
-    { path: '/manage/orders', icon: ShoppingCart, label: 'Manage Orders', roles: ['admin', 'doctor', 'counselor'] },
-    { path: '/chat', icon: MessageSquare, label: 'Messages', roles: ['mother', 'doctor', 'counselor'] },
-    { path: '/audio-call', icon: Phone, label: 'Audio Call', roles: ['mother', 'doctor', 'counselor'] },
-    { path: '/video-call', icon: Video, label: 'Video Call', roles: ['mother', 'doctor', 'counselor'] },
-    { path: '/group-chat', icon: Users, label: 'Group Chat', roles: ['mother', 'doctor', 'counselor', 'admin'] },
-    { path: '/profile', icon: User, label: 'Profile', roles: ['mother', 'doctor', 'counselor', 'admin'] },
+    {
+      path: "/dashboard",
+      icon: Home,
+      label: "Dashboard",
+      roles: ["mother", "doctor", "counselor", "admin"],
+    },
+    {
+      path: "/content",
+      icon: FileText,
+      label: "Content",
+      roles: ["mother", "doctor", "counselor", "admin"],
+    },
+    {
+      path: "/hospitals",
+      icon: Building2,
+      label: "Hospitals",
+      roles: ["mother", "doctor", "counselor", "admin"],
+    },
+    { path: "/shop", icon: ShoppingBag, label: "Shop", roles: ["mother"] },
+    { path: "/cart", icon: ShoppingCart, label: "Cart", roles: ["mother"] },
+    { path: "/orders", icon: ShoppingCart, label: "Orders", roles: ["mother"] },
+    {
+      path: "/manage/products",
+      icon: ShoppingBag,
+      label: "Manage Products",
+      roles: ["admin", "doctor", "counselor"],
+    },
+    {
+      path: "/manage/orders",
+      icon: ShoppingCart,
+      label: "Manage Orders",
+      roles: ["admin", "doctor", "counselor"],
+    },
+    {
+      path: "/chat",
+      icon: MessageSquare,
+      label: "Messages",
+      roles: ["mother", "doctor", "counselor"],
+    },
+    {
+      path: "/audio-call",
+      icon: Phone,
+      label: "Audio Call",
+      roles: ["mother", "doctor", "counselor"],
+    },
+    {
+      path: "/video-call",
+      icon: Video,
+      label: "Video Call",
+      roles: ["mother", "doctor", "counselor"],
+    },
+    {
+      path: "/group-chat",
+      icon: Users,
+      label: "Group Chat",
+      roles: ["mother", "doctor", "counselor", "admin"],
+    },
+    {
+      path: "/profile",
+      icon: User,
+      label: "Profile",
+      roles: ["mother", "doctor", "counselor", "admin"],
+    },
   ];
 
-  const filteredMenuItems = menuItems.filter(item =>
-    !profile || item.roles.includes(profile.role)
+  const filteredMenuItems = menuItems.filter(
+    (item) => !profile || item.roles.includes(profile.role),
   );
 
   useEffect(() => {
@@ -43,33 +111,41 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       setShowTitle(window.scrollY > 40);
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   useEffect(() => {
-    if (user && profile?.role === 'mother') {
-      loadCounts();
-      const interval = setInterval(loadCounts, 3000);
-      return () => clearInterval(interval);
+    if (user && profile?.role === "mother") {
+      fetchCart();
+      fetchOrders("my");
     }
-  }, [user, profile]);
+  }, [user, profile?.role, location.pathname, fetchCart, fetchOrders]);
 
-  const loadCounts = async () => {
-    try {
-      const [cartRes, ordersRes, unreadRes] = await Promise.all([
-        shopService.getCart().catch(() => ({ items: [] })),
-        shopService.getOrders().catch(() => ({ orders: [] })),
-        chatService.getUnreadCount().catch(() => ({ unread_count: 0 }))
-      ]);
-
-      setCartCount(cartRes.items?.length || 0);
-      setOrderCount(ordersRes.orders?.filter(order => order.order_status === 'pending').length || 0);
-      setMessageCount(unreadRes.unread_count || 0);
-    } catch (error) {
-      console.error('Failed to load counts:', error);
+  useEffect(() => {
+    if (
+      !user ||
+      !profile?.role ||
+      !["mother", "doctor", "counselor"].includes(profile.role)
+    ) {
+      return;
     }
-  };
+
+    const loadUnreadCount = async () => {
+      try {
+        const unreadRes = await chatService
+          .getUnreadCount()
+          .catch(() => ({ unread_count: 0 }));
+        setMessageCount(unreadRes.unread_count || 0);
+      } catch (error) {
+        console.error("Failed to load message count:", error);
+      }
+    };
+
+    loadUnreadCount();
+    const interval = setInterval(loadUnreadCount, 3000);
+    return () => clearInterval(interval);
+  }, [user, profile?.role]);
 
   return (
     <>
@@ -82,7 +158,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
       <aside
         className={`fixed lg:sticky top-0 left-0 z-40 h-screen transition-transform  duration-300 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         <div className="h-full px-4 py-1 overflow-y-auto scrollbar-hide bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 w-64">
@@ -90,7 +166,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             {/* 🔹 Title fades in after scroll > 40px */}
             <h2
               className={`text-2xl ml-3 font-bold text-primary dark:text-secondary transition-opacity duration-500 ${
-                showTitle ? 'opacity-100 m-4' : 'opacity-0'
+                showTitle ? "opacity-100 m-4" : "opacity-0"
               }`}
             >
               BellyTalk
@@ -117,23 +193,23 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   onClick={onClose}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                     isActive
-                      ? 'bg-primary text-white dark:bg-secondary'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      ? "bg-primary text-white dark:bg-secondary"
+                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                   }`}
                 >
                   <Icon className="w-5 h-5" />
                   <span className="font-medium">{item.label}</span>
-                  {item.path === '/cart' && cartCount > 0 && (
+                  {item.path === "/cart" && cartCount > 0 && (
                     <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                       {cartCount}
                     </span>
                   )}
-                  {item.path === '/orders' && orderCount > 0 && (
+                  {item.path === "/orders" && orderCount > 0 && (
                     <span className="ml-auto bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                       {orderCount}
                     </span>
                   )}
-                  {item.path === '/chat' && messageCount > 0 && (
+                  {item.path === "/chat" && messageCount > 0 && (
                     <span className="ml-auto bg-green-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                       {messageCount}
                     </span>

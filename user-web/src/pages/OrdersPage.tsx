@@ -1,41 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import { shopService } from '../services/shop.service';
-import LoadingSpinner from '../components/common/LoadingSpinner';
-import Layout from '../components/layout/Layout';
-import { Package, Truck, CheckCircle, XCircle, Clock, MapPin, CreditCard } from 'lucide-react';
-import { Order } from '../types';
+import React, { useEffect } from "react";
+import LoadingSpinner from "../components/common/LoadingSpinner";
+import Layout from "../components/layout/Layout";
+import {
+  Package,
+  Truck,
+  CheckCircle,
+  XCircle,
+  Clock,
+  MapPin,
+  CreditCard,
+} from "lucide-react";
+import { useShopStore } from "../stores/shop.store";
 
 const OrdersPage: React.FC = () => {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const orders = useShopStore((state) => state.myOrders);
+  const loading = useShopStore((state) => state.ordersLoading);
+  const error = useShopStore((state) => state.error);
+  const fetchOrders = useShopStore((state) => state.fetchOrders);
 
   useEffect(() => {
-    loadOrders();
-  }, []);
-
-  const loadOrders = async () => {
-    try {
-      setLoading(true);
-      const response = await shopService.getOrders();
-      setOrders(response.orders || []);
-    } catch (error) {
-      console.error('Failed to load orders:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchOrders("my");
+  }, [fetchOrders]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'pending':
+      case "pending":
         return <Clock className="w-5 h-5" />;
-      case 'confirmed':
+      case "confirmed":
         return <CheckCircle className="w-5 h-5" />;
-      case 'shipped':
+      case "shipped":
         return <Truck className="w-5 h-5" />;
-      case 'delivered':
+      case "delivered":
         return <Package className="w-5 h-5" />;
-      case 'cancelled':
+      case "cancelled":
         return <XCircle className="w-5 h-5" />;
       default:
         return <Clock className="w-5 h-5" />;
@@ -44,41 +41,41 @@ const OrdersPage: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-300 dark:border-yellow-700';
-      case 'confirmed':
-        return 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700';
-      case 'shipped':
-        return 'bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-300 dark:border-purple-700';
-      case 'delivered':
-        return 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700';
-      case 'cancelled':
-        return 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700';
+      case "pending":
+        return "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-300 dark:border-yellow-700";
+      case "confirmed":
+        return "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700";
+      case "shipped":
+        return "bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-300 dark:border-purple-700";
+      case "delivered":
+        return "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700";
+      case "cancelled":
+        return "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700";
       default:
-        return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400 border-gray-300 dark:border-gray-600';
+        return "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400 border-gray-300 dark:border-gray-600";
     }
   };
 
   const getPaymentStatusColor = (status: string) => {
     switch (status) {
-      case 'paid':
-        return 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400';
-      case 'pending':
-        return 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400';
-      case 'failed':
-        return 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400';
+      case "paid":
+        return "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400";
+      case "pending":
+        return "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400";
+      case "failed":
+        return "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400";
       default:
-        return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400';
+        return "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400";
     }
   };
 
   const getPaymentStatusIcon = (status: string) => {
     switch (status) {
-      case 'paid':
+      case "paid":
         return <CheckCircle className="w-4 h-4" />;
-      case 'pending':
+      case "pending":
         return <Clock className="w-4 h-4" />;
-      case 'failed':
+      case "failed":
         return <XCircle className="w-4 h-4" />;
       default:
         return <CreditCard className="w-4 h-4" />;
@@ -100,14 +97,26 @@ const OrdersPage: React.FC = () => {
       <div className="max-w-7xl mx-auto py-8">
         <div className="flex items-center gap-3 mb-8">
           <Package className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">My Orders</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            My Orders
+          </h1>
         </div>
+
+        {error && (
+          <div className="mb-6 rounded-lg bg-red-50 dark:bg-red-900/20 p-4">
+            <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+          </div>
+        )}
 
         {orders.length === 0 ? (
           <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
             <Package className="w-20 h-20 mx-auto text-gray-400 dark:text-gray-600 mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No orders yet</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">Start shopping to place your first order</p>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              No orders yet
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Start shopping to place your first order
+            </p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -123,29 +132,43 @@ const OrdersPage: React.FC = () => {
                         <h3 className="text-lg font-bold text-gray-900 dark:text-white">
                           Order #{order.id.substring(0, 8).toUpperCase()}
                         </h3>
-                        <div className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border ${getStatusColor(order.order_status)}`}>
+                        <div
+                          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border ${getStatusColor(order.order_status)}`}
+                        >
                           {getStatusIcon(order.order_status)}
-                          <span className="capitalize">{order.order_status}</span>
+                          <span className="capitalize">
+                            {order.order_status}
+                          </span>
                         </div>
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Placed on {new Date(order.created_at).toLocaleDateString('en-US', {
-                          month: 'long',
-                          day: 'numeric',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
+                        Placed on{" "}
+                        {new Date(order.created_at).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        )}
                       </p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
-                      <div className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full ${getPaymentStatusColor(order.payment_status)}`}>
+                      <div
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full ${getPaymentStatusColor(order.payment_status)}`}
+                      >
                         {getPaymentStatusIcon(order.payment_status)}
-                        <span className="capitalize">{order.payment_status}</span>
+                        <span className="capitalize">
+                          {order.payment_status}
+                        </span>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Total Amount</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Total Amount
+                        </p>
                         <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                           ${order.total_price.toFixed(2)}
                         </p>
@@ -156,7 +179,9 @@ const OrdersPage: React.FC = () => {
                   {order.tracking_number && (
                     <div className="mt-4 flex items-center gap-2 text-sm">
                       <Truck className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                      <span className="text-gray-600 dark:text-gray-400">Tracking:</span>
+                      <span className="text-gray-600 dark:text-gray-400">
+                        Tracking:
+                      </span>
                       <span className="font-mono font-semibold text-gray-900 dark:text-white">
                         {order.tracking_number}
                       </span>
@@ -167,7 +192,9 @@ const OrdersPage: React.FC = () => {
                 <div className="p-6">
                   {order.order_items && order.order_items.length > 0 && (
                     <div className="space-y-4 mb-6">
-                      <h4 className="font-semibold text-gray-900 dark:text-white">Order Items</h4>
+                      <h4 className="font-semibold text-gray-900 dark:text-white">
+                        Order Items
+                      </h4>
                       {order.order_items.map((item, index) => (
                         <div
                           key={index}
@@ -182,14 +209,16 @@ const OrdersPage: React.FC = () => {
                           )}
                           <div className="flex-1">
                             <h5 className="font-medium text-gray-900 dark:text-white">
-                              {item.products?.title || 'Product'}
+                              {item.products?.title || "Product"}
                             </h5>
                             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                              Quantity: {item.quantity} × ${item.unit_price.toFixed(2)}
+                              Quantity: {item.quantity} × $
+                              {item.unit_price.toFixed(2)}
                             </p>
                             {item.products?.created_by && (
                               <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                                Seller ID: {item.products.created_by.substring(0, 8)}
+                                Seller ID:{" "}
+                                {item.products.created_by.substring(0, 8)}
                               </p>
                             )}
                           </div>
@@ -207,11 +236,16 @@ const OrdersPage: React.FC = () => {
                     <div className="mt-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50">
                       <div className="flex items-center gap-2 mb-2">
                         <MapPin className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                        <h5 className="font-semibold text-gray-900 dark:text-white">Shipping Address</h5>
+                        <h5 className="font-semibold text-gray-900 dark:text-white">
+                          Shipping Address
+                        </h5>
                       </div>
                       <p className="text-sm text-gray-700 dark:text-gray-300">
-                        {order.shipping_address.address}<br />
-                        {order.shipping_address.city}, {order.shipping_address.zipCode}<br />
+                        {order.shipping_address.address}
+                        <br />
+                        {order.shipping_address.city},{" "}
+                        {order.shipping_address.zipCode}
+                        <br />
                         {order.shipping_address.country}
                         {order.shipping_address.phone && (
                           <>
@@ -225,8 +259,12 @@ const OrdersPage: React.FC = () => {
 
                   {order.notes && (
                     <div className="mt-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                      <h5 className="font-semibold text-gray-900 dark:text-white mb-1">Order Notes</h5>
-                      <p className="text-sm text-gray-700 dark:text-gray-300">{order.notes}</p>
+                      <h5 className="font-semibold text-gray-900 dark:text-white mb-1">
+                        Order Notes
+                      </h5>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">
+                        {order.notes}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -234,7 +272,8 @@ const OrdersPage: React.FC = () => {
                 <div className="bg-gray-50 dark:bg-gray-900/50 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600 dark:text-gray-400">
-                      Last updated: {new Date(order.updated_at).toLocaleDateString()}
+                      Last updated:{" "}
+                      {new Date(order.updated_at).toLocaleDateString()}
                     </span>
                     {order.payment_intent_id && (
                       <span className="text-xs text-gray-500 dark:text-gray-500 font-mono">

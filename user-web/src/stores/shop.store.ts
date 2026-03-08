@@ -1,0 +1,320 @@
+import { create } from "zustand";
+import { shopService } from "../services/shop.service";
+import { Cart, CartItem, CreateOrderData, Order } from "../types";
+
+type OrdersScope = "all" | "my";
+
+type ShopStore = {
+  cart: Cart | null;
+  cartItems: CartItem[];
+  orders: Order[];
+  myOrders: Order[];
+  cartLoading: boolean;
+  ordersLoading: boolean;
+  checkoutLoading: boolean;
+  error: string | null;
+  lastCartFetched: number | null;
+  lastOrdersFetched: Record<OrdersScope, number | null>;
+  cartRequest: Promise<void> | null;
+  orderRequests: Record<OrdersScope, Promise<void> | null>;
+  fetchCart: (force?: boolean) => Promise<void>;
+  fetchOrders: (scope?: OrdersScope, force?: boolean) => Promise<void>;
+  addToCart: (productId: string, quantity: number) => Promise<void>;
+  removeFromCart: (itemId: string) => Promise<void>;
+  updateCartItemQuantity: (
+    productId: string,
+    quantity: number,
+  ) => Promise<void>;
+  createOrder: (orderData: CreateOrderData) => Promise<Order>;
+  processPayment: (
+    orderId: string,
+    paymentMethod?: string,
+  ) => Promise<{
+    success: boolean;
+    order: Order;
+    message: string;
+  }>;
+  updateOrderStatus: (
+    orderId: string,
+    updates: {
+      order_status?: string;
+      tracking_number?: string;
+      notes?: string;
+    },
+  ) => Promise<{ order: Order; message: string }>;
+  cancelOrder: (
+    orderId: string,
+    reason?: string,
+  ) => Promise<{ order: Order; message: string }>;
+  clearError: () => void;
+};
+
+const CART_STALE_TIME_MS = 20_000;
+const ORDERS_STALE_TIME_MS = 45_000;
+
+const upsertOrder = (orders: Order[], updatedOrder: Order) => {
+  const index = orders.findIndex((order) => order.id === updatedOrder.id);
+  if (index === -1) {
+    return [updatedOrder, ...orders];
+  }
+
+  const next = [...orders];
+  next[index] = { ...next[index], ...updatedOrder };
+  return next;
+};
+
+export const useShopStore = create<ShopStore>((set, get) => ({
+  cart: null,
+  cartItems: [],
+  orders: [],
+  myOrders: [],
+  cartLoading: false,
+  ordersLoading: false,
+  checkoutLoading: false,
+  error: null,
+  lastCartFetched: null,
+  lastOrdersFetched: { all: null, my: null },
+  cartRequest: null,
+  orderRequests: { all: null, my: null },
+
+  fetchCart: async (force = false) => {
+    const state = get();
+
+    if (state.cartRequest) {
+      return state.cartRequest;
+    }
+
+    const isFresh =
+      state.lastCartFetched !== null &&
+      Date.now() - state.lastCartFetched < CART_STALE_TIME_MS;
+
+    if (!force && isFresh) {
+      return;
+    }
+
+    const request = (async () => {
+      set({ cartLoading: true, error: null });
+      try {
+        const response = await shopService.getCart();
+        set({
+          cart: response.cart ?? null,
+          cartItems: response.items ?? [],
+          cartLoading: false,
+          lastCartFetched: Date.now(),
+        });
+      } catch (error) {
+        console.error("Failed to load cart:", error);
+        set({ cartLoading: false, error: "Failed to load cart" });
+        throw error;
+      } finally {
+        set({ cartRequest: null });
+      }
+    })();
+
+    set({ cartRequest: request });
+    return request;
+  },
+
+  fetchOrders: async (scope: OrdersScope = "all", force = false) => {
+    const state = get();
+
+    if (state.orderRequests[scope]) {
+      return state.orderRequests[scope] as Promise<void>;
+    }
+
+    const lastFetched = state.lastOrdersFetched[scope];
+    const isFresh =
+      lastFetched !== null && Date.now() - lastFetched < ORDERS_STALE_TIME_MS;
+
+    if (!force && isFresh) {
+      return;
+    }
+
+    const request = (async () => {
+      set({ ordersLoading: true, error: null });
+      try {
+        const response =
+          scope === "my"
+            ? await shopService.getMyOrders()
+            : await shopService.getOrders();
+        set((current) => ({
+          orders: scope === "all" ? (response.orders ?? []) : current.orders,
+          myOrders: scope === "my" ? (response.orders ?? []) : current.myOrders,
+          ordersLoading: false,
+          lastOrdersFetched: {
+            ...current.lastOrdersFetched,
+            [scope]: Date.now(),
+          },
+        }));
+      } catch (error) {
+        console.error("Failed to load orders:", error);
+        set({ ordersLoading: false, error: "Failed to load orders" });
+        throw error;
+      } finally {
+        set((current) => ({
+          orderRequests: {
+            ...current.orderRequests,
+            [scope]: null,
+          },
+        }));
+      }
+    })();
+
+    set((current) => ({
+      orderRequests: {
+        ...current.orderRequests,
+        [scope]: request,
+      },
+    }));
+
+    return request;
+  },
+
+  addToCart: async (productId: string, quantity: number) => {
+    if (quantity <= 0) return;
+
+    set({ error: null });
+    try {
+      await shopService.addToCart(productId, quantity);
+      await get().fetchCart(true);
+    } catch (error) {
+      console.error("Failed to add to cart:", error);
+      set({ error: "Failed to add item to cart" });
+      throw error;
+    }
+  },
+
+  removeFromCart: async (itemId: string) => {
+    set({ error: null });
+    try {
+      await shopService.removeFromCart(itemId);
+      set((state) => ({
+        cartItems: state.cartItems.filter((item) => item.id !== itemId),
+        lastCartFetched: Date.now(),
+      }));
+    } catch (error) {
+      console.error("Failed to remove cart item:", error);
+      set({ error: "Failed to remove item from cart" });
+      throw error;
+    }
+  },
+
+  updateCartItemQuantity: async (productId: string, quantity: number) => {
+    const normalizedQuantity = Math.max(0, quantity);
+    const { cartItems } = get();
+    const existing = cartItems.find((item) => item.product_id === productId);
+
+    set({ error: null });
+
+    try {
+      if (!existing && normalizedQuantity > 0) {
+        await shopService.addToCart(productId, normalizedQuantity);
+      } else if (existing && normalizedQuantity === 0) {
+        await shopService.removeFromCart(existing.id);
+      } else if (existing && normalizedQuantity > existing.quantity) {
+        await shopService.addToCart(
+          productId,
+          normalizedQuantity - existing.quantity,
+        );
+      } else if (existing && normalizedQuantity < existing.quantity) {
+        // Backend does not expose quantity decrement, so rebuild this item with desired quantity.
+        await shopService.removeFromCart(existing.id);
+        if (normalizedQuantity > 0) {
+          await shopService.addToCart(productId, normalizedQuantity);
+        }
+      }
+
+      await get().fetchCart(true);
+    } catch (error) {
+      console.error("Failed to update cart quantity:", error);
+      set({ error: "Failed to update cart quantity" });
+      throw error;
+    }
+  },
+
+  createOrder: async (orderData: CreateOrderData) => {
+    set({ checkoutLoading: true, error: null });
+    try {
+      const response = await shopService.createOrder(orderData);
+      const order = response.order;
+
+      set((state) => ({
+        checkoutLoading: false,
+        myOrders: upsertOrder(state.myOrders, order),
+        orders: upsertOrder(state.orders, order),
+        cart: null,
+        cartItems: [],
+        lastCartFetched: Date.now(),
+      }));
+
+      return order;
+    } catch (error) {
+      console.error("Failed to create order:", error);
+      set({ checkoutLoading: false, error: "Failed to create order" });
+      throw error;
+    }
+  },
+
+  processPayment: async (orderId: string, paymentMethod?: string) => {
+    set({ checkoutLoading: true, error: null });
+    try {
+      const response = await shopService.processPayment(orderId, paymentMethod);
+      const updated = response.order;
+
+      set((state) => ({
+        checkoutLoading: false,
+        myOrders: upsertOrder(state.myOrders, updated),
+        orders: upsertOrder(state.orders, updated),
+      }));
+
+      return response;
+    } catch (error) {
+      console.error("Failed to process payment:", error);
+      set({ checkoutLoading: false, error: "Failed to process payment" });
+      throw error;
+    }
+  },
+
+  updateOrderStatus: async (orderId: string, updates) => {
+    set({ error: null });
+    try {
+      const response = await shopService.updateOrderStatus(orderId, updates);
+      const updatedOrder = response.order;
+
+      set((state) => ({
+        orders: upsertOrder(state.orders, updatedOrder),
+        myOrders: upsertOrder(state.myOrders, updatedOrder),
+      }));
+
+      return response;
+    } catch (error) {
+      console.error("Failed to update order:", error);
+      set({ error: "Failed to update order" });
+      throw error;
+    }
+  },
+
+  cancelOrder: async (orderId: string, reason?: string) => {
+    set({ error: null });
+    try {
+      const response = await shopService.cancelOrder(orderId, reason);
+      const updatedOrder = response.order;
+
+      set((state) => ({
+        orders: upsertOrder(state.orders, updatedOrder),
+        myOrders: upsertOrder(state.myOrders, updatedOrder),
+      }));
+
+      return response;
+    } catch (error) {
+      console.error("Failed to cancel order:", error);
+      set({ error: "Failed to cancel order" });
+      throw error;
+    }
+  },
+
+  clearError: () => set({ error: null }),
+}));
+
+// Backward-compatibility shim for existing imports.
+export const useOrdersStore = useShopStore;
