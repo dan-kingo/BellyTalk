@@ -3,6 +3,21 @@ import Layout from "../components/layout/Layout";
 import { DashboardPageSkeleton } from "../components/common/PageSkeletons";
 import { useAdminStore } from "../stores/admin.store";
 import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  RadialLinearScale,
+  Tooltip,
+  Legend,
+  Filler,
+  ChartOptions,
+} from "chart.js";
+import { Line, Bar, Doughnut, Radar } from "react-chartjs-2";
+import {
   Users,
   FileText,
   MessageSquare,
@@ -12,8 +27,20 @@ import {
   PieChart,
   Calendar,
   ArrowUp,
-  ArrowDown,
 } from "lucide-react";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  RadialLinearScale,
+  Tooltip,
+  Legend,
+  Filler,
+);
 
 // Mock data for charts
 const generateLineData = (count: number, base: number, variation: number) => {
@@ -85,11 +112,198 @@ const DashboardPage: React.FC = () => {
   const hospitalData = performanceData.hospitalEngagement || [
     50, 75, 100, 125, 150,
   ];
+  const userGrowthData = performanceData.userGrowth.slice(0, timeLabels.length);
+  const userGrowthDelta =
+    userGrowthData.length > 1
+      ? ((userGrowthData[userGrowthData.length - 1] - userGrowthData[0]) /
+          Math.max(userGrowthData[0], 1)) *
+        100
+      : 0;
+  const contentGrowthData = performanceData.contentCreation.slice(
+    0,
+    timeLabels.length,
+  );
   const messageData = performanceData.messageActivity || [
     150, 180, 200, 220, 250, 230, 210,
   ];
-  const maxHospitalValue = Math.max(...hospitalData);
-  const maxMessageValue = Math.max(...messageData);
+  const scopedMessageData = messageData.slice(0, timeLabels.length);
+
+  const commonLineOptions: ChartOptions<"line"> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: "index", intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: "#111827",
+        titleColor: "#F9FAFB",
+        bodyColor: "#F9FAFB",
+        padding: 10,
+        displayColors: false,
+      },
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { color: "#6B7280", font: { size: 11 } },
+      },
+      y: {
+        beginAtZero: true,
+        grid: { color: "rgba(156, 163, 175, 0.2)" },
+        ticks: { color: "#6B7280", font: { size: 11 } },
+      },
+    },
+    elements: {
+      point: { radius: 3, hoverRadius: 6 },
+      line: { tension: 0.35, borderWidth: 3 },
+    },
+  };
+
+  const userGrowthChartData = {
+    labels: timeLabels,
+    datasets: [
+      {
+        label: "Users",
+        data: userGrowthData,
+        borderColor: "#2563EB",
+        backgroundColor: "rgba(37, 99, 235, 0.18)",
+        fill: true,
+      },
+    ],
+  };
+
+  const contentChartData = {
+    labels: timeLabels,
+    datasets: [
+      {
+        label: "Content",
+        data: contentGrowthData,
+        borderColor: "#16A34A",
+        backgroundColor: "rgba(22, 163, 74, 0.16)",
+        fill: true,
+      },
+    ],
+  };
+
+  const hospitalChartData = {
+    labels: performanceData.topHospitals.map((item) => item.name.split(" ")[0]),
+    datasets: [
+      {
+        label: "Active Users",
+        data: hospitalData,
+        backgroundColor: [
+          "rgba(249, 115, 22, 0.88)",
+          "rgba(245, 158, 11, 0.88)",
+          "rgba(251, 146, 60, 0.88)",
+          "rgba(234, 88, 12, 0.88)",
+          "rgba(251, 191, 36, 0.88)",
+        ],
+        borderRadius: 10,
+      },
+    ],
+  };
+
+  const hospitalChartOptions: ChartOptions<"bar"> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: "#111827",
+        titleColor: "#F9FAFB",
+        bodyColor: "#F9FAFB",
+      },
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: "#6B7280" } },
+      y: {
+        beginAtZero: true,
+        grid: { color: "rgba(156, 163, 175, 0.2)" },
+        ticks: { color: "#6B7280" },
+      },
+    },
+  };
+
+  const performanceRadarData = {
+    labels: ["Uptime", "Speed", "Low Errors", "Satisfaction"],
+    datasets: [
+      {
+        label: "Platform Score",
+        data: [
+          performanceData.platformMetrics.uptime,
+          ((300 - performanceData.platformMetrics.responseTime) / 300) * 100,
+          100 - performanceData.platformMetrics.errorRate,
+          (performanceData.platformMetrics.satisfaction / 5) * 100,
+        ],
+        borderColor: "#7C3AED",
+        backgroundColor: "rgba(124, 58, 237, 0.2)",
+        pointBackgroundColor: "#7C3AED",
+      },
+    ],
+  };
+
+  const performanceRadarOptions: ChartOptions<"radar"> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      r: {
+        beginAtZero: true,
+        max: 100,
+        ticks: { display: false },
+        grid: { color: "rgba(156, 163, 175, 0.25)" },
+        angleLines: { color: "rgba(156, 163, 175, 0.25)" },
+        pointLabels: { color: "#6B7280", font: { size: 11 } },
+      },
+    },
+  };
+
+  const topHospitalsChartData = {
+    labels: performanceData.topHospitals.map((item) => item.name),
+    datasets: [
+      {
+        data: performanceData.topHospitals.map((item) => item.users),
+        backgroundColor: [
+          "#4F46E5",
+          "#06B6D4",
+          "#10B981",
+          "#F59E0B",
+          "#EF4444",
+        ],
+        borderWidth: 0,
+      },
+    ],
+  };
+
+  const topHospitalsChartOptions: ChartOptions<"doughnut"> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: "bottom",
+        labels: { color: "#6B7280", boxWidth: 12 },
+      },
+      tooltip: {
+        callbacks: {
+          label: (context) => `${context.label}: ${context.parsed} users`,
+        },
+      },
+    },
+    cutout: "62%",
+  };
+
+  const messageChartData = {
+    labels: timeLabels,
+    datasets: [
+      {
+        label: "Messages",
+        data: scopedMessageData,
+        borderColor: "#06B6D4",
+        backgroundColor: "rgba(6, 182, 212, 0.16)",
+        fill: true,
+      },
+    ],
+  };
 
   if (loading) {
     return (
@@ -132,7 +346,7 @@ const DashboardPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-blue-100 text-sm font-medium">Total Users</p>
-                <p className="text-3xl font-bold mt-2">{stats?.users || 0}</p>
+                <p className="text-3xl font-bold mt-2">{stats?.users  || 0}</p>
               </div>
               <Users className="w-8 h-8 text-blue-200" />
             </div>
@@ -151,7 +365,7 @@ const DashboardPage: React.FC = () => {
                   Content Pieces
                 </p>
                 <p className="text-3xl font-bold mt-2">
-                  {stats?.contents || 0}
+                  {stats?.contents  || 0}
                 </p>
               </div>
               <FileText className="w-8 h-8 text-green-200" />
@@ -210,26 +424,15 @@ const DashboardPage: React.FC = () => {
                   User Growth
                 </h3>
               </div>
-              <span className="text-sm text-green-500 font-medium">+12.5%</span>
+              <span
+                className={`text-sm font-medium ${userGrowthDelta >= 0 ? "text-green-500" : "text-red-500"}`}
+              >
+                {userGrowthDelta >= 0 ? "+" : ""}
+                {userGrowthDelta.toFixed(1)}%
+              </span>
             </div>
-            <div className="h-48 flex items-end gap-2 pb-4">
-              {performanceData.userGrowth.map((value, index) => (
-                <div key={index} className="flex-1 flex flex-col items-center">
-                  <div
-                    className="w-full bg-linear-to-t from-blue-500 to-blue-600 rounded-t-lg transition-all hover:from-blue-400 hover:to-blue-500 cursor-pointer relative group"
-                    style={{
-                      height: `${(value / Math.max(...performanceData.userGrowth)) * 80}%`,
-                    }}
-                  >
-                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {Math.round(value)}
-                    </div>
-                  </div>
-                  <span className="text-xs text-gray-500 mt-2">
-                    {timeLabels[index]}
-                  </span>
-                </div>
-              ))}
+            <div className="h-56">
+              <Line data={userGrowthChartData} options={commonLineOptions} />
             </div>
           </div>
 
@@ -244,24 +447,17 @@ const DashboardPage: React.FC = () => {
               </div>
               <span className="text-sm text-green-500 font-medium">+8.3%</span>
             </div>
-            <div className="h-48 flex items-end gap-2 pb-4">
-              {performanceData.contentCreation.map((value, index) => (
-                <div key={index} className="flex-1 flex flex-col items-center">
-                  <div
-                    className="w-full bg-linear-to-t from-green-500 to-green-600 rounded-t-lg transition-all hover:from-green-400 hover:to-green-500 cursor-pointer relative group"
-                    style={{
-                      height: `${(value / Math.max(...performanceData.contentCreation)) * 80}%`,
-                    }}
-                  >
-                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {Math.round(value)}
-                    </div>
-                  </div>
-                  <span className="text-xs text-gray-500 mt-2">
-                    {timeLabels[index]}
-                  </span>
-                </div>
-              ))}
+            <div className="h-56">
+              <Line
+                data={contentChartData}
+                options={{
+                  ...commonLineOptions,
+                  elements: {
+                    ...commonLineOptions.elements,
+                    line: { tension: 0.35, borderWidth: 3 },
+                  },
+                }}
+              />
             </div>
           </div>
         </div>
@@ -276,74 +472,37 @@ const DashboardPage: React.FC = () => {
                 Performance
               </h3>
             </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Uptime
-                </span>
-                <span className="text-lg font-semibold text-green-500">
+            <div className="h-56">
+              <Radar
+                data={performanceRadarData}
+                options={performanceRadarOptions}
+              />
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-gray-600 dark:text-gray-400">
+              <p>
+                Uptime:{" "}
+                <span className="font-semibold text-green-500">
                   {performanceData.platformMetrics.uptime}%
                 </span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div
-                  className="bg-green-500 h-2 rounded-full"
-                  style={{
-                    width: `${performanceData.platformMetrics.uptime}%`,
-                  }}
-                ></div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Avg. Response
-                </span>
-                <span className="text-lg font-semibold text-blue-500">
+              </p>
+              <p>
+                Response:{" "}
+                <span className="font-semibold text-blue-500">
                   {performanceData.platformMetrics.responseTime}ms
                 </span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div
-                  className="bg-blue-500 h-2 rounded-full"
-                  style={{
-                    width: `${((300 - performanceData.platformMetrics.responseTime) / 300) * 100}%`,
-                  }}
-                ></div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Error Rate
-                </span>
-                <span className="text-lg font-semibold text-red-500">
+              </p>
+              <p>
+                Error:{" "}
+                <span className="font-semibold text-red-500">
                   {performanceData.platformMetrics.errorRate}%
                 </span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div
-                  className="bg-red-500 h-2 rounded-full"
-                  style={{
-                    width: `${performanceData.platformMetrics.errorRate}%`,
-                  }}
-                ></div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Satisfaction
-                </span>
-                <span className="text-lg font-semibold text-yellow-500">
+              </p>
+              <p>
+                Satisfaction:{" "}
+                <span className="font-semibold text-yellow-500">
                   {performanceData.platformMetrics.satisfaction}/5
                 </span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div
-                  className="bg-yellow-500 h-2 rounded-full"
-                  style={{
-                    width: `${(performanceData.platformMetrics.satisfaction / 5) * 100}%`,
-                  }}
-                ></div>
-              </div>
+              </p>
             </div>
           </div>
 
@@ -358,36 +517,15 @@ const DashboardPage: React.FC = () => {
               </div>
               <span className="text-sm text-gray-500">Active Users</span>
             </div>
-            <div className="h-64 flex items-end gap-4 pb-4 px-2">
-              {hospitalData.map((value, index) => (
-                <div key={index} className="flex-1 flex flex-col items-center">
-                  <div className="flex flex-col items-center h-full justify-end">
-                    <div
-                      className="w-full max-w-[60px] bg-linear-to-t from-orange-500 to-orange-600 rounded-t-lg transition-all hover:from-orange-400 hover:to-orange-500 cursor-pointer relative group min-h-5"
-                      style={{ height: `${(value / maxHospitalValue) * 90}%` }}
-                    >
-                      <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                        {value} users
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-500 mt-2 text-center leading-tight font-medium">
-                      Hosp. {index + 1}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-between text-xs text-gray-500 mt-2 px-2">
-              <span>Low</span>
-              <span>Engagement</span>
-              <span>High</span>
+            <div className="h-64">
+              <Bar data={hospitalChartData} options={hospitalChartOptions} />
             </div>
           </div>
         </div>
 
         {/* Top Hospitals & Message Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Top Hospitals List */}
+          {/* Top Hospitals Distribution */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3 mb-6">
               <PieChart className="w-6 h-6 text-indigo-500" />
@@ -395,41 +533,11 @@ const DashboardPage: React.FC = () => {
                 Top Hospitals
               </h3>
             </div>
-            <div className="space-y-4">
-              {performanceData.topHospitals.map((hospital, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/20 rounded-lg flex items-center justify-center">
-                      <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">
-                        {index + 1}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">
-                        {hospital.name}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {hospital.users} users
-                      </p>
-                    </div>
-                  </div>
-                  <div
-                    className={`flex items-center gap-1 ${hospital.growth >= 0 ? "text-green-500" : "text-red-500"}`}
-                  >
-                    {hospital.growth >= 0 ? (
-                      <ArrowUp className="w-4 h-4" />
-                    ) : (
-                      <ArrowDown className="w-4 h-4" />
-                    )}
-                    <span className="text-sm font-medium">
-                      {Math.abs(hospital.growth)}%
-                    </span>
-                  </div>
-                </div>
-              ))}
+            <div className="h-64">
+              <Doughnut
+                data={topHospitalsChartData}
+                options={topHospitalsChartOptions}
+              />
             </div>
           </div>
 
@@ -444,22 +552,8 @@ const DashboardPage: React.FC = () => {
               </div>
               <span className="text-sm text-green-500 font-medium">+23.1%</span>
             </div>
-            <div className="h-48 flex items-end gap-2 pb-4">
-              {messageData.slice(0, timeLabels.length).map((value, index) => (
-                <div key={index} className="flex-1 flex flex-col items-center">
-                  <div
-                    className="w-full bg-linear-to-t from-cyan-500 to-cyan-600 rounded-t-lg transition-all hover:from-cyan-400 hover:to-cyan-500 cursor-pointer relative group"
-                    style={{ height: `${(value / maxMessageValue) * 80}%` }}
-                  >
-                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {Math.round(value)}
-                    </div>
-                  </div>
-                  <span className="text-xs text-gray-500 mt-2">
-                    {timeLabels[index]}
-                  </span>
-                </div>
-              ))}
+            <div className="h-56">
+              <Line data={messageChartData} options={commonLineOptions} />
             </div>
           </div>
         </div>
