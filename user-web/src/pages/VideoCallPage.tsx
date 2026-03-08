@@ -21,6 +21,22 @@ import { Profile } from "../types";
 import { videoService } from "../services/video.service";
 import { useLocation, useNavigate } from "react-router-dom";
 
+type CallHistoryItem = {
+  id: string;
+  call_type: "audio" | "video";
+  status: string;
+  created_at: string;
+  started_at?: string | null;
+  ended_at?: string | null;
+  direction: "incoming" | "outgoing";
+  counterpart?: {
+    id: string;
+    full_name: string;
+    email: string;
+    avatar_url?: string;
+  } | null;
+};
+
 const VideoCallPage: React.FC = () => {
   const {
     join,
@@ -51,8 +67,26 @@ const VideoCallPage: React.FC = () => {
   const [remoteUser, setRemoteUser] = useState<Profile | null>(null);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const [debugInfo, setDebugInfo] = useState<any>({});
+  const [history, setHistory] = useState<CallHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const APP_ID = import.meta.env.VITE_AGORA_APP_ID!;
+
+  const loadCallHistory = async () => {
+    try {
+      setHistoryLoading(true);
+      const response = await videoService.getHistory(20);
+      setHistory(response.sessions || []);
+    } catch (error) {
+      console.error("Failed to load video call history:", error);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCallHistory();
+  }, []);
 
   // Auto-join incoming video calls
   useEffect(() => {
@@ -353,6 +387,8 @@ const VideoCallPage: React.FC = () => {
       setTimeout(() => {
         setCallStatus("");
       }, 3000);
+
+      loadCallHistory();
     } catch (error) {
       console.error("❌ Failed to end video call:", error);
       setCallStatus("Failed to end call");
@@ -743,6 +779,54 @@ const VideoCallPage: React.FC = () => {
             </div>
           </div>
         </Dialog>
+
+        <div className="mt-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Video Call History
+            </h2>
+            <button
+              onClick={loadCallHistory}
+              className="text-sm text-primary dark:text-secondary hover:underline"
+            >
+              Refresh
+            </button>
+          </div>
+
+          {historyLoading ? (
+            <div className="flex justify-center py-6">
+              <LoadingSpinner />
+            </div>
+          ) : history.length === 0 ? (
+            <p className="text-gray-500 dark:text-gray-400 py-2">
+              No video calls yet.
+            </p>
+          ) : (
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {history.map((item) => (
+                <div
+                  key={item.id}
+                  className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-medium text-gray-900 dark:text-white truncate">
+                      {item.counterpart?.full_name || "Unknown user"}
+                    </p>
+                    <span className="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 shrink-0">
+                      {item.direction}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-sm text-gray-600 dark:text-gray-400 flex flex-wrap gap-x-3 gap-y-1">
+                    <span>Status: {item.status}</span>
+                    <span>
+                      Date: {new Date(item.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </Layout>
   );

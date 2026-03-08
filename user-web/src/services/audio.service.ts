@@ -1,41 +1,46 @@
-import api from './api';
+import api from "./api";
 
 class AudioService {
   /**
    * Create a new audio session
    */
   async createSession(receiverId: string, channelName?: string) {
-    console.log('🎯 Creating audio session:', { receiverId, channelName });
-    
-    const response = await api.post('/audio/create', {
+    console.log("🎯 Creating audio session:", { receiverId, channelName });
+
+    const response = await api.post("/audio/create", {
       receiver_id: receiverId,
-      channel_name: channelName
+      channel_name: channelName,
     });
-    
-    console.log('✅ Audio session created:', response.data);
+
+    console.log("✅ Audio session created:", response.data);
     return response.data;
   }
 
   /**
    * Get auth tokens for joining channel
    */
-  async getTokens(sessionId?: string, channelName?: string, role: string = 'publisher', userName?: string) {
-    console.log('🎯 Getting auth tokens:', { sessionId, channelName, role });
-    
-    const response = await api.post('/audio/token', {
+  async getTokens(
+    sessionId?: string,
+    channelName?: string,
+    role: string = "publisher",
+    userName?: string,
+  ) {
+    console.log("🎯 Getting auth tokens:", { sessionId, channelName, role });
+
+    const response = await api.post("/audio/token", {
       session_id: sessionId,
       channel_name: channelName,
       role,
-      user_name: userName
+      user_name: userName,
     });
-    
-    console.log('✅ Auth tokens received:', {
+
+    console.log("✅ Auth tokens received:", {
       hasRtcToken: !!response.data.rtcToken,
       hasRtmToken: !!response.data.rtmToken,
       channelName: response.data.channelName,
-      uid: response.data.uid
+      uid: response.data.uid,
     });
-    
+
     return response.data;
   }
 
@@ -43,14 +48,18 @@ class AudioService {
    * End audio session
    */
   async endSession(sessionId: string, recordingUrl?: string, summary?: string) {
-    console.log('🎯 Ending audio session:', { sessionId, recordingUrl, summary });
-    
+    console.log("🎯 Ending audio session:", {
+      sessionId,
+      recordingUrl,
+      summary,
+    });
+
     const response = await api.post(`/audio/end/${sessionId}`, {
       recording_url: recordingUrl,
-      summary
+      summary,
     });
-    
-    console.log('✅ Audio session ended:', response.data);
+
+    console.log("✅ Audio session ended:", response.data);
     return response.data;
   }
 
@@ -58,11 +67,11 @@ class AudioService {
    * Get session details
    */
   async getSession(sessionId: string) {
-    console.log('🎯 Getting session details:', { sessionId });
-    
+    console.log("🎯 Getting session details:", { sessionId });
+
     const response = await api.get(`/audio/session/${sessionId}`);
-    
-    console.log('✅ Session details received:', response.data);
+
+    console.log("✅ Session details received:", response.data);
     return response.data;
   }
 
@@ -70,11 +79,18 @@ class AudioService {
    * Get channel information
    */
   async getChannelInfo(channelName: string) {
-    console.log('🎯 Getting channel info:', { channelName });
-    
+    console.log("🎯 Getting channel info:", { channelName });
+
     const response = await api.get(`/audio/channel-info/${channelName}`);
-    
-    console.log('✅ Channel info received:', response.data);
+
+    console.log("✅ Channel info received:", response.data);
+    return response.data;
+  }
+
+  async getHistory(limit: number = 20) {
+    const response = await api.get("/audio/history", {
+      params: { call_type: "audio", limit },
+    });
     return response.data;
   }
 }

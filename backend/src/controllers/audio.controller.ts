@@ -6,48 +6,51 @@ import { AuthRequest } from "../middlewares/auth.middleware.js";
 /**
  * POST /api/audio/create
  * Body: { receiver_id: string, channel_name?: string }
- */// In your audio.controller.ts - update createSession function
+ */ // In your audio.controller.ts - update createSession function
 export const createSession = async (req: AuthRequest, res: Response) => {
-  console.log('🎯 CREATE SESSION REQUEST:', {
+  console.log("🎯 CREATE SESSION REQUEST:", {
     user: req.user?.id,
-    body: req.body
+    body: req.body,
   });
 
   try {
     const initiatorId = req.user!.id;
-    const { receiver_id, channel_name, call_type = 'audio' } = req.body; // Add call_type
-    
+    const { receiver_id, channel_name, call_type = "audio" } = req.body; // Add call_type
+
     if (!receiver_id) {
-      console.warn('❌ Missing receiver_id');
+      console.warn("❌ Missing receiver_id");
       return res.status(400).json({ error: "receiver_id required" });
     }
 
     // Validate receiver exists
-    console.log('🔍 Validating receiver:', { receiver_id });
+    console.log("🔍 Validating receiver:", { receiver_id });
     const { data: receiver, error: receiverError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, email, full_name')
-      .eq('id', receiver_id)
+      .from("profiles")
+      .select("id, email, full_name")
+      .eq("id", receiver_id)
       .single();
 
     if (receiverError || !receiver) {
-      console.error('❌ Receiver not found:', receiverError);
+      console.error("❌ Receiver not found:", receiverError);
       return res.status(404).json({ error: "Receiver user not found" });
     }
 
-    console.log('✅ Receiver validated:', receiver);
+    console.log("✅ Receiver validated:", receiver);
 
     // Create Agora channel tokens
-    console.log('🚀 Creating Agora channel...');
-    const channelInfo = await agoraService.createChannelTokens(initiatorId, channel_name);
-    
-    console.log('📋 Agora channel created:', {
+    console.log("🚀 Creating Agora channel...");
+    const channelInfo = await agoraService.createChannelTokens(
+      initiatorId,
+      channel_name,
+    );
+
+    console.log("📋 Agora channel created:", {
       channelName: channelInfo.channelName,
-      uid: channelInfo.uid
+      uid: channelInfo.uid,
     });
 
     // Create session record
-    console.log('💾 Creating session record...');
+    console.log("💾 Creating session record...");
     const sessionData = {
       initiator_id: initiatorId,
       receiver_id,
@@ -66,44 +69,43 @@ export const createSession = async (req: AuthRequest, res: Response) => {
       .single();
 
     if (error) {
-      console.error('❌ Session creation failed:', error);
-      return res.status(500).json({ 
+      console.error("❌ Session creation failed:", error);
+      return res.status(500).json({
         error: "Failed to create session in database",
         details: error.message,
-        code: "DATABASE_ERROR"
+        code: "DATABASE_ERROR",
       });
     }
 
-    console.log('✅ Session created successfully:', session.id);
+    console.log("✅ Session created successfully:", session.id);
 
     // Manually add user info to response
     const responseData = {
       session: {
         ...session,
-        initiator: { 
-          id: initiatorId, 
-          email: req.user?.email, 
-          full_name: req.user?.full_name 
+        initiator: {
+          id: initiatorId,
+          email: req.user?.email,
+          full_name: req.user?.full_name,
         },
-        receiver: { 
-          id: receiver.id, 
-          email: receiver.email, 
-          full_name: receiver.full_name 
-        }
+        receiver: {
+          id: receiver.id,
+          email: receiver.email,
+          full_name: receiver.full_name,
+        },
       },
       channel: {
         name: channelInfo.channelName,
-        uid: channelInfo.uid
-      }
+        uid: channelInfo.uid,
+      },
     };
 
     res.status(201).json(responseData);
-
   } catch (err: any) {
     console.error("❌ createSession error:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Internal server error",
-      code: "SESSION_CREATION_FAILED"
+      code: "SESSION_CREATION_FAILED",
     });
   }
 };
@@ -114,13 +116,18 @@ export const createSession = async (req: AuthRequest, res: Response) => {
  */
 // In your backend audio.controller.ts - getAuthToken function
 export const getAuthToken = async (req: AuthRequest, res: Response) => {
-  console.log('🎯 GET AUTH TOKEN REQUEST:', {
+  console.log("🎯 GET AUTH TOKEN REQUEST:", {
     user: req.user?.id,
-    body: req.body
+    body: req.body,
   });
 
   try {
-    const { session_id, channel_name, role = "publisher", user_name } = req.body;
+    const {
+      session_id,
+      channel_name,
+      role = "publisher",
+      user_name,
+    } = req.body;
     const user_id = req.user!.id;
 
     let channelName = channel_name;
@@ -129,8 +136,8 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
 
     // If session_id provided, get channel_name and validate session
     if (session_id) {
-      console.log('🔍 Fetching session:', { session_id });
-      
+      console.log("🔍 Fetching session:", { session_id });
+
       const { data: sessionData, error: sessionError } = await supabaseAdmin
         .from("audio_sessions")
         .select("*")
@@ -138,83 +145,101 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
         .single();
 
       if (sessionError || !sessionData) {
-        console.error('❌ Session not found:', sessionError);
+        console.error("❌ Session not found:", sessionError);
         return res.status(404).json({ error: "Session not found" });
       }
 
       session = sessionData;
       channelName = sessionData.channel_name;
-      
+
       // ✅ CRITICAL FIX: Generate DIFFERENT UID for receiver
       if (sessionData.initiator_id === user_id) {
         // Initiator uses the session UID
         uid = sessionData.uid;
-        console.log('🎯 Initiator using session UID:', uid);
+        console.log("🎯 Initiator using session UID:", uid);
       } else {
         // Receiver gets a NEW UID
         uid = Math.floor(Math.random() * 100000);
-        console.log('🎯 Receiver generated new UID:', uid);
+        console.log("🎯 Receiver generated new UID:", uid);
       }
 
       // Check if user is authorized for this session
-      if (sessionData.initiator_id !== user_id && sessionData.receiver_id !== user_id) {
-        console.warn('🚫 Unauthorized access attempt:', { user_id, session_id });
-        return res.status(403).json({ error: "Not authorized for this session" });
+      if (
+        sessionData.initiator_id !== user_id &&
+        sessionData.receiver_id !== user_id
+      ) {
+        console.warn("🚫 Unauthorized access attempt:", {
+          user_id,
+          session_id,
+        });
+        return res
+          .status(403)
+          .json({ error: "Not authorized for this session" });
       }
 
       // Check if session is active
-      if (sessionData.status === 'ended') {
-        console.warn('📵 Session already ended:', { session_id });
+      if (sessionData.status === "ended") {
+        console.warn("📵 Session already ended:", { session_id });
         return res.status(400).json({ error: "Session has ended" });
       }
-
     } else {
       // Generate new UID if no session (shouldn't happen in our flow)
       uid = Math.floor(Math.random() * 100000);
-      console.log('📋 Generated new UID (no session):', uid);
+      console.log("📋 Generated new UID (no session):", uid);
     }
 
     if (!channelName) {
-      console.warn('❌ Missing channel_name');
-      return res.status(400).json({ error: "channel_name or valid session_id required" });
+      console.warn("❌ Missing channel_name");
+      return res
+        .status(400)
+        .json({ error: "channel_name or valid session_id required" });
     }
 
     // Generate tokens
-    console.log('🔧 Generating tokens...', { channelName, uid, role });
-    const rtcToken = await agoraService.generateRtcToken(channelName, uid, role as any);
+    console.log("🔧 Generating tokens...", { channelName, uid, role });
+    const rtcToken = await agoraService.generateRtcToken(
+      channelName,
+      uid,
+      role as any,
+    );
     const rtmToken = await agoraService.generateRtmToken(user_id.toString());
 
-    console.log('✅ Tokens generated:', {
+    console.log("✅ Tokens generated:", {
       uid: uid,
       channelName: channelName,
-      userRole: session?.initiator_id === user_id ? 'initiator' : 'receiver'
+      userRole: session?.initiator_id === user_id ? "initiator" : "receiver",
     });
 
     // Update session status if receiver is joining
-    if (session_id && session && session.status === 'pending' && session.initiator_id !== user_id) {
-      console.log('🔄 Receiver joined - updating session status to active');
+    if (
+      session_id &&
+      session &&
+      session.status === "pending" &&
+      session.initiator_id !== user_id
+    ) {
+      console.log("🔄 Receiver joined - updating session status to active");
       await supabaseAdmin
         .from("audio_sessions")
-        .update({ 
-          status: "active", 
-          started_at: new Date().toISOString(), 
-          updated_at: new Date().toISOString() 
+        .update({
+          status: "active",
+          started_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .eq("id", session_id);
     }
 
-    res.json({ 
+    res.json({
       rtcToken,
       rtmToken,
       channelName,
       uid,
-      session_id: session_id || null
+      session_id: session_id || null,
     });
   } catch (err: any) {
     console.error("❌ getAuthToken error:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       error: err.message ?? "Server error",
-      code: "TOKEN_GENERATION_FAILED"
+      code: "TOKEN_GENERATION_FAILED",
     });
   }
 };
@@ -222,10 +247,10 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
  * POST /api/audio/end/:session_id
  */
 export const endSession = async (req: AuthRequest, res: Response) => {
-  console.log('🎯 END SESSION REQUEST:', {
+  console.log("🎯 END SESSION REQUEST:", {
     user_id: req.user?.id,
     session_id: req.params.session_id,
-    full_user: req.user  // Log entire req.user object
+    full_user: req.user, // Log entire req.user object
   });
 
   try {
@@ -240,13 +265,13 @@ export const endSession = async (req: AuthRequest, res: Response) => {
       .single();
 
     if (fetchErr || !session) {
-      console.error('❌ Session not found:', fetchErr);
+      console.error("❌ Session not found:", fetchErr);
       return res.status(404).json({ error: "Session not found" });
     }
 
     // CRITICAL DEBUG LOG
-    console.log('🔍 AUTH DEBUG:', {
-      user_id,  // From JWT
+    console.log("🔍 AUTH DEBUG:", {
+      user_id, // From JWT
       initiator_id: session.initiator_id,
       receiver_id: session.receiver_id,
       user_is_initiator: session.initiator_id === user_id,
@@ -254,28 +279,33 @@ export const endSession = async (req: AuthRequest, res: Response) => {
       types_match: {
         user_type: typeof user_id,
         initiator_type: typeof session.initiator_id,
-        receiver_type: typeof session.receiver_id
-      }
+        receiver_type: typeof session.receiver_id,
+      },
     });
 
     // Auth check
     if (session.initiator_id !== user_id && session.receiver_id !== user_id) {
-      console.warn('🚫 UNAUTHORIZED:', {
+      console.warn("🚫 UNAUTHORIZED:", {
         user_id,
-        expected: [session.initiator_id, session.receiver_id]
+        expected: [session.initiator_id, session.receiver_id],
       });
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: "Not authorized to end this session",
-        debug: {  // TEMP: Remove in production
+        debug: {
+          // TEMP: Remove in production
           user_id,
           initiator_id: session.initiator_id,
-          receiver_id: session.receiver_id
-        }
+          receiver_id: session.receiver_id,
+        },
       });
     }
 
     // Update (triggers WebSocket)
-    const updates = { status: "ended", ended_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+    const updates = {
+      status: "ended",
+      ended_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
     const { data: updatedSession, error } = await supabase
       .from("audio_sessions")
       .update(updates)
@@ -284,11 +314,11 @@ export const endSession = async (req: AuthRequest, res: Response) => {
       .single();
 
     if (error) {
-      console.error('❌ Update failed:', error);
+      console.error("❌ Update failed:", error);
       return res.status(500).json({ error: "Failed to end session" });
     }
 
-    console.log('✅ Session ended - WebSocket fired!');
+    console.log("✅ Session ended - WebSocket fired!");
     res.json({ session: updatedSession });
   } catch (err: any) {
     console.error("endSession error:", err);
@@ -299,9 +329,9 @@ export const endSession = async (req: AuthRequest, res: Response) => {
  * GET /api/audio/session/:session_id
  */
 export const getSession = async (req: AuthRequest, res: Response) => {
-  console.log('🎯 GET SESSION REQUEST:', {
+  console.log("🎯 GET SESSION REQUEST:", {
     user: req.user?.id,
-    params: req.params
+    params: req.params,
   });
 
   try {
@@ -316,36 +346,38 @@ export const getSession = async (req: AuthRequest, res: Response) => {
       .single();
 
     if (error || !session) {
-      console.error('❌ Session not found:', error);
+      console.error("❌ Session not found:", error);
       return res.status(404).json({ error: "Session not found" });
     }
 
     // Check authorization
     if (session.initiator_id !== user_id && session.receiver_id !== user_id) {
-      console.warn('🚫 Unauthorized session access:', { user_id, session_id });
-      return res.status(403).json({ error: "Not authorized to view this session" });
+      console.warn("🚫 Unauthorized session access:", { user_id, session_id });
+      return res
+        .status(403)
+        .json({ error: "Not authorized to view this session" });
     }
 
-    console.log('✅ Session retrieved:', session_id);
+    console.log("✅ Session retrieved:", session_id);
 
     // Get user details separately
     const [initiatorResult, receiverResult] = await Promise.all([
       supabaseAdmin
-        .from('profiles')
-        .select('id, email, full_name')
-        .eq('id', session.initiator_id)
+        .from("profiles")
+        .select("id, email, full_name")
+        .eq("id", session.initiator_id)
         .single(),
       supabaseAdmin
-        .from('profiles')
-        .select('id, email, full_name')
-        .eq('id', session.receiver_id)
-        .single()
+        .from("profiles")
+        .select("id, email, full_name")
+        .eq("id", session.receiver_id)
+        .single(),
     ]);
 
     const sessionWithUsers = {
       ...session,
       initiator: initiatorResult.data,
-      receiver: receiverResult.data
+      receiver: receiverResult.data,
     };
 
     res.json({ session: sessionWithUsers });
@@ -360,8 +392,8 @@ export const getSession = async (req: AuthRequest, res: Response) => {
  * Get channel information and user count
  */
 export const getChannelInfo = async (req: Request, res: Response) => {
-  console.log('🎯 GET CHANNEL INFO:', {
-    params: req.params
+  console.log("🎯 GET CHANNEL INFO:", {
+    params: req.params,
   });
 
   try {
@@ -376,10 +408,89 @@ export const getChannelInfo = async (req: Request, res: Response) => {
     res.json({
       channelName: channel_name,
       userCount,
-      exists: userCount >= 0
+      exists: userCount >= 0,
     });
   } catch (err: any) {
     console.error("❌ getChannelInfo error:", err);
     res.status(500).json({ error: err.message ?? "Server error" });
+  }
+};
+
+/**
+ * GET /api/audio/history
+ * Query: call_type=audio|video, limit=number
+ */
+export const listSessionHistory = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const callType =
+      typeof req.query.call_type === "string" ? req.query.call_type : undefined;
+    const requestedLimit = Number(req.query.limit ?? 20);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(requestedLimit, 1), 50)
+      : 20;
+
+    let query = supabaseAdmin
+      .from("audio_sessions")
+      .select(
+        "id, initiator_id, receiver_id, channel_name, call_type, status, created_at, started_at, ended_at",
+      )
+      .or(`initiator_id.eq.${userId},receiver_id.eq.${userId}`)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (callType === "audio" || callType === "video") {
+      query = query.eq("call_type", callType);
+    }
+
+    const { data: sessions, error } = await query;
+    if (error) throw error;
+
+    const otherUserIds = Array.from(
+      new Set(
+        (sessions || []).map((session) =>
+          session.initiator_id === userId
+            ? session.receiver_id
+            : session.initiator_id,
+        ),
+      ),
+    );
+
+    const profileMap = new Map<
+      string,
+      { id: string; full_name: string; email: string; avatar_url?: string }
+    >();
+
+    if (otherUserIds.length > 0) {
+      const { data: profiles, error: profileError } = await supabaseAdmin
+        .from("profiles")
+        .select("id, full_name, email, avatar_url")
+        .in("id", otherUserIds);
+
+      if (profileError) throw profileError;
+
+      for (const profile of profiles || []) {
+        profileMap.set(profile.id, profile);
+      }
+    }
+
+    const history = (sessions || []).map((session) => {
+      const counterpartId =
+        session.initiator_id === userId
+          ? session.receiver_id
+          : session.initiator_id;
+      const counterpart = profileMap.get(counterpartId) || null;
+
+      return {
+        ...session,
+        direction: session.initiator_id === userId ? "outgoing" : "incoming",
+        counterpart,
+      };
+    });
+
+    return res.json({ sessions: history });
+  } catch (err: any) {
+    console.error("listSessionHistory error:", err);
+    return res.status(500).json({ error: err.message || "Server error" });
   }
 };
