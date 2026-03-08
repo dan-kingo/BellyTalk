@@ -1,4 +1,51 @@
 import axios from "axios";
+import { supabase } from "./supabase";
+
+let refreshRequest: Promise<string | null> | null = null;
+
+const clearAuthAndRedirectToLogin = () => {
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
+  window.location.assign("/login");
+};
+
+const refreshAccessToken = async (): Promise<string | null> => {
+  if (refreshRequest) {
+    return refreshRequest;
+  }
+
+  refreshRequest = (async () => {
+    const refreshToken = localStorage.getItem("refresh_token");
+    const accessToken = localStorage.getItem("access_token") || "";
+
+    if (!refreshToken) {
+      return null;
+    }
+
+    const { data, error } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+
+    if (error || !data.session?.access_token) {
+      return null;
+    }
+
+    localStorage.setItem("access_token", data.session.access_token);
+    if (data.session.refresh_token) {
+      localStorage.setItem("refresh_token", data.session.refresh_token);
+    }
+
+    return data.session.access_token;
+  })();
+
+  try {
+    return await refreshRequest;
+  } finally {
+    refreshRequest = null;
+  }
+};
+
 const api = axios.create({
   baseURL: "https://bellytalk.onrender.com/api",
   headers: {
@@ -16,7 +63,7 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response?.status === 401) {
       const requestUrl = error.config?.url || "";
       const pathname = window.location.pathname;
@@ -29,10 +76,30 @@ api.interceptors.response.use(
 
       const isOnAuthPage = pathname === "/login" || pathname === "/register";
 
+      const originalRequest = error.config as
+        | (typeof error.config & { _retry?: boolean })
+        | undefined;
+
+      if (
+        !isAuthRequest &&
+        !isOnAuthPage &&
+        originalRequest &&
+        !originalRequest._retry
+      ) {
+        originalRequest._retry = true;
+        const newToken = await refreshAccessToken();
+
+        if (newToken) {
+          originalRequest.headers = {
+            ...(originalRequest.headers || {}),
+            Authorization: `Bearer ${newToken}`,
+          };
+          return api(originalRequest);
+        }
+      }
+
       if (!isAuthRequest && !isOnAuthPage) {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
-        window.location.assign("/login");
+        clearAuthAndRedirectToLogin();
       }
     }
     return Promise.reject(error);
