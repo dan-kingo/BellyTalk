@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Home,
@@ -25,7 +25,6 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const location = useLocation();
   const { profile, user } = useAuth();
-  const [showTitle, setShowTitle] = useState(false);
   const messageCount = useChatStore((state) => state.unreadCount);
   const fetchUnreadCount = useChatStore((state) => state.fetchUnreadCount);
   const cartItems = useShopStore((state) => state.cartItems);
@@ -108,15 +107,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   );
 
   useEffect(() => {
-    const handleScroll = () => {
-      setShowTitle(window.scrollY > 40);
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  useEffect(() => {
     if (user && profile?.role === "mother") {
       fetchCart();
       fetchOrders("my");
@@ -145,21 +135,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       )}
 
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-40 h-screen transition-transform  duration-300 ${
+        className={`fixed lg:sticky top-16 lg:top-0 left-0 z-40 h-[calc(100vh-4rem)] lg:h-full transition-transform duration-300 ${
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         <div className="h-full px-4 py-1 overflow-y-auto scrollbar-hide bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 w-64">
-          <div className="flex items-center justify-between  px-2">
-            {/* 🔹 Title fades in after scroll > 40px */}
-            <h2
-              className={`text-2xl ml-3 font-bold text-primary dark:text-secondary transition-opacity duration-500 ${
-                showTitle ? "opacity-100 m-4" : "opacity-0"
-              }`}
-            >
-              BellyTalk
-            </h2>
-
+          <div className="flex justify-end px-2 py-2 lg:hidden">
             <button
               onClick={onClose}
               className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
@@ -169,7 +150,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             </button>
           </div>
 
-          <nav className="space-y-2">
+          <nav className="space-y-2 pt-1 lg:pt-3">
             {filteredMenuItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
