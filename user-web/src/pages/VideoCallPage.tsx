@@ -385,10 +385,6 @@ const VideoCallPage: React.FC = () => {
   // Search users function
   const handleSearchUsers = async (query: string) => {
     setSearchQuery(query);
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
 
     try {
       setSearching(true);
@@ -396,6 +392,22 @@ const VideoCallPage: React.FC = () => {
       setSearchResults(users);
     } catch (error) {
       console.error("Failed to search users:", error);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleOpenNewCallDialog = async () => {
+    setShowNewCallDialog(true);
+    setErrorMessage("");
+    setSearchQuery("");
+
+    try {
+      setSearching(true);
+      const users = await searchUsersList("");
+      setSearchResults(users);
+    } catch (error) {
+      console.error("Failed to load users:", error);
     } finally {
       setSearching(false);
     }
@@ -638,7 +650,7 @@ const VideoCallPage: React.FC = () => {
             </p>
             {!callStatus && (
               <button
-                onClick={() => setShowNewCallDialog(true)}
+                onClick={handleOpenNewCallDialog}
                 className="bg-primary-600 hover:bg-primary-700 cursor-pointer text-white px-8 py-3 rounded-lg transition font-medium inline-flex items-center gap-2"
               >
                 <Video className="w-5 h-5" />
@@ -688,10 +700,15 @@ const VideoCallPage: React.FC = () => {
                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   {searchQuery
                     ? "No users found"
-                    : "Search for users to start a video call"}
+                    : "No users available right now"}
                 </div>
               ) : (
                 <div className="space-y-2">
+                  {!searchQuery && (
+                    <p className="px-1 pb-1 text-xs text-gray-500 dark:text-gray-400">
+                      Tap a user to start a video call
+                    </p>
+                  )}
                   {searchResults.map((userProfile) => (
                     <button
                       key={userProfile.id}

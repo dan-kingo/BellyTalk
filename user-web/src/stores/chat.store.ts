@@ -202,9 +202,60 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       formData.append("content", content);
       attachments.forEach((file) => formData.append("attachments", file));
 
-      await chatService.sendMessage(formData);
-      await get().fetchMessages(conversationId);
-      await get().fetchConversations();
+      const response = await chatService.sendMessage(formData);
+      const confirmedMessage: Message | undefined = response?.message;
+
+      if (!confirmedMessage) {
+        throw new Error(
+          "Message send succeeded but no message payload returned",
+        );
+      }
+
+      set((state) => {
+        const messages = state.messages.some(
+          (message) => message.id === optimisticId,
+        )
+          ? state.messages.map((message) =>
+              message.id === optimisticId ? confirmedMessage : message,
+            )
+          : [...state.messages, confirmedMessage];
+
+        const updatedConversations = state.conversations.map((conversation) =>
+          conversation.id === conversationId
+            ? {
+                ...conversation,
+                last_message:
+                  confirmedMessage.content ||
+                  (confirmedMessage.metadata?.attachments?.length
+                    ? "[attachment]"
+                    : conversation.last_message),
+                last_message_at: confirmedMessage.created_at,
+              }
+            : conversation,
+        );
+
+        const activeConversation = updatedConversations.find(
+          (conversation) => conversation.id === conversationId,
+        );
+
+        const conversations = activeConversation
+          ? [
+              activeConversation,
+              ...updatedConversations.filter(
+                (conversation) => conversation.id !== conversationId,
+              ),
+            ]
+          : updatedConversations;
+
+        return {
+          messages,
+          conversations,
+          selectedConversation:
+            state.selectedConversation?.id === conversationId
+              ? activeConversation || state.selectedConversation
+              : state.selectedConversation,
+        };
+      });
     } catch (error) {
       set((state) => ({
         messages: state.messages.filter(
@@ -219,16 +270,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const trimmedQuery = query.trim();
     set({ searchQuery: query });
 
-    if (!trimmedQuery) {
-      set({ searchResults: [], searchingUsers: false });
-      return;
-    }
-
     set({ searchingUsers: true, chatError: null });
     try {
-      const response = await chatService.searchUsers(trimmedQuery);
+      const response = await chatService.searchUsers(trimmedQuery || undefined);
+      const filteredUsers = (response.users || []).filter(
+        (user: Profile) => user.role !== "admin",
+      );
       set({
-        searchResults: response.users || [],
+        searchResults: filteredUsers,
         searchingUsers: false,
       });
     } catch (error) {
@@ -243,11 +292,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   searchUsersList: async (query: string) => {
     const trimmedQuery = query.trim();
-    if (!trimmedQuery) return [];
 
     try {
-      const response = await chatService.searchUsers(trimmedQuery);
-      return response.users || [];
+      const response = await chatService.searchUsers(trimmedQuery || undefined);
+      return (response.users || []).filter(
+        (user: Profile) => user.role !== "admin",
+      );
     } catch (error) {
       console.error("Failed to search users:", error);
       throw error;

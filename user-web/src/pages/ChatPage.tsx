@@ -142,7 +142,6 @@ const ChatPage: React.FC = () => {
         (payload) => {
           const newMessage = payload.new as Message;
           appendIncomingMessage(newMessage);
-          fetchConversations();
         },
       )
       .subscribe();
@@ -360,6 +359,16 @@ const ChatPage: React.FC = () => {
     }
   };
 
+  const handleOpenNewChatDialog = async () => {
+    setShowNewChatDialog(true);
+    try {
+      await searchUsers("");
+    } catch (error) {
+      console.error("Failed to load users for new chat:", error);
+      toast.error("Failed to load users.");
+    }
+  };
+
   const handleSelectConversation = (conversation: Conversation) => {
     selectConversation(conversation);
     if (isMobile) {
@@ -450,7 +459,7 @@ const ChatPage: React.FC = () => {
     );
   };
 
-  if (loading) {
+  if (loading && conversations.length === 0) {
     return (
       <Layout>
         <div className="flex h-[calc(100vh-8rem)] bg-white dark:bg-gray-900 rounded-lg shadow-lg overflow-hidden max-w-full">
@@ -482,7 +491,6 @@ const ChatPage: React.FC = () => {
       </Layout>
     );
   }
-
   return (
     <Layout>
       <div className="flex h-[calc(100vh-8rem)] bg-white dark:bg-gray-900 rounded-lg shadow-lg overflow-hidden max-w-full">
@@ -497,7 +505,7 @@ const ChatPage: React.FC = () => {
               </h2>
               {isMobile && (
                 <button
-                  onClick={() => setShowNewChatDialog(true)}
+                  onClick={handleOpenNewChatDialog}
                   className="p-2 text-gray-500 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300"
                 >
                   <Plus className="w-5 h-5" />
@@ -506,7 +514,7 @@ const ChatPage: React.FC = () => {
             </div>
             {!isMobile && (
               <button
-                onClick={() => setShowNewChatDialog(true)}
+                onClick={handleOpenNewChatDialog}
                 className="w-full cursor-pointer flex items-center justify-center gap-2 px-4 py-2 bg-primary dark:bg-secondary text-white rounded-lg hover:opacity-90 transition-opacity"
               >
                 <Plus className="w-5 h-5" />
@@ -774,7 +782,7 @@ const ChatPage: React.FC = () => {
                   Select a conversation to start chatting
                 </p>
                 <button
-                  onClick={() => setShowNewChatDialog(true)}
+                  onClick={handleOpenNewChatDialog}
                   className="text-primary cursor-pointer dark:text-secondary hover:underline"
                 >
                   or start a new chat
@@ -823,10 +831,15 @@ const ChatPage: React.FC = () => {
                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   {searchQuery
                     ? "No users found"
-                    : "Search for users to start a chat"}
+                    : "No users available right now"}
                 </div>
               ) : (
                 <div className="space-y-1">
+                  {!searchQuery && (
+                    <p className="px-3 pt-2 pb-1 text-xs text-gray-500 dark:text-gray-400">
+                      Tap a user to start chatting
+                    </p>
+                  )}
                   {searchResults.map((userProfile) => (
                     <button
                       key={userProfile.id}

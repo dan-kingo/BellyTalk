@@ -11,14 +11,17 @@ export const createConversation = async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
     const { participantId } = req.body;
 
-    if (userId === participantId) return res.status(400).json({ error: "Cannot create conversation with yourself" });
+    if (userId === participantId)
+      return res
+        .status(400)
+        .json({ error: "Cannot create conversation with yourself" });
 
     // Check existing conversation (either order of participants)
     const { data: existing, error: existErr } = await supabaseAdmin
       .from("conversations")
       .select("*")
       .or(
-        `and(participant_a.eq.${userId},participant_b.eq.${participantId}),and(participant_a.eq.${participantId},participant_b.eq.${userId})`
+        `and(participant_a.eq.${userId},participant_b.eq.${participantId}),and(participant_a.eq.${participantId},participant_b.eq.${userId})`,
       )
       .limit(1)
       .maybeSingle();
@@ -52,7 +55,8 @@ export const listConversations = async (req: AuthRequest, res: Response) => {
 
     const { data, error } = await supabaseAdmin
       .from("conversations")
-      .select(`
+      .select(
+        `
         id,
         participant_a,
         participant_b,
@@ -61,7 +65,8 @@ export const listConversations = async (req: AuthRequest, res: Response) => {
         created_at,
         participant_a_profile:profiles!conversations_participant_a_fkey(id, full_name, avatar_url, role),
         participant_b_profile:profiles!conversations_participant_b_fkey(id, full_name, avatar_url, role)
-      `)
+      `,
+      )
       .or(`participant_a.eq.${userId},participant_b.eq.${userId}`)
       .order("last_message_at", { ascending: false, nullsFirst: false });
 
@@ -79,9 +84,9 @@ export const listConversations = async (req: AuthRequest, res: Response) => {
 
         return {
           ...conv,
-          unread_count: count || 0
+          unread_count: count || 0,
         };
-      })
+      }),
     );
 
     res.json({ conversations: conversationsWithCounts });
@@ -92,24 +97,27 @@ export const listConversations = async (req: AuthRequest, res: Response) => {
 };
 
 // Helper: upload a single Multer file using your uploadFile function
-const uploadBufferToCloudinary = async (file: Express.Multer.File, folder: string) => {
+const uploadBufferToCloudinary = async (
+  file: Express.Multer.File,
+  folder: string,
+) => {
   // create a fake req object expected by uploadFile
   const fakeReq = {
     file,
-    body: { folder }
+    body: { folder },
   } as unknown as Request;
 
   // fake res to capture JSON result
   const resProxy = {
     status: (_n: number) => resProxy,
-    json: (payload: any) => payload
+    json: (payload: any) => payload,
   } as any;
 
   // call uploadFile (it expects (req,res))
   const result = await new Promise<any>((resolve, reject) => {
     try {
       (uploadFile as any)(fakeReq, {
-        status: (s: number) => ({ json: (d: any) => resolve(d) })
+        status: (s: number) => ({ json: (d: any) => resolve(d) }),
       } as any);
     } catch (e) {
       reject(e);
@@ -131,11 +139,21 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
     // fields come from form-data (strings)
     const conversationId = req.body.conversationId as string;
     const content = (req.body.content || "") as string;
-    const metadataExtra = req.body.metadata ? JSON.parse(req.body.metadata) : null;
+    const metadataExtra = req.body.metadata
+      ? JSON.parse(req.body.metadata)
+      : null;
 
-    if (!conversationId) return res.status(400).json({ error: "conversationId required" });
-    if (!content && !(req.files && (req.files as Express.Multer.File[]).length)) {
-      return res.status(400).json({ error: "Either content or at least one attachment is required" });
+    if (!conversationId)
+      return res.status(400).json({ error: "conversationId required" });
+    if (
+      !content &&
+      !(req.files && (req.files as Express.Multer.File[]).length)
+    ) {
+      return res
+        .status(400)
+        .json({
+          error: "Either content or at least one attachment is required",
+        });
     }
 
     // Validate conversation exists and participants
@@ -145,10 +163,15 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
       .eq("id", conversationId)
       .maybeSingle();
 
-    if (convErr || !conv) return res.status(404).json({ error: "Conversation not found" });
+    if (convErr || !conv)
+      return res.status(404).json({ error: "Conversation not found" });
 
-    const receiverId = conv.participant_a === senderId ? conv.participant_b : conv.participant_a;
-    if (!receiverId) return res.status(400).json({ error: "Invalid conversation participants" });
+    const receiverId =
+      conv.participant_a === senderId ? conv.participant_b : conv.participant_a;
+    if (!receiverId)
+      return res
+        .status(400)
+        .json({ error: "Invalid conversation participants" });
 
     // Handle attachments uploads (if any)
     const attachments: any[] = [];
@@ -156,7 +179,10 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
     if (files && files.length) {
       for (const file of files) {
         // upload file to Cloudinary using existing uploadFile helper
-        const uploaded = await uploadBufferToCloudinary(file, `bellytalk/message_attachments/${conversationId}`);
+        const uploaded = await uploadBufferToCloudinary(
+          file,
+          `bellytalk/message_attachments/${conversationId}`,
+        );
         if (uploaded) {
           attachments.push({
             url: uploaded.secure_url,
@@ -164,7 +190,7 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
             resource_type: uploaded.resource_type,
             format: uploaded.format,
             bytes: uploaded.bytes,
-            original_filename: file.originalname
+            original_filename: file.originalname,
           });
         }
       }
@@ -184,7 +210,7 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
           receiver_id: receiverId,
           content: content || null,
           metadata,
-        }
+        },
       ])
       .select()
       .single();
@@ -194,7 +220,10 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
     // Update conversation last message
     await supabaseAdmin
       .from("conversations")
-      .update({ last_message: content || (attachments.length ? "[attachment]" : null), last_message_at: new Date().toISOString() })
+      .update({
+        last_message: content || (attachments.length ? "[attachment]" : null),
+        last_message_at: new Date().toISOString(),
+      })
       .eq("id", conversationId);
 
     res.status(201).json({ message });
@@ -228,8 +257,10 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
       .eq("id", conversationId)
       .maybeSingle();
 
-    if (convErr || !conv) return res.status(404).json({ error: "Conversation not found" });
-    if (conv.participant_a !== userId && conv.participant_b !== userId) return res.status(403).json({ error: "Forbidden" });
+    if (convErr || !conv)
+      return res.status(404).json({ error: "Conversation not found" });
+    if (conv.participant_a !== userId && conv.participant_b !== userId)
+      return res.status(403).json({ error: "Forbidden" });
 
     let query = supabaseAdmin
       .from("messages")
@@ -239,33 +270,56 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
     // Fetch older messages than `before` (for infinite scroll up)
     if (before) {
       // get messages with created_at < before, most recent first
-      query = query.lt("created_at", before).order("created_at", { ascending: false }).limit(limit);
+      query = query
+        .lt("created_at", before)
+        .order("created_at", { ascending: false })
+        .limit(limit);
       const { data, error } = await query;
       if (error) throw error;
       // return in chronological order (oldest first)
       const ordered = (data || []).reverse();
       const nextCursor = ordered.length ? ordered[0].created_at : null; // earliest returned message's created_at
-      return res.json({ messages: ordered, next_cursor: nextCursor, direction: "backward" });
+      return res.json({
+        messages: ordered,
+        next_cursor: nextCursor,
+        direction: "backward",
+      });
     }
 
     // Fetch newer messages than `after` (for live loading)
     if (after) {
-      query = query.gt("created_at", after).order("created_at", { ascending: true }).limit(limit);
+      query = query
+        .gt("created_at", after)
+        .order("created_at", { ascending: true })
+        .limit(limit);
       const { data, error } = await query;
       if (error) throw error;
       const nextCursor = data.length ? data[data.length - 1].created_at : null;
-      return res.json({ messages: data, next_cursor: nextCursor, direction: "forward" });
+      return res.json({
+        messages: data,
+        next_cursor: nextCursor,
+        direction: "forward",
+      });
     }
 
     // Default: return latest `limit` messages (for initial load)
     {
-      const { data, error } = await query.order("created_at", { ascending: false }).limit(limit);
+      const { data, error } = await query
+        .order("created_at", { ascending: false })
+        .limit(limit);
       if (error) throw error;
       // return in chronological order (oldest first)
       const ordered = (data || []).reverse();
       const prevCursor = ordered.length ? ordered[0].created_at : null; // earliest message returned
-      const nextCursor = ordered.length ? ordered[ordered.length - 1].created_at : null; // latest message returned
-      return res.json({ messages: ordered, prev_cursor: prevCursor, next_cursor: nextCursor, direction: "initial" });
+      const nextCursor = ordered.length
+        ? ordered[ordered.length - 1].created_at
+        : null; // latest message returned
+      return res.json({
+        messages: ordered,
+        prev_cursor: prevCursor,
+        next_cursor: nextCursor,
+        direction: "initial",
+      });
     }
   } catch (err: any) {
     console.error("getMessages error:", err);
@@ -329,6 +383,7 @@ export const searchUsers = async (req: AuthRequest, res: Response) => {
       .from("profiles")
       .select("id, full_name, email, avatar_url, role")
       .neq("id", userId)
+      .neq("role", "admin")
       .limit(20);
 
     if (query && typeof query === "string") {
