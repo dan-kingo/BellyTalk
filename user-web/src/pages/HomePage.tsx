@@ -165,10 +165,10 @@ const HomePage: React.FC = () => {
                   className="w-full h-[420px] sm:h-[520px] object-ce"
                 />
                 <div className="absolute inset-x-0 bottom-0 p-6 ">
-                  <p className="text-white text-sm uppercase tracking-[0.2em]">
+                  <p className="dark:text-white text-gray-900 text-sm uppercase tracking-[0.2em]">
                     Compassionate and secure
                   </p>
-                  <p className="text-white text-xl font-semibold mt-1">
+                  <p className="dark:text-white text-gray-900 text-xl font-semibold mt-1">
                     Virtual and in-person care coordination
                   </p>
                 </div>
