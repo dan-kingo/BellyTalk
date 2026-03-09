@@ -30,10 +30,12 @@ import ErrorBoundary from "./components/common/ErrorBoundary";
 import { AgoraProvider } from "./contexts/AgoraContext";
 import { GlobalCallDialog } from "./components/audio/GlobalCallDialog";
 import { ToastContainer } from "react-toastify";
+import SeoManager from "./components/common/SeoManager";
 
 const App: React.FC = () => {
   return (
     <Router>
+      <SeoManager />
       <ThemeProvider>
         <AuthProvider>
           <AgoraProvider>

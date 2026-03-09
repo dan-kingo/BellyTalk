@@ -27,11 +27,11 @@ dotenv.config();
 const app = express();
 app.use(cors({
   origin: [
-    'https://belly-talk.vercel.app',
+    'https://bellytalkapp.com',
     'http://localhost:3000', 
-    'https://bellytalk-admin.vercel.app', 
+    'https://admin.bellytalkapp.com', 
     'http://localhost:5000',
-    'https://bellytalk.onrender.com',
+    'https://api.bellytalkapp.com',
 'http://localhost:5173',
   ],
   credentials: true,

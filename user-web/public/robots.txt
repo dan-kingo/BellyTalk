@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /hospitals
+Disallow: /content
+Disallow: /shop
+Disallow: /cart
+Disallow: /orders
+Disallow: /checkout
+Disallow: /chat
+Disallow: /manage/
+Disallow: /audio-call
+Disallow: /video-call
+Disallow: /group-chat
+Disallow: /unauthorized
+
+Sitemap: https://bellytalkapp.com/sitemap.xml

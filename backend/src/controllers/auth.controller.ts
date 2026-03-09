@@ -52,7 +52,7 @@ export const register = async (req: Request, res: Response) => {
     const emailRedirectTo =
       process.env.AUTH_REDIRECT_URL ||
       process.env.FRONTEND_URL ||
-      "https://belly-talk.vercel.app/login";
+      "https://bellytalkapp.com/login";
 
     // Trigger Supabase verification email without blocking the registration response.
     void supabase.auth
