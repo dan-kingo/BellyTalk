@@ -1,6 +1,12 @@
 import axios from "axios";
 import { supabase } from "./supabase";
 
+const API_ORIGIN =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(
+    /\/+$/,
+    "",
+  ) || "https://api.bellytalkapp.com";
+
 let refreshRequest: Promise<string | null> | null = null;
 
 const clearAuthAndRedirectToLogin = () => {
@@ -47,7 +53,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
 };
 
 const api = axios.create({
-  baseURL: "https://bellytalk.onrender.com/api",
+  baseURL: `${API_ORIGIN}/api`,
   headers: {
     "Content-Type": "application/json",
   },

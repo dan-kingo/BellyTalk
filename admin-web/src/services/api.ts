@@ -1,13 +1,20 @@
-import axios from 'axios';
+import axios from "axios";
+
+const API_ORIGIN =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(
+    /\/+$/,
+    "",
+  ) || "https://api.bellytalkapp.com";
+
 const api = axios.create({
-  baseURL: "https://bellytalk.onrender.com/api",
+  baseURL: `${API_ORIGIN}/api`,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('admin_access_token');
+  const token = localStorage.getItem("admin_access_token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -19,13 +26,13 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       setTimeout(() => {
-        if (!localStorage.getItem('admin_access_token')) {
-          window.location.href = '/login';
+        if (!localStorage.getItem("admin_access_token")) {
+          window.location.href = "/login";
         }
       }, 500);
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;
