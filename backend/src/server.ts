@@ -28,8 +28,10 @@ const app = express();
 app.use(cors({
   origin: [
     'https://bellytalkapp.com',
+    'https://www.bellytalkapp.com',
     'http://localhost:3000', 
-    'https://admin.bellytalkapp.com', 
+    'https://admin.bellytalkapp.com',
+    'https://www.admin.bellytalkapp.com', 
     'http://localhost:5000',
     'https://api.bellytalkapp.com',
 'http://localhost:5173',
