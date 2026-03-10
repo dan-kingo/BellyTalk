@@ -6,6 +6,7 @@ import { useShopStore } from "../stores/shop.store";
 import { Maximize2, X } from "lucide-react";
 import { Product } from "../types";
 import Skeleton from "../components/common/Skeleton";
+import { getRenderableImageUrl } from "../utils/image";
 
 const PAGE_SIZE = 9;
 
@@ -190,7 +191,7 @@ const ShopPage: React.FC = () => {
 
                   {product.image_url && (
                     <img
-                      src={product.image_url}
+                      src={getRenderableImageUrl(product.image_url)}
                       alt={product.title}
                       className="w-full h-48 object-cover"
                     />
@@ -322,7 +323,7 @@ const ShopPage: React.FC = () => {
                   <div className="rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 min-h-[280px] sm:min-h-[420px]">
                     {selectedProduct.image_url ? (
                       <img
-                        src={selectedProduct.image_url}
+                        src={getRenderableImageUrl(selectedProduct.image_url)}
                         alt={selectedProduct.title}
                         className="w-full h-full object-cover"
                       />

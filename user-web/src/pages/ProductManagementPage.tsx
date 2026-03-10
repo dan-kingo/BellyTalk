@@ -7,6 +7,7 @@ import { Product } from "../types";
 import { useShopStore } from "../stores/shop.store";
 import { toast } from "react-toastify";
 import Skeleton from "../components/common/Skeleton";
+import { getRenderableImageUrl } from "../utils/image";
 
 const ProductManagementPage: React.FC = () => {
   const { profile } = useAuth();
@@ -244,7 +245,7 @@ const ProductManagementPage: React.FC = () => {
               >
                 {product.image_url && (
                   <img
-                    src={product.image_url}
+                    src={getRenderableImageUrl(product.image_url)}
                     alt={product.title}
                     className="w-full h-48 object-cover"
                   />
