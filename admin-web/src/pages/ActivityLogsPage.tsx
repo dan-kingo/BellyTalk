@@ -1,223 +1,232 @@
-// import React, { useState, useEffect } from 'react';
-// import Layout from '../components/layout/Layout';
-// import LoadingSpinner from '../components/common/LoadingSpinner';
-// import { adminService } from '../services/admin.service';
-// import { ActivityLog } from '../types';
-// import { Activity, TrendingUp, Users, Clock, Zap, Filter, Download, RefreshCw } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from "react";
+import { Activity, RefreshCw, Search } from "lucide-react";
+import ToastBanner from "../components/common/ToastBanner";
+import Layout from "../components/layout/Layout";
+import { adminService } from "../services/admin.service";
+import { ActivityLog } from "../types";
 
-// // Extended type to include additional properties we need
-// interface ExtendedActivityLog extends ActivityLog {
-//   status_code?: number;
-//   duration?: number;
-// }
+const ActivityLogsPage: React.FC = () => {
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [methodFilter, setMethodFilter] = useState("all");
 
-// const ActivityLogsPage: React.FC = () => {
-//   const [logs, setLogs] = useState<ExtendedActivityLog[]>([]);
-//   const [loading, setLoading] = useState(true);
-//   const [timeRange, setTimeRange] = useState<'1h' | '24h' | '7d' | '30d'>('24h');
-//   const [stats, setStats] = useState({
-//     totalRequests: 0,
-//     uniqueUsers: 0,
-//     averageResponseTime: 0,
-//     errorRate: 0
-//   });
+  const loadLogs = async (showRefreshing = false) => {
+    try {
+      if (showRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
 
-//   useEffect(() => {
-//     loadLogs();
-//   }, [timeRange]);
+      setError("");
+      const response = await adminService.getLogs();
+      setLogs(response.logs || []);
+    } catch (loadError: any) {
+      setError(
+        loadError?.response?.data?.error || "Failed to load activity logs",
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
-//   const loadLogs = async () => {
-//     try {
-//       setLoading(true);
-//       const data = await adminService.getLogs();
-//       const logsWithMetadata = (data.logs || []).map((log: ActivityLog) => ({
-//         ...log,
-//         status_code: Math.random() > 0.1 ? 200 : 400, // Mock status code
-//         duration: Math.random() * 200 + 50 // Mock duration in ms
-//       }));
-      
-//       setLogs(logsWithMetadata);
-      
-//       // Calculate stats from logs
-//       const uniqueUsers = new Set(logsWithMetadata.map((log: { user_id: any; }) => log.user_id).filter(Boolean)).size;
-//       const totalRequests = logsWithMetadata.length;
-//       const errorCount = logsWithMetadata.filter((log: ExtendedActivityLog) => 
-//         log.status_code && log.status_code >= 400
-//       ).length;
-      
-//       const totalDuration = logsWithMetadata.reduce((sum: number, log: ExtendedActivityLog) => 
-//         sum + (log.duration || 0), 0
-//       );
-      
-//       setStats({
-//         totalRequests,
-//         uniqueUsers,
-//         averageResponseTime: totalRequests > 0 ? Math.round(totalDuration / totalRequests) : 0,
-//         errorRate: totalRequests > 0 ? (errorCount / totalRequests) * 100 : 0
-//       });
-//     } catch (error) {
-//       console.error('Failed to load logs:', error);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
+  useEffect(() => {
+    loadLogs().catch(() => null);
+  }, []);
 
-//   const getMethodColor = (method: string) => {
-//     switch (method) {
-//       case 'GET':
-//         return 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800';
-//       case 'POST':
-//         return 'bg-green-500/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800';
-//       case 'PUT':
-//         return 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800';
-//       case 'DELETE':
-//         return 'bg-red-500/20 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800';
-//       default:
-//         return 'bg-gray-500/20 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800';
-//     }
-//   };
+  const filteredLogs = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
 
-//   const getStatusColor = (status: number) => {
-//     if (status >= 200 && status < 300) return 'text-green-600 dark:text-green-400';
-//     if (status >= 300 && status < 400) return 'text-blue-600 dark:text-blue-400';
-//     if (status >= 400 && status < 500) return 'text-yellow-600 dark:text-yellow-400';
-//     return 'text-red-600 dark:text-red-400';
-//   };
+    return logs.filter((log) => {
+      const matchesMethod =
+        methodFilter === "all" || log.method === methodFilter;
+      if (!matchesMethod) return false;
+      if (!query) return true;
 
-//   const getStatusText = (status: number) => {
-//     if (status >= 200 && status < 300) return 'Success';
-//     if (status >= 300 && status < 400) return 'Redirect';
-//     if (status >= 400 && status < 500) return 'Client Error';
-//     return 'Server Error';
-//   };
+      return [
+        log.method,
+        log.path,
+        log.user_id || "",
+        log.timestamp || log.created_at || "",
+      ].some((value) => String(value).toLowerCase().includes(query));
+    });
+  }, [logs, methodFilter, searchQuery]);
 
-//   // Mock data for charts - generating based on time range
-//   const generateChartData = (count: number, baseValue: number, variation: number) => {
-//     return Array.from({ length: count }, (_, i) => 
-//       baseValue + Math.sin(i * 0.5) * variation + Math.random() * 20
-//     );
-//   };
+  const uniqueUsers = new Set(logs.map((log) => log.user_id).filter(Boolean))
+    .size;
+  const methodsUsed = new Set(logs.map((log) => log.method)).size;
+  const latestLogTime = logs[0]?.timestamp || logs[0]?.created_at;
 
-//   const getDataPointsCount = () => {
-//     switch (timeRange) {
-//       case '1h': return 12; // 5-minute intervals
-//       case '24h': return 24; // 1-hour intervals
-//       case '7d': return 7; // 1-day intervals
-//       case '30d': return 30; // 1-day intervals
-//       default: return 12;
-//     }
-//   };
+  const methodBadgeClass = (method: string) => {
+    if (method === "GET")
+      return "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400";
+    if (method === "POST")
+      return "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400";
+    if (method === "PUT" || method === "PATCH") {
+      return "bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400";
+    }
+    if (method === "DELETE")
+      return "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400";
+    return "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300";
+  };
 
-//   const dataPoints = getDataPointsCount();
-//   const requestData = generateChartData(dataPoints, 50, 30);
-//   const responseTimeData = generateChartData(dataPoints, 150, 50);
-// // // 
-// //   const getTimeLabels = () => {
-// //     switch (timeRange) {
-// //       case '1h':
-// //         return Array.from({ length: dataPoints }, (_, i) => 
-// //           `${i * 5}min`
-// //         );
-// //       case '24h':
-// //         return Array.from({ length: dataPoints }, (_, i) => 
-// //           `${i}:00`
-// //         );
-// //       case '7d':
-// //         return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-// //       case '30d':
-// //         return Array.from({ length: dataPoints }, (_, i) => 
-// //           `Day ${i + 1}`
-// //         );
-// //       default:
-// //         return Array.from({ length: dataPoints }, (_, i) => `${i}`);
-// //     }
-// //   };
+  return (
+    <Layout>
+      <div className="mx-auto max-w-7xl space-y-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              Activity Logs
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Inspect recent admin API activity from the backend logging
+              endpoint.
+            </p>
+          </div>
 
-// //   const timeLabels = getTimeLabels();
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative min-w-0 sm:w-72">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search path, user or method"
+                className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-9 pr-4 text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+              />
+            </div>
 
-//   const exportLogs = () => {
-//     const csvContent = [
-//       ['Method', 'Path', 'User ID', 'Status', 'Duration', 'Timestamp'],
-//       ...logs.map(log => [
-//         log.method,
-//         log.path,
-//         log.user_id || 'N/A',
-//         log.status_code || 'N/A',
-//         log.duration ? `${log.duration}ms` : 'N/A',
-//         new Date(log.timestamp).toLocaleString()
-//       ])
-//     ].map(row => row.join(',')).join('\n');
+            <select
+              value={methodFilter}
+              onChange={(event) => setMethodFilter(event.target.value)}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+            >
+              <option value="all">All methods</option>
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+              <option value="PUT">PUT</option>
+              <option value="PATCH">PATCH</option>
+              <option value="DELETE">DELETE</option>
+            </select>
 
-//     const blob = new Blob([csvContent], { type: 'text/csv' });
-//     const url = window.URL.createObjectURL(blob);
-//     const a = document.createElement('a');
-//     a.href = url;
-//     a.download = `activity-logs-${new Date().toISOString().split('T')[0]}.csv`;
-//     document.body.appendChild(a);
-//     a.click();
-//     document.body.removeChild(a);
-//     window.URL.revokeObjectURL(url);
-//   };
+            <button
+              type="button"
+              onClick={() => loadLogs(true)}
+              disabled={loading || refreshing}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-white disabled:opacity-60"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </button>
+          </div>
+        </div>
 
-//   if (loading) {
-//     return (
-//       <Layout>
-//         <LoadingSpinner />
-//       </Layout>
-//     );
-//   }
+        {error && <ToastBanner message={error} variant="error" />}
 
-//   return (
-//     <Layout>
-//       <div className="max-w-7xl mx-auto space-y-6">
-//         {/* Header */}
-//         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-//           <div className="flex items-center gap-3">
-//             <div className="p-2 bg-linear-to-br from-primary-500 to-primary-600 rounded-xl">
-//               <Activity className="w-6 h-6 text-white" />
-//             </div>
-//             <div>
-//               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Activity Dashboard</h1>
-//               <p className="text-gray-600 dark:text-gray-400">Real-time platform performance & analytics</p>
-//             </div>
-//           </div>
-          
-//           <div className="flex items-center gap-3">
-//             <select 
-//               value={timeRange}
-//               onChange={(e) => setTimeRange(e.target.value as any)}
-//               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-//             >
-//               <option value="1h">Last 1 hour</option>
-//               <option value="24h">Last 24 hours</option>
-//               <option value="7d">Last 7 days</option>
-//               <option value="30d">Last 30 days</option>
-//             </select>
-            
-//             <button 
-//               onClick={loadLogs}
-//               className="p-2 border cursor-pointer border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-//             >
-//               <RefreshCw className="w-5 h-5" />
-//             </button>
-            
-//             <button 
-//               onClick={exportLogs}
-//               className="px-4 cursor-pointer py-2 bg-linear-to-br from-primary-500 to-primary-600 text-white rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all flex items-center gap-2"
-//             >
-//               <Download className="w-4 h-4" />
-//               Export
-//             </button>
-//           </div>
-//         </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Recent entries
+            </p>
+            <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
+              {logs.length}
+            </p>
+          </div>
+          <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Unique users
+            </p>
+            <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
+              {uniqueUsers}
+            </p>
+          </div>
+          <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Latest activity
+            </p>
+            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+              {latestLogTime ? new Date(latestLogTime).toLocaleString() : "-"}
+            </p>
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              Methods used: {methodsUsed}
+            </p>
+          </div>
+        </div>
 
-//         {/* Stats Grid */}
-//         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-//           <div className="bg-linear-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white">
-//             <div className="flex items-center justify-between">
-//               <div>
-//                 <p className="text-blue-100 text-sm font-medium">Total Requests</p>
-//                 <p className="text-3xl font-bold mt-2">{stats.totalRequests.toLocaleString()}</p>
+        {loading ? (
+          <div className="rounded-xl border border-gray-200 bg-white p-6 text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+            Loading activity logs...
+          </div>
+        ) : filteredLogs.length === 0 ? (
+          <div className="rounded-xl border border-gray-200 bg-white p-10 text-center dark:border-gray-700 dark:bg-gray-800">
+            <Activity className="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-gray-500" />
+            <p className="text-gray-700 dark:text-gray-300">
+              No activity logs match this filter.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-900/50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    Method
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    Path
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    User
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    Timestamp
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {filteredLogs.map((log) => {
+                  const logTime = log.timestamp || log.created_at;
+
+                  return (
+                    <tr
+                      key={log.id}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-900/30"
+                    >
+                      <td className="whitespace-nowrap px-4 py-3 text-sm">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${methodBadgeClass(log.method)}`}
+                        >
+                          {log.method}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                        {log.path}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                        {log.user_id || "Anonymous"}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                        {logTime ? new Date(logTime).toLocaleString() : "-"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </Layout>
+  );
+};
+
+export default ActivityLogsPage;
 //               </div>
 //               <TrendingUp className="w-8 h-8 text-blue-200" />
 //             </div>
@@ -324,7 +333,7 @@
 //               Showing {Math.min(logs.length, 10)} of {logs.length} logs
 //             </span>
 //           </div>
-          
+
 //           <div className="overflow-x-auto">
 //             <table className="w-full">
 //               <thead className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">

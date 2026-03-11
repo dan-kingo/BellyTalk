@@ -1,13 +1,14 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
+  Activity,
   Home,
   Users,
   FileText,
   X,
   Building2,
-  RollerCoasterIcon,
   CalendarCheck2,
+  ClipboardList,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -23,9 +24,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { path: "/contents", icon: FileText, label: "Contents" },
     { path: "/hospitals", icon: Building2, label: "Hospitals" },
     { path: "/users", icon: Users, label: "Users" },
-    { path: "/role-requests", icon: RollerCoasterIcon, label: "Role Requests" },
+    { path: "/providers", icon: ClipboardList, label: "Provider Approvals" },
     { path: "/bookings-queue", icon: CalendarCheck2, label: "Bookings Queue" },
-    // { path: '/activity-logs', icon: Activity, label: 'Activity Logs' },
+    { path: "/activity-logs", icon: Activity, label: "Activity Logs" },
   ];
 
   return (

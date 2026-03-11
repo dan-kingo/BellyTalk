@@ -8,10 +8,11 @@ import {
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import PrivateRoute from "./components/common/PrivateRoute";
+import ActivityLogsPage from "./pages/ActivityLogsPage";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
+import ProviderApprovalsPage from "./pages/ProviderApprovalsPage";
 import UsersPage from "./pages/UsersPage";
-import RoleRequestsPage from "./pages/RoleRequestsPage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
 import ContentPage from "./pages/ContentPage";
 import HospitalsPage from "./pages/HospitalsPage";
@@ -44,6 +45,14 @@ const App: React.FC = () => {
               }
             />
             <Route
+              path="/providers"
+              element={
+                <PrivateRoute>
+                  <ProviderApprovalsPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
               path="/contents"
               element={
                 <PrivateRoute>
@@ -62,19 +71,19 @@ const App: React.FC = () => {
             />
 
             <Route
-              path="/role-requests"
+              path="/bookings-queue"
               element={
                 <PrivateRoute>
-                  <RoleRequestsPage />
+                  <BookingsQueuePage />
                 </PrivateRoute>
               }
             />
 
             <Route
-              path="/bookings-queue"
+              path="/activity-logs"
               element={
                 <PrivateRoute>
-                  <BookingsQueuePage />
+                  <ActivityLogsPage />
                 </PrivateRoute>
               }
             />

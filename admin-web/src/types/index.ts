@@ -49,10 +49,20 @@ export interface OverviewStats {
 
 export interface ActivityLog {
   id: string;
-  user_id: string;
+  user_id: string | null;
   method: string;
   path: string;
-  timestamp: string;
+  timestamp?: string;
+  created_at?: string;
+}
+
+export interface ProviderApproval extends Profile {
+  extra?: {
+    requested_role?: string;
+    documents?: string[];
+    rejection_reason?: string | null;
+    [key: string]: any;
+  };
 }
 
 export interface Content {

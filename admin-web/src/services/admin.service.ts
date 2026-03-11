@@ -1,13 +1,13 @@
-import api from './api';
+import api from "./api";
 
 export const adminService = {
   async getOverview() {
-    const response = await api.get('/admin/panel/overview');
+    const response = await api.get("/admin/panel/overview");
     return response.data;
   },
 
   async listUsers() {
-    const response = await api.get('/admin/panel/users');
+    const response = await api.get("/admin/panel/users");
     return response.data;
   },
 
@@ -17,12 +17,31 @@ export const adminService = {
   },
 
   async getLogs() {
-    const response = await api.get('/admin/panel/logs');
+    const response = await api.get("/admin/panel/logs");
+    return response.data;
+  },
+
+  async listProviders(status: "pending" | "approved" | "rejected" = "pending") {
+    const response = await api.get("/admin/providers", {
+      params: { status },
+    });
     return response.data;
   },
 
   async listRoleRequests() {
-    const response = await api.get('/admin/roles/pending');
+    const response = await api.get("/admin/roles/pending");
+    return response.data;
+  },
+
+  async approveProvider(userId: string) {
+    const response = await api.post(`/admin/providers/${userId}/approve`);
+    return response.data;
+  },
+
+  async rejectProvider(userId: string, reason: string) {
+    const response = await api.post(`/admin/providers/${userId}/reject`, {
+      reason,
+    });
     return response.data;
   },
 
@@ -32,7 +51,9 @@ export const adminService = {
   },
 
   async rejectRole(userId: string, reason: string) {
-    const response = await api.post(`/admin/roles/${userId}/reject`, { reason });
+    const response = await api.post(`/admin/roles/${userId}/reject`, {
+      reason,
+    });
     return response.data;
   },
 };
