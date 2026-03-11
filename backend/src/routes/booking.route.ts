@@ -9,6 +9,7 @@ import {
   confirmBooking,
   createBooking,
   getBooking,
+  getAdminQueueMetrics,
   joinCheck,
   listPendingConfirmationQueue,
   listPendingPaymentReviewQueue,
@@ -22,6 +23,7 @@ import {
 } from "../controllers/booking.controller.js";
 import {
   addBookingDocumentBodySchema,
+  adminBookingQueueMetricsQuerySchema,
   adminBookingQueueQuerySchema,
   bookingActionSchema,
   bookingJoinCheckQuerySchema,
@@ -67,6 +69,13 @@ router.get(
   requireRole(["admin"]),
   validate(adminBookingQueueQuerySchema, "query"),
   listTodayBookingsQueue,
+);
+router.get(
+  "/admin/queue/metrics",
+  requireAuth,
+  requireRole(["admin"]),
+  validate(adminBookingQueueMetricsQuerySchema, "query"),
+  getAdminQueueMetrics,
 );
 router.get("/:id", requireAuth, getBooking);
 router.get(

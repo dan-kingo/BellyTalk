@@ -4,6 +4,7 @@ import { AuthRequest } from "../middlewares/auth.middleware.js";
 import { uploadFile } from "./upload.controller.js";
 import { checkDirectInteractionAccess } from "../services/booking-access.service.js";
 import { sendMail } from "../services/email.service.js";
+import { ensureBookingTransitionAllowed } from "../services/booking-lifecycle.service.js";
 
 type ProfileRole = "mother" | "doctor" | "admin" | "counselor" | string;
 
@@ -107,6 +108,19 @@ const writeBookingHistory = async (
   }
 };
 
+const invalidTransitionResponse = (
+  res: Response,
+  action: Parameters<typeof ensureBookingTransitionAllowed>[0],
+  fromStatus: string,
+) => {
+  const transition = ensureBookingTransitionAllowed(action, fromStatus);
+  if (transition.ok) return null;
+  return res.status(transition.status).json({
+    error: transition.error,
+    code: transition.code,
+  });
+};
+
 const notifyBookingParticipants = async (
   bookingId: string,
   subject: string,
@@ -173,11 +187,12 @@ export const confirmBooking = async (req: AuthRequest, res: Response) => {
     if (bookingError) throw bookingError;
     if (!booking) return res.status(404).json({ error: "Booking not found" });
 
-    if (!["pending_confirmation", "pending_payment"].includes(booking.status)) {
-      return res
-        .status(400)
-        .json({ error: "Booking cannot be confirmed from current status" });
-    }
+    const invalidConfirm = invalidTransitionResponse(
+      res,
+      "confirm",
+      booking.status,
+    );
+    if (invalidConfirm) return invalidConfirm;
 
     if (
       booking.payment_method === "proof_upload" &&
@@ -209,6 +224,9 @@ export const confirmBooking = async (req: AuthRequest, res: Response) => {
       booking.status,
       "confirmed",
       note || "Booking confirmed",
+    );
+    console.info(
+      `[booking-transition] booking=${id} actor=${actorId} from=${booking.status} to=confirmed`,
     );
 
     await notifyBookingParticipants(
@@ -259,11 +277,12 @@ export const cancelBooking = async (req: AuthRequest, res: Response) => {
     if (bookingError) throw bookingError;
     if (!booking) return res.status(404).json({ error: "Booking not found" });
 
-    if (["completed", "cancelled", "expired"].includes(booking.status)) {
-      return res
-        .status(400)
-        .json({ error: "Booking cannot be cancelled from current status" });
-    }
+    const invalidCancel = invalidTransitionResponse(
+      res,
+      "cancel",
+      booking.status,
+    );
+    if (invalidCancel) return invalidCancel;
 
     const { data: updatedBooking, error: updateError } = await supabaseAdmin
       .from("bookings")
@@ -283,6 +302,9 @@ export const cancelBooking = async (req: AuthRequest, res: Response) => {
       booking.status,
       "cancelled",
       reason ? `Cancelled: ${reason}` : "Booking cancelled",
+    );
+    console.info(
+      `[booking-transition] booking=${id} actor=${actorId} from=${booking.status} to=cancelled reason=${reason || "none"}`,
     );
 
     await notifyBookingParticipants(
@@ -331,11 +353,12 @@ export const completeBooking = async (req: AuthRequest, res: Response) => {
     if (bookingError) throw bookingError;
     if (!booking) return res.status(404).json({ error: "Booking not found" });
 
-    if (booking.status !== "confirmed") {
-      return res
-        .status(400)
-        .json({ error: "Only confirmed bookings can be completed" });
-    }
+    const invalidComplete = invalidTransitionResponse(
+      res,
+      "complete",
+      booking.status,
+    );
+    if (invalidComplete) return invalidComplete;
 
     const { data: updatedBooking, error: updateError } = await supabaseAdmin
       .from("bookings")
@@ -355,6 +378,9 @@ export const completeBooking = async (req: AuthRequest, res: Response) => {
       booking.status,
       "completed",
       note || "Booking completed",
+    );
+    console.info(
+      `[booking-transition] booking=${id} actor=${actorId} from=${booking.status} to=completed`,
     );
 
     await notifyBookingParticipants(
@@ -419,13 +445,12 @@ export const rescheduleBooking = async (req: AuthRequest, res: Response) => {
     if (bookingError) throw bookingError;
     if (!booking) return res.status(404).json({ error: "Booking not found" });
 
-    if (
-      ["cancelled", "completed", "expired", "no_show"].includes(booking.status)
-    ) {
-      return res
-        .status(400)
-        .json({ error: "Booking cannot be rescheduled from current status" });
-    }
+    const invalidReschedule = invalidTransitionResponse(
+      res,
+      "reschedule",
+      booking.status,
+    );
+    if (invalidReschedule) return invalidReschedule;
 
     if (booking.availability_id) {
       const { data: availability, error: availabilityError } =
@@ -488,6 +513,9 @@ export const rescheduleBooking = async (req: AuthRequest, res: Response) => {
       nextStatus,
       note || "Booking rescheduled",
     );
+    console.info(
+      `[booking-transition] booking=${id} actor=${actorId} from=${booking.status} to=${nextStatus} note=reschedule`,
+    );
 
     await notifyBookingParticipants(
       id,
@@ -534,17 +562,19 @@ export const markBookingNoShow = async (req: AuthRequest, res: Response) => {
     if (bookingError) throw bookingError;
     if (!booking) return res.status(404).json({ error: "Booking not found" });
 
-    if (booking.status !== "confirmed") {
-      return res
-        .status(400)
-        .json({ error: "Only confirmed bookings can be marked as no-show" });
-    }
+    const invalidNoShow = invalidTransitionResponse(
+      res,
+      "no_show",
+      booking.status,
+    );
+    if (invalidNoShow) return invalidNoShow;
 
     const graceMs = 15 * 60 * 1000;
     if (Date.now() < new Date(booking.scheduled_end).getTime() + graceMs) {
-      return res
-        .status(400)
-        .json({ error: "Cannot mark no-show before booking end window" });
+      return res.status(400).json({
+        error: "Cannot mark no-show before booking end window",
+        code: "BOOKING_NO_SHOW_WINDOW_NOT_REACHED",
+      });
     }
 
     const { data: updatedBooking, error: updateError } = await supabaseAdmin
@@ -564,6 +594,9 @@ export const markBookingNoShow = async (req: AuthRequest, res: Response) => {
       booking.status,
       "no_show",
       note || "Marked as no-show",
+    );
+    console.info(
+      `[booking-transition] booking=${id} actor=${actorId} from=${booking.status} to=no_show`,
     );
 
     await notifyBookingParticipants(
@@ -1225,6 +1258,17 @@ export const reviewBookingPayment = async (req: AuthRequest, res: Response) => {
     if (paymentError) throw paymentError;
     if (!payment) return res.status(404).json({ error: "Payment not found" });
 
+    const transitionAction =
+      status === "approved"
+        ? "payment_review_approved"
+        : "payment_review_rejected";
+    const invalidPaymentReview = invalidTransitionResponse(
+      res,
+      transitionAction,
+      booking.status,
+    );
+    if (invalidPaymentReview) return invalidPaymentReview;
+
     const nextBookingStatus =
       status === "approved" ? "pending_confirmation" : "pending_payment";
     const nextPaymentStatus = status === "approved" ? "paid" : "rejected";
@@ -1252,6 +1296,9 @@ export const reviewBookingPayment = async (req: AuthRequest, res: Response) => {
         note: status === "approved" ? "Payment approved" : "Payment rejected",
       },
     ]);
+    console.info(
+      `[booking-payment-review] booking=${id} actor=${reviewerId} result=${status} from=${booking.status} to=${updatedBooking.status}`,
+    );
 
     await notifyBookingParticipants(
       id,
@@ -1385,5 +1432,93 @@ export const listTodayBookingsQueue = async (
     return res
       .status(500)
       .json({ error: err.message || "Failed to fetch today's bookings queue" });
+  }
+};
+
+export const getAdminQueueMetrics = async (req: AuthRequest, res: Response) => {
+  try {
+    const { doctor_id, service_mode, date } = req.query;
+    const nowIso = new Date().toISOString();
+    const { startIso, endIso } = getDayBoundsUtc(
+      date ? String(date) : undefined,
+    );
+
+    const applyBaseFilters = (query: any) => {
+      let q = query;
+      if (doctor_id) q = q.eq("doctor_id", String(doctor_id));
+      if (service_mode) q = q.eq("service_mode", String(service_mode));
+      return q;
+    };
+
+    const [
+      pendingConfirmations,
+      pendingPaymentReviews,
+      todayBookings,
+      overdueConfirmations,
+    ] = await Promise.all([
+      applyBaseFilters(
+        supabaseAdmin
+          .from("bookings")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending_confirmation"),
+      ),
+      applyBaseFilters(
+        supabaseAdmin
+          .from("bookings")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending_payment")
+          .eq("payment_status", "pending_review")
+          .eq("payment_method", "proof_upload"),
+      ),
+      applyBaseFilters(
+        supabaseAdmin
+          .from("bookings")
+          .select("id", { count: "exact", head: true })
+          .gte("scheduled_start", startIso)
+          .lt("scheduled_start", endIso)
+          .in("status", [
+            "pending_payment",
+            "pending_confirmation",
+            "confirmed",
+            "no_show",
+          ]),
+      ),
+      applyBaseFilters(
+        supabaseAdmin
+          .from("bookings")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending_confirmation")
+          .lt("scheduled_start", nowIso),
+      ),
+    ]);
+
+    if (
+      pendingConfirmations.error ||
+      pendingPaymentReviews.error ||
+      todayBookings.error ||
+      overdueConfirmations.error
+    ) {
+      throw (
+        pendingConfirmations.error ||
+        pendingPaymentReviews.error ||
+        todayBookings.error ||
+        overdueConfirmations.error
+      );
+    }
+
+    return res.json({
+      date: startIso.slice(0, 10),
+      metrics: {
+        pending_confirmations: pendingConfirmations.count || 0,
+        pending_payment_reviews: pendingPaymentReviews.count || 0,
+        todays_bookings: todayBookings.count || 0,
+        overdue_confirmations: overdueConfirmations.count || 0,
+      },
+    });
+  } catch (err: any) {
+    console.error("getAdminQueueMetrics error:", err);
+    return res
+      .status(500)
+      .json({ error: err.message || "Failed to fetch queue metrics" });
   }
 };

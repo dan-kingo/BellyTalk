@@ -28,6 +28,7 @@ import doctorProfileRouter from "./routes/doctor.profile.route.js";
 import bookingRouter from "./routes/booking.route.js";
 import presenceRouter from "./routes/presence.route.js";
 import { logActivity } from "./middlewares/logging.middleware.js";
+import { startBookingReminderWorker } from "./services/booking-reminder.service.js";
 
 dotenv.config();
 
@@ -88,5 +89,6 @@ app.use(rateLimit({ windowMs: 1 * 60 * 1000, max: 100 }));
 // start server
 const PORT = process.env.PORT || 5000;
 app.listen(Number(PORT), () => {
+  startBookingReminderWorker();
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
