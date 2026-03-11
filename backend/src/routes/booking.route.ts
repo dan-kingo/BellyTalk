@@ -10,6 +10,9 @@ import {
   createBooking,
   getBooking,
   joinCheck,
+  listPendingConfirmationQueue,
+  listPendingPaymentReviewQueue,
+  listTodayBookingsQueue,
   markBookingNoShow,
   rescheduleBooking,
   listDoctorBookings,
@@ -19,6 +22,7 @@ import {
 } from "../controllers/booking.controller.js";
 import {
   addBookingDocumentBodySchema,
+  adminBookingQueueQuerySchema,
   bookingActionSchema,
   bookingJoinCheckQuerySchema,
   createBookingSchema,
@@ -42,6 +46,27 @@ router.get(
   requireRole(["doctor", "admin"]),
   validate(listBookingsQuerySchema, "query"),
   listDoctorBookings,
+);
+router.get(
+  "/admin/queue/pending-confirmations",
+  requireAuth,
+  requireRole(["admin"]),
+  validate(adminBookingQueueQuerySchema, "query"),
+  listPendingConfirmationQueue,
+);
+router.get(
+  "/admin/queue/pending-payment-reviews",
+  requireAuth,
+  requireRole(["admin"]),
+  validate(adminBookingQueueQuerySchema, "query"),
+  listPendingPaymentReviewQueue,
+);
+router.get(
+  "/admin/queue/today",
+  requireAuth,
+  requireRole(["admin"]),
+  validate(adminBookingQueueQuerySchema, "query"),
+  listTodayBookingsQueue,
 );
 router.get("/:id", requireAuth, getBooking);
 router.get(

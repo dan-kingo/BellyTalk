@@ -93,3 +93,14 @@ export const bookingActionSchema = z.object({
 export const bookingJoinCheckQuerySchema = z.object({
   channel: z.enum(["message", "audio", "video"]),
 });
+
+export const adminBookingQueueQuerySchema = z.object({
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(50).optional(),
+  doctor_id: z.string().uuid().optional(),
+  service_mode: serviceModeSchema.optional(),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD")
+    .optional(),
+});

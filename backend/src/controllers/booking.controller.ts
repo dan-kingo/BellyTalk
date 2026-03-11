@@ -21,6 +21,70 @@ const parsePagination = (query: Request["query"]) => {
   return { page, from, to };
 };
 
+const getDayBoundsUtc = (dateInput?: string) => {
+  const base = dateInput ? new Date(`${dateInput}T00:00:00.000Z`) : new Date();
+  const start = new Date(
+    Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate()),
+  );
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 1);
+  return { startIso: start.toISOString(), endIso: end.toISOString() };
+};
+
+const attachParticipantProfiles = async (bookings: any[]) => {
+  if (!bookings.length) return bookings;
+
+  const participantIds = Array.from(
+    new Set(
+      bookings.flatMap((booking) => [booking.mother_id, booking.doctor_id]),
+    ),
+  ).filter(Boolean) as string[];
+
+  if (!participantIds.length) return bookings;
+
+  const { data: users, error } = await supabaseAdmin
+    .from("profiles")
+    .select("id, full_name, email")
+    .in("id", participantIds);
+
+  if (error || !users?.length) return bookings;
+
+  const usersMap = new Map((users || []).map((user: any) => [user.id, user]));
+
+  return bookings.map((booking) => ({
+    ...booking,
+    mother_profile: usersMap.get(booking.mother_id) || null,
+    doctor_profile: usersMap.get(booking.doctor_id) || null,
+  }));
+};
+
+const attachPendingPayments = async (bookings: any[]) => {
+  if (!bookings.length) return bookings;
+
+  const bookingIds = bookings.map((booking) => booking.id);
+
+  const { data: payments } = await supabaseAdmin
+    .from("booking_payments")
+    .select(
+      "id, booking_id, amount, currency, payment_method, transaction_reference, proof_document_id, status, created_at",
+    )
+    .eq("status", "pending_review")
+    .in("booking_id", bookingIds)
+    .order("created_at", { ascending: false });
+
+  const paymentMap = new Map<string, any>();
+  for (const payment of payments || []) {
+    if (!paymentMap.has(payment.booking_id)) {
+      paymentMap.set(payment.booking_id, payment);
+    }
+  }
+
+  return bookings.map((booking) => ({
+    ...booking,
+    pending_payment: paymentMap.get(booking.id) || null,
+  }));
+};
+
 const writeBookingHistory = async (
   bookingId: string,
   actorId: string,
@@ -1204,5 +1268,122 @@ export const reviewBookingPayment = async (req: AuthRequest, res: Response) => {
     return res
       .status(500)
       .json({ error: err.message || "Failed to review payment" });
+  }
+};
+
+export const listPendingConfirmationQueue = async (
+  req: AuthRequest,
+  res: Response,
+) => {
+  try {
+    const { page, from, to } = parsePagination(req.query);
+    const { doctor_id, service_mode } = req.query;
+
+    let q = supabaseAdmin
+      .from("bookings")
+      .select("*", { count: "exact" })
+      .eq("status", "pending_confirmation")
+      .order("scheduled_start", { ascending: true })
+      .range(from, to);
+
+    if (doctor_id) q = q.eq("doctor_id", String(doctor_id));
+    if (service_mode) q = q.eq("service_mode", String(service_mode));
+
+    const { data, error, count } = await q;
+    if (error) throw error;
+
+    const bookings = await attachParticipantProfiles(data || []);
+
+    return res.json({
+      queue: bookings,
+      page,
+      total: count || 0,
+    });
+  } catch (err: any) {
+    console.error("listPendingConfirmationQueue error:", err);
+    return res.status(500).json({
+      error: err.message || "Failed to fetch pending confirmation queue",
+    });
+  }
+};
+
+export const listPendingPaymentReviewQueue = async (
+  req: AuthRequest,
+  res: Response,
+) => {
+  try {
+    const { page, from, to } = parsePagination(req.query);
+    const { doctor_id } = req.query;
+
+    let q = supabaseAdmin
+      .from("bookings")
+      .select("*", { count: "exact" })
+      .eq("status", "pending_payment")
+      .eq("payment_status", "pending_review")
+      .eq("payment_method", "proof_upload")
+      .order("updated_at", { ascending: true })
+      .range(from, to);
+
+    if (doctor_id) q = q.eq("doctor_id", String(doctor_id));
+
+    const { data, error, count } = await q;
+    if (error) throw error;
+
+    const withProfiles = await attachParticipantProfiles(data || []);
+    const queue = await attachPendingPayments(withProfiles);
+
+    return res.json({ queue, page, total: count || 0 });
+  } catch (err: any) {
+    console.error("listPendingPaymentReviewQueue error:", err);
+    return res
+      .status(500)
+      .json({ error: err.message || "Failed to fetch payment review queue" });
+  }
+};
+
+export const listTodayBookingsQueue = async (
+  req: AuthRequest,
+  res: Response,
+) => {
+  try {
+    const { page, from, to } = parsePagination(req.query);
+    const { doctor_id, service_mode, date } = req.query;
+    const { startIso, endIso } = getDayBoundsUtc(
+      date ? String(date) : undefined,
+    );
+
+    let q = supabaseAdmin
+      .from("bookings")
+      .select("*", { count: "exact" })
+      .gte("scheduled_start", startIso)
+      .lt("scheduled_start", endIso)
+      .in("status", [
+        "pending_payment",
+        "pending_confirmation",
+        "confirmed",
+        "no_show",
+      ])
+      .order("scheduled_start", { ascending: true })
+      .range(from, to);
+
+    if (doctor_id) q = q.eq("doctor_id", String(doctor_id));
+    if (service_mode) q = q.eq("service_mode", String(service_mode));
+
+    const { data, error, count } = await q;
+    if (error) throw error;
+
+    const queue = await attachParticipantProfiles(data || []);
+
+    return res.json({
+      queue,
+      page,
+      total: count || 0,
+      date: startIso.slice(0, 10),
+    });
+  } catch (err: any) {
+    console.error("listTodayBookingsQueue error:", err);
+    return res
+      .status(500)
+      .json({ error: err.message || "Failed to fetch today's bookings queue" });
   }
 };
