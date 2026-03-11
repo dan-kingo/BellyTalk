@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Layout from "../components/layout/Layout";
 import { UsersPageSkeleton } from "../components/common/PageSkeletons";
 import Dialog from "../components/common/Dialog";
+import ToastBanner from "../components/common/ToastBanner";
 import { adminService } from "../services/admin.service";
 import { useAdminStore } from "../stores/admin.store";
 import { Trash2, Search } from "lucide-react";
@@ -17,10 +18,20 @@ const UsersPage: React.FC = () => {
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    variant: "success" | "error";
+  } | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<{
     id: string;
     fullName: string;
   } | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 3200);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
 
   useEffect(() => {
     if (!usersLoaded) {
@@ -35,9 +46,16 @@ const UsersPage: React.FC = () => {
       removeUserFromCache(userId);
       await fetchOverview(true);
       setDeleteCandidate(null);
+      setToast({
+        message: "User deleted successfully.",
+        variant: "success",
+      });
     } catch (error) {
       console.error("Failed to delete user:", error);
-      alert("Failed to delete user");
+      setToast({
+        message: "Failed to delete user",
+        variant: "error",
+      });
     } finally {
       setDeleting(null);
     }
@@ -69,6 +87,15 @@ const UsersPage: React.FC = () => {
             Manage all registered users
           </p>
         </div>
+
+        {toast && (
+          <ToastBanner
+            message={toast.message}
+            variant={toast.variant}
+            onClose={() => setToast(null)}
+            className="mb-4"
+          />
+        )}
 
         <div className="mb-6 w-full max-w-full min-w-0">
           <div className="relative w-full max-w-full min-w-0">

@@ -30,15 +30,6 @@ export interface AuthContextType {
   refreshProfile: () => Promise<void>;
 }
 
-export interface RoleRequest {
-  id: string;
-  full_name: string;
-  email: string;
-  requested_role: string;
-  documents: string[];
-  submitted_at: string;
-}
-
 export interface OverviewStats {
   users: number;
   contents: number;

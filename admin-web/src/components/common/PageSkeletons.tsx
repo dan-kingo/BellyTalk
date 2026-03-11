@@ -173,32 +173,6 @@ export const HospitalsPageSkeleton: React.FC = () => (
   </div>
 );
 
-export const RoleRequestsPageSkeleton: React.FC = () => (
-  <div className="max-w-7xl mx-auto space-y-6">
-    <div className="space-y-2 mb-8">
-      <SkeletonBlock className="h-8 w-52" />
-      <SkeletonBlock className="h-4 w-72" />
-    </div>
-
-    {Array.from({ length: 4 }).map((_, index) => (
-      <div
-        key={index}
-        className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6"
-      >
-        <div className="space-y-3">
-          <SkeletonBlock className="h-6 w-1/3" />
-          <SkeletonBlock className="h-4 w-1/2" />
-          <SkeletonBlock className="h-4 w-1/4" />
-          <div className="flex gap-3 pt-2">
-            <SkeletonBlock className="h-10 w-28" />
-            <SkeletonBlock className="h-10 w-28" />
-          </div>
-        </div>
-      </div>
-    ))}
-  </div>
-);
-
 export const UsersPageSkeleton: React.FC = () => (
   <div className="max-w-7xl mx-auto space-y-6">
     <div className="space-y-2 mb-2">

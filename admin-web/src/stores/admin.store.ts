@@ -12,7 +12,6 @@ import {
   Hospital,
   OverviewStats,
   Profile,
-  RoleRequest,
 } from "../types";
 
 type ContentFilters = {
@@ -87,11 +86,6 @@ interface AdminStoreState {
   usersLoading: boolean;
   usersError: string;
 
-  roleRequests: RoleRequest[];
-  roleRequestsLoaded: boolean;
-  roleRequestsLoading: boolean;
-  roleRequestsError: string;
-
   contentByKey: Record<string, Content[]>;
   contentLoadedByKey: Record<string, boolean>;
   contentLoadingByKey: Record<string, boolean>;
@@ -122,9 +116,6 @@ interface AdminStoreState {
   clearAdminCache: () => void;
 
   fetchOverview: (force?: boolean) => Promise<void>;
-
-  fetchRoleRequests: (force?: boolean) => Promise<void>;
-  removeRoleRequestFromCache: (userId: string) => void;
 
   fetchContents: (
     filters: ContentFilters,
@@ -169,11 +160,6 @@ export const useAdminStore = create<AdminStoreState>()(
       usersLoaded: false,
       usersLoading: false,
       usersError: "",
-
-      roleRequests: [],
-      roleRequestsLoaded: false,
-      roleRequestsLoading: false,
-      roleRequestsError: "",
 
       contentByKey: {},
       contentLoadedByKey: {},
@@ -294,10 +280,6 @@ export const useAdminStore = create<AdminStoreState>()(
           usersLoaded: false,
           usersLoading: false,
           usersError: "",
-          roleRequests: [],
-          roleRequestsLoaded: false,
-          roleRequestsLoading: false,
-          roleRequestsError: "",
           contentByKey: {},
           contentLoadedByKey: {},
           contentLoadingByKey: {},
@@ -341,40 +323,6 @@ export const useAdminStore = create<AdminStoreState>()(
             today: { page: 1, limit: 20, total: 0 },
           },
         });
-      },
-
-      fetchRoleRequests: async (force = false) => {
-        const { roleRequestsLoaded, roleRequestsLoading } = get();
-
-        if (!force && (roleRequestsLoaded || roleRequestsLoading)) {
-          return;
-        }
-
-        set({ roleRequestsLoading: true, roleRequestsError: "" });
-
-        try {
-          const data = await adminService.listRoleRequests();
-          set({
-            roleRequests: data.requests || [],
-            roleRequestsLoaded: true,
-            roleRequestsLoading: false,
-            roleRequestsError: "",
-          });
-        } catch (error: any) {
-          set({
-            roleRequestsLoading: false,
-            roleRequestsError:
-              error?.response?.data?.error || "Failed to load role requests",
-          });
-        }
-      },
-
-      removeRoleRequestFromCache: (userId: string) => {
-        set((state) => ({
-          roleRequests: state.roleRequests.filter(
-            (request) => request.id !== userId,
-          ),
-        }));
       },
 
       fetchContents: async (filters, canManage, force = false) => {
@@ -650,8 +598,6 @@ export const useAdminStore = create<AdminStoreState>()(
         overviewLoaded: state.overviewLoaded,
         users: state.users,
         usersLoaded: state.usersLoaded,
-        roleRequests: state.roleRequests,
-        roleRequestsLoaded: state.roleRequestsLoaded,
         contentByKey: state.contentByKey,
         contentLoadedByKey: state.contentLoadedByKey,
         hospitalsByKey: state.hospitalsByKey,

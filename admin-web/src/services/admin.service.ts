@@ -28,11 +28,6 @@ export const adminService = {
     return response.data;
   },
 
-  async listRoleRequests() {
-    const response = await api.get("/admin/roles/pending");
-    return response.data;
-  },
-
   async approveProvider(userId: string) {
     const response = await api.post(`/admin/providers/${userId}/approve`);
     return response.data;
@@ -40,18 +35,6 @@ export const adminService = {
 
   async rejectProvider(userId: string, reason: string) {
     const response = await api.post(`/admin/providers/${userId}/reject`, {
-      reason,
-    });
-    return response.data;
-  },
-
-  async approveRole(userId: string) {
-    const response = await api.post(`/admin/roles/${userId}/approve`);
-    return response.data;
-  },
-
-  async rejectRole(userId: string, reason: string) {
-    const response = await api.post(`/admin/roles/${userId}/reject`, {
       reason,
     });
     return response.data;
