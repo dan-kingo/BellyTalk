@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import { sendMail } from "../services/email.service.js";
 import { supabase, supabaseAdmin } from "../configs/supabase.js";
 /**
  * register:
@@ -15,6 +14,13 @@ export const register = async (req: Request, res: Response) => {
     } = req.body;
     if (!email || !password)
       return res.status(400).json({ error: "email and password are required" });
+
+    const normalizedRole = String(role).toLowerCase();
+    if (!["mother", "doctor"].includes(normalizedRole)) {
+      return res.status(400).json({ error: "role must be mother or doctor" });
+    }
+
+    const roleStatus = normalizedRole === "doctor" ? "pending" : "approved";
 
     // Create user via admin API
     const { data: createData, error: createError } =
@@ -39,7 +45,8 @@ export const register = async (req: Request, res: Response) => {
         id: userId,
         email,
         full_name,
-        role,
+        role: normalizedRole,
+        role_status: roleStatus,
         language,
       },
     ]);
@@ -49,33 +56,38 @@ export const register = async (req: Request, res: Response) => {
       return res.status(500).json({ error: "Failed to create profile" });
     }
 
+    // Keep doctor profile verification state aligned from the first signup step.
+    if (normalizedRole === "doctor") {
+      const { error: doctorProfileError } = await supabaseAdmin
+        .from("doctor_profiles")
+        .upsert(
+          {
+            user_id: userId,
+            verification_status: "pending",
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" },
+        );
+
+      if (doctorProfileError) {
+        console.error("doctor profile init error:", doctorProfileError);
+      }
+    }
+
     const emailRedirectTo =
       process.env.AUTH_REDIRECT_URL ||
       process.env.FRONTEND_URL ||
       "https://bellytalkapp.com/login";
 
-    // Trigger Supabase verification email without blocking the registration response.
-    void supabase.auth
-      .signInWithOtp({ email, options: { emailRedirectTo } })
-      .catch((e) => {
-        // continue - Supabase may already send by default via admin.createUser depending on settings
-        console.warn("signInWithOtp warning:", e);
-      });
-
-    // Send a friendly email in the background so SMTP slowness never blocks signup UX.
-    const html = `
-      <p>Welcome to BellyTalk,</p>
-      <p>Thanks for signing up. We sent a verification email — please check your inbox (and spam) and click the verification link to activate your account.</p>
-      <p>If you didn't receive an email, you can request a new verification link from the app.</p>
-      <p>— BellyTalk</p>
-    `;
-    void sendMail(
+    // Use Supabase native verification email flow only.
+    const { error: otpError } = await supabase.auth.signInWithOtp({
       email,
-      "Welcome to BellyTalk — verify your email",
-      html,
-    ).catch((mailErr) => {
-      console.warn("Failed to send custom welcome email:", mailErr);
+      options: { emailRedirectTo },
     });
+
+    if (otpError) {
+      console.warn("signInWithOtp warning:", otpError);
+    }
 
     return res.status(201).json({
       message: "User created. Check email for verification.",

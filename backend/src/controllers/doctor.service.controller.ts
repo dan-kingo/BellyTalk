@@ -4,6 +4,12 @@ import { AuthRequest } from "../middlewares/auth.middleware.js";
 
 type ProfileRole = "mother" | "doctor" | "admin" | "counselor" | string;
 
+interface ProfileAuthMeta {
+  role: ProfileRole;
+  role_status?: string | null;
+  doctor_verification_status?: string | null;
+}
+
 const getRole = async (userId: string): Promise<ProfileRole | null> => {
   const { data, error } = await supabaseAdmin
     .from("profiles")
@@ -13,6 +19,71 @@ const getRole = async (userId: string): Promise<ProfileRole | null> => {
 
   if (error || !data) return null;
   return data.role as ProfileRole;
+};
+
+const getProfileAuthMeta = async (
+  userId: string,
+): Promise<ProfileAuthMeta | null> => {
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("role, role_status")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return {
+    role: data.role as ProfileRole,
+    role_status: data.role_status,
+  };
+};
+
+const getDoctorVerificationStatus = async (
+  userId: string,
+): Promise<string | null> => {
+  const { data, error } = await supabaseAdmin
+    .from("doctor_profiles")
+    .select("verification_status")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return data.verification_status || null;
+};
+
+const ensureDoctorApprovedOrAdmin = async (userId: string) => {
+  const meta = await getProfileAuthMeta(userId);
+  if (!meta) {
+    return { ok: false, status: 403, error: "Profile not found" };
+  }
+
+  if (meta.role === "admin") {
+    return { ok: true };
+  }
+
+  if (meta.role !== "doctor") {
+    return { ok: false, status: 403, error: "Doctor access required" };
+  }
+
+  if (meta.role_status !== "approved") {
+    return {
+      ok: false,
+      status: 403,
+      error:
+        "Your doctor profile is pending approval. You cannot manage services yet.",
+    };
+  }
+
+  const doctorVerificationStatus = await getDoctorVerificationStatus(userId);
+  if (doctorVerificationStatus !== "approved") {
+    return {
+      ok: false,
+      status: 403,
+      error:
+        "Your doctor verification is pending. You cannot manage services yet.",
+    };
+  }
+
+  return { ok: true };
 };
 
 const parsePagination = (query: Request["query"]) => {
@@ -81,6 +152,13 @@ export const listMyDoctorServices = async (req: AuthRequest, res: Response) => {
 export const createDoctorService = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
+    const approvalCheck = await ensureDoctorApprovedOrAdmin(userId);
+    if (!approvalCheck.ok) {
+      return res
+        .status(approvalCheck.status || 403)
+        .json({ error: approvalCheck.error });
+    }
+
     const role = await getRole(userId);
     if (!role) return res.status(403).json({ error: "Profile not found" });
 
@@ -106,6 +184,13 @@ export const createDoctorService = async (req: AuthRequest, res: Response) => {
 export const updateDoctorService = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
+    const approvalCheck = await ensureDoctorApprovedOrAdmin(userId);
+    if (!approvalCheck.ok) {
+      return res
+        .status(approvalCheck.status || 403)
+        .json({ error: approvalCheck.error });
+    }
+
     const role = await getRole(userId);
     const { id } = req.params;
 
@@ -146,6 +231,13 @@ export const updateDoctorService = async (req: AuthRequest, res: Response) => {
 export const deleteDoctorService = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
+    const approvalCheck = await ensureDoctorApprovedOrAdmin(userId);
+    if (!approvalCheck.ok) {
+      return res
+        .status(approvalCheck.status || 403)
+        .json({ error: approvalCheck.error });
+    }
+
     const role = await getRole(userId);
     const { id } = req.params;
 
@@ -206,6 +298,13 @@ export const createServiceAvailability = async (
 ) => {
   try {
     const userId = req.user!.id;
+    const approvalCheck = await ensureDoctorApprovedOrAdmin(userId);
+    if (!approvalCheck.ok) {
+      return res
+        .status(approvalCheck.status || 403)
+        .json({ error: approvalCheck.error });
+    }
+
     const role = await getRole(userId);
     const { serviceId } = req.params;
 
@@ -218,11 +317,9 @@ export const createServiceAvailability = async (
     if (serviceError) throw serviceError;
     if (!service) return res.status(404).json({ error: "Service not found" });
     if (role !== "admin" && service.doctor_id !== userId) {
-      return res
-        .status(403)
-        .json({
-          error: "You can only manage availability for your own services",
-        });
+      return res.status(403).json({
+        error: "You can only manage availability for your own services",
+      });
     }
 
     const { data, error } = await supabaseAdmin
@@ -249,6 +346,13 @@ export const updateServiceAvailability = async (
 ) => {
   try {
     const userId = req.user!.id;
+    const approvalCheck = await ensureDoctorApprovedOrAdmin(userId);
+    if (!approvalCheck.ok) {
+      return res
+        .status(approvalCheck.status || 403)
+        .json({ error: approvalCheck.error });
+    }
+
     const role = await getRole(userId);
     const { availabilityId } = req.params;
 
@@ -294,6 +398,13 @@ export const deleteServiceAvailability = async (
 ) => {
   try {
     const userId = req.user!.id;
+    const approvalCheck = await ensureDoctorApprovedOrAdmin(userId);
+    if (!approvalCheck.ok) {
+      return res
+        .status(approvalCheck.status || 403)
+        .json({ error: approvalCheck.error });
+    }
+
     const role = await getRole(userId);
     const { availabilityId } = req.params;
 

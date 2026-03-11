@@ -3,6 +3,62 @@ import { AuthRequest } from "../middlewares/auth.middleware.js";
 import { supabaseAdmin } from "../configs/supabase.js";
 import { sendMail } from "../services/email.service.js";
 
+const hasDoctorDetails = (doctor: any) => {
+  const hasHeadline = Boolean(
+    doctor?.headline && String(doctor.headline).trim(),
+  );
+  const hasBio = Boolean(doctor?.bio && String(doctor.bio).trim());
+  const hasSpecialties =
+    Array.isArray(doctor?.specialties) && doctor.specialties.length > 0;
+  return hasHeadline || hasBio || hasSpecialties;
+};
+
+const ensureDoctorDetailsBeforeApproval = async (userId: string) => {
+  const { data: doctorProfile, error } = await supabaseAdmin
+    .from("doctor_profiles")
+    .select("user_id, headline, bio, specialties")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    return { ok: false, status: 500, error: error.message };
+  }
+
+  if (!doctorProfile) {
+    return {
+      ok: false,
+      status: 400,
+      error: "Doctor details are required before approval",
+    };
+  }
+
+  if (!hasDoctorDetails(doctorProfile)) {
+    return {
+      ok: false,
+      status: 400,
+      error:
+        "Doctor details are incomplete. Add headline/bio/specialty before approval",
+    };
+  }
+
+  return { ok: true };
+};
+
+const syncDoctorVerificationStatus = async (
+  userId: string,
+  verificationStatus: "pending" | "approved" | "rejected",
+) => {
+  const { error } = await supabaseAdmin.from("doctor_profiles").upsert(
+    {
+      user_id: userId,
+      verification_status: verificationStatus,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" },
+  );
+
+  if (error) throw error;
+};
 
 /**
  * list pending providers
@@ -12,7 +68,10 @@ export const listProviders = async (req: AuthRequest, res: Response) => {
   try {
     const { status = "pending" } = req.query;
 
-    const { data, error } = await supabaseAdmin.from("profiles").select("*").eq("role_status", status as string);
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .select("*")
+      .eq("role_status", status as string);
 
     if (error) return res.status(500).json({ error: error.message });
 
@@ -23,18 +82,29 @@ export const listProviders = async (req: AuthRequest, res: Response) => {
   }
 };
 
-
 /**
  * approveProvider
  */
 export const approveProvider = async (req: AuthRequest, res: Response) => {
   try {
     const targetId = req.params.id;
-    const { data: existing, error: getErr } = await supabaseAdmin.from("profiles").select("*").eq("id", targetId).maybeSingle();
+    const { data: existing, error: getErr } = await supabaseAdmin
+      .from("profiles")
+      .select("*")
+      .eq("id", targetId)
+      .maybeSingle();
     if (getErr) return res.status(500).json({ error: getErr.message });
     if (!existing) return res.status(404).json({ error: "Provider not found" });
 
     const updatedRole = existing.extra?.requested_role || existing.role;
+    if (updatedRole === "doctor") {
+      const detailsCheck = await ensureDoctorDetailsBeforeApproval(targetId);
+      if (!detailsCheck.ok) {
+        return res
+          .status(detailsCheck.status || 400)
+          .json({ error: detailsCheck.error });
+      }
+    }
 
     const { data, error } = await supabaseAdmin
       .from("profiles")
@@ -45,10 +115,18 @@ export const approveProvider = async (req: AuthRequest, res: Response) => {
 
     if (error) return res.status(500).json({ error: error.message });
 
+    if (updatedRole === "doctor") {
+      await syncDoctorVerificationStatus(targetId, "approved");
+    }
+
     // send email to user
     try {
       const html = `<p>Your request to become <strong>${updatedRole}</strong> has been approved. You can now access provider features.</p>`;
-      await sendMail(existing.email, "Provider request approved — BellyTalk", html);
+      await sendMail(
+        existing.email,
+        "Provider request approved — BellyTalk",
+        html,
+      );
     } catch (mailErr) {
       console.warn("Failed to send approval email", mailErr);
     }
@@ -68,11 +146,18 @@ export const rejectProvider = async (req: AuthRequest, res: Response) => {
     const targetId = req.params.id;
     const { reason } = req.body;
 
-    const { data: existing, error: getErr } = await supabaseAdmin.from("profiles").select("*").eq("id", targetId).maybeSingle();
+    const { data: existing, error: getErr } = await supabaseAdmin
+      .from("profiles")
+      .select("*")
+      .eq("id", targetId)
+      .maybeSingle();
     if (getErr) return res.status(500).json({ error: getErr.message });
     if (!existing) return res.status(404).json({ error: "Provider not found" });
 
-    const extra = { ...(existing.extra || {}), rejection_reason: reason || null };
+    const extra = {
+      ...(existing.extra || {}),
+      rejection_reason: reason || null,
+    };
 
     const { data, error } = await supabaseAdmin
       .from("profiles")
@@ -83,9 +168,20 @@ export const rejectProvider = async (req: AuthRequest, res: Response) => {
 
     if (error) return res.status(500).json({ error: error.message });
 
+    if (
+      existing.role === "doctor" ||
+      existing.extra?.requested_role === "doctor"
+    ) {
+      await syncDoctorVerificationStatus(targetId, "rejected");
+    }
+
     try {
       const html = `<p>Your provider request was rejected.</p><p>Reason: ${reason || "Not specified"}</p>`;
-      await sendMail(existing.email, "Provider request rejected — BellyTalk", html);
+      await sendMail(
+        existing.email,
+        "Provider request rejected — BellyTalk",
+        html,
+      );
     } catch (mailErr) {
       console.warn("Failed to send rejection email", mailErr);
     }
@@ -97,7 +193,6 @@ export const rejectProvider = async (req: AuthRequest, res: Response) => {
   }
 };
 
-
 /**
  * GET /api/admin/providers/pending
  * Lists all users who requested role upgrade
@@ -106,13 +201,15 @@ export const listRoleRequests = async (_req: AuthRequest, res: Response) => {
   try {
     const { data, error } = await supabaseAdmin
       .from("profiles")
-      .select("id, full_name, email, role_status, extra, created_at, updated_at")
+      .select(
+        "id, full_name, email, role_status, extra, created_at, updated_at",
+      )
       .eq("role_status", "pending");
 
     if (error) {
-       res.status(500).json({ error: error.message });
-       return;
-      }
+      res.status(500).json({ error: error.message });
+      return;
+    }
 
     // Extract docs from `extra`
     const requests = (data || []).map((u) => ({
@@ -150,6 +247,14 @@ export const approveRole = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: "User not found or invalid ID" });
 
     const newRole = profile.extra?.requested_role || "doctor";
+    if (newRole === "doctor") {
+      const detailsCheck = await ensureDoctorDetailsBeforeApproval(id);
+      if (!detailsCheck.ok) {
+        return res
+          .status(detailsCheck.status || 400)
+          .json({ error: detailsCheck.error });
+      }
+    }
 
     // Update role and status
     const { data, error } = await supabaseAdmin
@@ -161,6 +266,10 @@ export const approveRole = async (req: AuthRequest, res: Response) => {
 
     if (error) return res.status(500).json({ error: error.message });
 
+    if (newRole === "doctor") {
+      await syncDoctorVerificationStatus(id, "approved");
+    }
+
     // Notify user
     const html = `
       <p>Dear ${data.full_name || "user"},</p>
@@ -171,7 +280,9 @@ export const approveRole = async (req: AuthRequest, res: Response) => {
     `;
     await sendMail(profile.email, "🎉 Role Approved — BellyTalk", html);
 
-    res.status(200).json({ message: "Role approved successfully", profile: data });
+    res
+      .status(200)
+      .json({ message: "Role approved successfully", profile: data });
   } catch (err) {
     console.error("approveRole error:", err);
     res.status(500).json({ error: "Server error" });
@@ -208,6 +319,10 @@ export const rejectRole = async (req: AuthRequest, res: Response) => {
 
     if (error) return res.status(500).json({ error: error.message });
 
+    if (requestedRole === "doctor") {
+      await syncDoctorVerificationStatus(id, "rejected");
+    }
+
     // Email user
     const html = `
       <p>Dear ${profile.full_name || "user"},</p>
@@ -218,7 +333,9 @@ export const rejectRole = async (req: AuthRequest, res: Response) => {
     `;
     await sendMail(profile.email, "❌ Role Rejected — BellyTalk", html);
 
-    res.status(200).json({ message: "Role rejected successfully", profile: data });
+    res
+      .status(200)
+      .json({ message: "Role rejected successfully", profile: data });
   } catch (err) {
     console.error("rejectRole error:", err);
     res.status(500).json({ error: "Server error" });
