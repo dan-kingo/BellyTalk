@@ -25,6 +25,7 @@ import groupChatRouter from "./routes/groupchat.route.js";
 import adminPanelRouter from "./routes/admin.panel.route.js";
 import doctorServiceRouter from "./routes/doctor.service.route.js";
 import doctorProfileRouter from "./routes/doctor.profile.route.js";
+import bookingRouter from "./routes/booking.route.js";
 import { logActivity } from "./middlewares/logging.middleware.js";
 
 dotenv.config();
@@ -71,6 +72,7 @@ app.use("/api/groupchats", groupChatRouter);
 app.use("/api/admin/panel", adminPanelRouter);
 app.use("/api/doctor-services", doctorServiceRouter);
 app.use("/api/doctors", doctorProfileRouter);
+app.use("/api/bookings", bookingRouter);
 
 // not found + error handler
 app.use(notFoundHandler);
