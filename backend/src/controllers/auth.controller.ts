@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { supabase, supabaseAdmin } from "../configs/supabase.js";
+import { AuthRequest } from "../middlewares/auth.middleware.js";
 /**
  * register:
  */
@@ -139,6 +140,108 @@ export const logout = async (req: Request, res: Response) => {
       .json({ message: "Logged out (client should drop token)" });
   } catch (err) {
     console.error("logout error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+export const forgotPassword = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    const redirectTo =
+      process.env.AUTH_RESET_REDIRECT_URL ||
+      process.env.AUTH_REDIRECT_URL ||
+      process.env.FRONTEND_URL ||
+      "https://bellytalkapp.com/reset-password";
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    return res.status(200).json({
+      message: "If this email exists, a reset link has been sent.",
+    });
+  } catch (err) {
+    console.error("forgotPassword error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { token_hash, new_password } = req.body;
+
+    const { data: verifyData, error: verifyError } =
+      await supabase.auth.verifyOtp({
+        type: "recovery",
+        token_hash,
+      });
+
+    if (verifyError || !verifyData?.user?.id) {
+      return res
+        .status(400)
+        .json({
+          error: verifyError?.message || "Invalid or expired reset token",
+        });
+    }
+
+    const userId = verifyData.user.id;
+    const { error: updateError } =
+      await supabaseAdmin.auth.admin.updateUserById(userId, {
+        password: new_password,
+      });
+
+    if (updateError) {
+      return res.status(400).json({ error: updateError.message });
+    }
+
+    return res.status(200).json({ message: "Password has been reset" });
+  } catch (err) {
+    console.error("resetPassword error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+export const changePassword = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const { current_password, new_password } = req.body;
+
+    const { data: userData, error: userError } =
+      await supabaseAdmin.auth.admin.getUserById(userId);
+
+    if (userError || !userData.user?.email) {
+      return res.status(400).json({ error: "Unable to resolve account" });
+    }
+
+    const email = userData.user.email;
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email,
+      password: current_password,
+    });
+
+    if (verifyError) {
+      return res.status(400).json({ error: "Current password is incorrect" });
+    }
+
+    const { error: updateError } =
+      await supabaseAdmin.auth.admin.updateUserById(userId, {
+        password: new_password,
+      });
+
+    if (updateError) {
+      return res.status(400).json({ error: updateError.message });
+    }
+
+    return res.status(200).json({ message: "Password changed successfully" });
+  } catch (err) {
+    console.error("changePassword error:", err);
     return res.status(500).json({ error: "Server error" });
   }
 };
