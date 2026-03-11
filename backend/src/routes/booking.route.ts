@@ -10,6 +10,8 @@ import {
   createBooking,
   getBooking,
   joinCheck,
+  markBookingNoShow,
+  rescheduleBooking,
   listDoctorBookings,
   listMyBookings,
   reviewBookingPayment,
@@ -68,6 +70,19 @@ router.patch(
   requireRole(["doctor", "admin"]),
   validate(bookingActionSchema),
   completeBooking,
+);
+router.patch(
+  "/:id/reschedule",
+  requireAuth,
+  validate(bookingActionSchema),
+  rescheduleBooking,
+);
+router.patch(
+  "/:id/no-show",
+  requireAuth,
+  requireRole(["doctor", "admin"]),
+  validate(bookingActionSchema),
+  markBookingNoShow,
 );
 
 router.post(

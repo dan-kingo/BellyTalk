@@ -3,6 +3,7 @@ import { supabaseAdmin } from "../configs/supabase.js";
 import { AuthRequest } from "../middlewares/auth.middleware.js";
 import { uploadFile } from "./upload.controller.js";
 import { checkDirectInteractionAccess } from "../services/booking-access.service.js";
+import { sendMail } from "../services/email.service.js";
 
 type ProfileRole = "mother" | "doctor" | "admin" | "counselor" | string;
 
@@ -39,6 +40,42 @@ const writeBookingHistory = async (
 
   if (error) {
     console.warn("booking status history insert warning:", error.message);
+  }
+};
+
+const notifyBookingParticipants = async (
+  bookingId: string,
+  subject: string,
+  htmlBuilder: (motherName: string, doctorName: string) => string,
+) => {
+  try {
+    const { data: booking, error: bookingError } = await supabaseAdmin
+      .from("bookings")
+      .select("mother_id, doctor_id")
+      .eq("id", bookingId)
+      .maybeSingle();
+
+    if (bookingError || !booking) return;
+
+    const { data: users } = await supabaseAdmin
+      .from("profiles")
+      .select("id, email, full_name")
+      .in("id", [booking.mother_id, booking.doctor_id]);
+
+    const mother = (users || []).find((u: any) => u.id === booking.mother_id);
+    const doctor = (users || []).find((u: any) => u.id === booking.doctor_id);
+    const motherName = mother?.full_name || "Mother";
+    const doctorName = doctor?.full_name || "Doctor";
+    const html = htmlBuilder(motherName, doctorName);
+
+    const recipients = [mother?.email, doctor?.email].filter(
+      Boolean,
+    ) as string[];
+    for (const to of recipients) {
+      await sendMail(to, subject, html);
+    }
+  } catch (e) {
+    console.warn("notifyBookingParticipants warning:", e);
   }
 };
 
@@ -82,12 +119,10 @@ export const confirmBooking = async (req: AuthRequest, res: Response) => {
       booking.payment_method === "proof_upload" &&
       booking.payment_status !== "paid"
     ) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "Proof-upload bookings must have paid status before confirmation",
-        });
+      return res.status(400).json({
+        error:
+          "Proof-upload bookings must have paid status before confirmation",
+      });
     }
 
     const updates: Record<string, any> = {
@@ -110,6 +145,13 @@ export const confirmBooking = async (req: AuthRequest, res: Response) => {
       booking.status,
       "confirmed",
       note || "Booking confirmed",
+    );
+
+    await notifyBookingParticipants(
+      id,
+      "Booking Confirmed - BellyTalk",
+      (motherName, doctorName) =>
+        `<p>Hello ${motherName} and ${doctorName},</p><p>Your booking has been <strong>confirmed</strong>.</p>`,
     );
 
     return res.json({ booking: updatedBooking });
@@ -179,6 +221,13 @@ export const cancelBooking = async (req: AuthRequest, res: Response) => {
       reason ? `Cancelled: ${reason}` : "Booking cancelled",
     );
 
+    await notifyBookingParticipants(
+      id,
+      "Booking Cancelled - BellyTalk",
+      (motherName, doctorName) =>
+        `<p>Hello ${motherName} and ${doctorName},</p><p>This booking has been <strong>cancelled</strong>.</p><p>${reason ? `Reason: ${reason}` : ""}</p>`,
+    );
+
     return res.json({ booking: updatedBooking });
   } catch (err: any) {
     console.error("cancelBooking error:", err);
@@ -244,12 +293,228 @@ export const completeBooking = async (req: AuthRequest, res: Response) => {
       note || "Booking completed",
     );
 
+    await notifyBookingParticipants(
+      id,
+      "Booking Completed - BellyTalk",
+      (motherName, doctorName) =>
+        `<p>Hello ${motherName} and ${doctorName},</p><p>Your booking has been marked as <strong>completed</strong>.</p>`,
+    );
+
     return res.json({ booking: updatedBooking });
   } catch (err: any) {
     console.error("completeBooking error:", err);
     return res
       .status(500)
       .json({ error: err.message || "Failed to complete booking" });
+  }
+};
+
+export const rescheduleBooking = async (req: AuthRequest, res: Response) => {
+  try {
+    const actorId = req.user!.id;
+    const { id } = req.params;
+    const { scheduled_start, scheduled_end, note } = req.body;
+
+    if (!scheduled_start || !scheduled_end) {
+      return res
+        .status(400)
+        .json({ error: "scheduled_start and scheduled_end are required" });
+    }
+
+    const start = new Date(scheduled_start);
+    const end = new Date(scheduled_end);
+    if (
+      Number.isNaN(start.getTime()) ||
+      Number.isNaN(end.getTime()) ||
+      end <= start
+    ) {
+      return res.status(400).json({ error: "Invalid schedule range" });
+    }
+
+    const access = await ensureBookingParticipantOrAdmin(id, actorId);
+    if (!access.ok) {
+      return res.status(access.status || 403).json({ error: access.error });
+    }
+    const accessProfile = access.profile!;
+    const accessBooking = access.booking!;
+
+    const isAdmin = accessProfile.role === "admin";
+    const isDoctor = accessBooking.doctor_id === actorId;
+    const isMother = accessBooking.mother_id === actorId;
+    if (!isAdmin && !isDoctor && !isMother) {
+      return res
+        .status(403)
+        .json({ error: "Not allowed to reschedule this booking" });
+    }
+
+    const { data: booking, error: bookingError } = await supabaseAdmin
+      .from("bookings")
+      .select("id, doctor_id, availability_id, status, payment_status")
+      .eq("id", id)
+      .maybeSingle();
+    if (bookingError) throw bookingError;
+    if (!booking) return res.status(404).json({ error: "Booking not found" });
+
+    if (
+      ["cancelled", "completed", "expired", "no_show"].includes(booking.status)
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Booking cannot be rescheduled from current status" });
+    }
+
+    if (booking.availability_id) {
+      const { data: availability, error: availabilityError } =
+        await supabaseAdmin
+          .from("doctor_service_availability")
+          .select(
+            "id, day_of_week, specific_date, start_time, end_time, is_active",
+          )
+          .eq("id", booking.availability_id)
+          .maybeSingle();
+      if (availabilityError) throw availabilityError;
+      if (availability && availability.is_active) {
+        if (!checkAvailabilityWindow(availability, start, end)) {
+          return res
+            .status(400)
+            .json({ error: "New schedule is outside availability window" });
+        }
+      }
+    }
+
+    const { data: conflict, error: conflictError } = await supabaseAdmin
+      .from("bookings")
+      .select("id")
+      .eq("doctor_id", booking.doctor_id)
+      .neq("id", id)
+      .in("status", ACTIVE_BOOKING_STATUSES)
+      .lt("scheduled_start", scheduled_end)
+      .gt("scheduled_end", scheduled_start)
+      .limit(1)
+      .maybeSingle();
+    if (conflictError) throw conflictError;
+    if (conflict) {
+      return res
+        .status(409)
+        .json({ error: "New schedule conflicts with another booking" });
+    }
+
+    const nextStatus =
+      booking.payment_status === "paid"
+        ? "pending_confirmation"
+        : "pending_payment";
+    const { data: updatedBooking, error: updateError } = await supabaseAdmin
+      .from("bookings")
+      .update({
+        scheduled_start,
+        scheduled_end,
+        status: nextStatus,
+        confirmed_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (updateError) throw updateError;
+
+    await writeBookingHistory(
+      id,
+      actorId,
+      booking.status,
+      nextStatus,
+      note || "Booking rescheduled",
+    );
+
+    await notifyBookingParticipants(
+      id,
+      "Booking Rescheduled - BellyTalk",
+      (motherName, doctorName) =>
+        `<p>Hello ${motherName} and ${doctorName},</p><p>The booking has been <strong>rescheduled</strong>.</p><p>New time: ${scheduled_start} to ${scheduled_end}</p>`,
+    );
+
+    return res.json({ booking: updatedBooking });
+  } catch (err: any) {
+    console.error("rescheduleBooking error:", err);
+    return res
+      .status(500)
+      .json({ error: err.message || "Failed to reschedule booking" });
+  }
+};
+
+export const markBookingNoShow = async (req: AuthRequest, res: Response) => {
+  try {
+    const actorId = req.user!.id;
+    const { id } = req.params;
+    const { note } = req.body;
+
+    const access = await ensureBookingParticipantOrAdmin(id, actorId);
+    if (!access.ok) {
+      return res.status(access.status || 403).json({ error: access.error });
+    }
+    const accessProfile = access.profile!;
+    const accessBooking = access.booking!;
+
+    const isAdmin = accessProfile.role === "admin";
+    const isDoctor = accessBooking.doctor_id === actorId;
+    if (!isAdmin && !isDoctor) {
+      return res
+        .status(403)
+        .json({ error: "Only assigned doctor or admin can mark no-show" });
+    }
+
+    const { data: booking, error: bookingError } = await supabaseAdmin
+      .from("bookings")
+      .select("id, status, scheduled_end")
+      .eq("id", id)
+      .maybeSingle();
+    if (bookingError) throw bookingError;
+    if (!booking) return res.status(404).json({ error: "Booking not found" });
+
+    if (booking.status !== "confirmed") {
+      return res
+        .status(400)
+        .json({ error: "Only confirmed bookings can be marked as no-show" });
+    }
+
+    const graceMs = 15 * 60 * 1000;
+    if (Date.now() < new Date(booking.scheduled_end).getTime() + graceMs) {
+      return res
+        .status(400)
+        .json({ error: "Cannot mark no-show before booking end window" });
+    }
+
+    const { data: updatedBooking, error: updateError } = await supabaseAdmin
+      .from("bookings")
+      .update({
+        status: "no_show",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (updateError) throw updateError;
+
+    await writeBookingHistory(
+      id,
+      actorId,
+      booking.status,
+      "no_show",
+      note || "Marked as no-show",
+    );
+
+    await notifyBookingParticipants(
+      id,
+      "Booking No-Show - BellyTalk",
+      (motherName, doctorName) =>
+        `<p>Hello ${motherName} and ${doctorName},</p><p>This booking has been marked as <strong>no-show</strong>.</p>`,
+    );
+
+    return res.json({ booking: updatedBooking });
+  } catch (err: any) {
+    console.error("markBookingNoShow error:", err);
+    return res
+      .status(500)
+      .json({ error: err.message || "Failed to mark no-show" });
   }
 };
 
@@ -923,6 +1188,15 @@ export const reviewBookingPayment = async (req: AuthRequest, res: Response) => {
         note: status === "approved" ? "Payment approved" : "Payment rejected",
       },
     ]);
+
+    await notifyBookingParticipants(
+      id,
+      status === "approved"
+        ? "Booking Payment Approved - BellyTalk"
+        : "Booking Payment Rejected - BellyTalk",
+      (motherName, doctorName) =>
+        `<p>Hello ${motherName} and ${doctorName},</p><p>Payment review result: <strong>${status}</strong>.</p>`,
+    );
 
     return res.json({ payment, booking: updatedBooking });
   } catch (err: any) {
