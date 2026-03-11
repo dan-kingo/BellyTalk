@@ -4,8 +4,12 @@ import { validate } from "../middlewares/validation.middleware.js";
 import { uploadMiddleware } from "../controllers/upload.controller.js";
 import {
   addBookingDocuments,
+  cancelBooking,
+  completeBooking,
+  confirmBooking,
   createBooking,
   getBooking,
+  joinCheck,
   listDoctorBookings,
   listMyBookings,
   reviewBookingPayment,
@@ -13,6 +17,8 @@ import {
 } from "../controllers/booking.controller.js";
 import {
   addBookingDocumentBodySchema,
+  bookingActionSchema,
+  bookingJoinCheckQuerySchema,
   createBookingSchema,
   listBookingsQuerySchema,
   reviewBookingPaymentSchema,
@@ -36,6 +42,33 @@ router.get(
   listDoctorBookings,
 );
 router.get("/:id", requireAuth, getBooking);
+router.get(
+  "/:id/join-check",
+  requireAuth,
+  validate(bookingJoinCheckQuerySchema, "query"),
+  joinCheck,
+);
+
+router.patch(
+  "/:id/confirm",
+  requireAuth,
+  requireRole(["doctor", "admin"]),
+  validate(bookingActionSchema),
+  confirmBooking,
+);
+router.patch(
+  "/:id/cancel",
+  requireAuth,
+  validate(bookingActionSchema),
+  cancelBooking,
+);
+router.patch(
+  "/:id/complete",
+  requireAuth,
+  requireRole(["doctor", "admin"]),
+  validate(bookingActionSchema),
+  completeBooking,
+);
 
 router.post(
   "/:id/documents",

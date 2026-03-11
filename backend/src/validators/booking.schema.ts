@@ -82,3 +82,14 @@ export const addBookingDocumentBodySchema = z.object({
     )
     .optional(),
 });
+
+export const bookingActionSchema = z.object({
+  note: z.string().max(1000).optional(),
+  reason: z.string().max(1000).optional(),
+  scheduled_start: z.string().datetime().optional(),
+  scheduled_end: z.string().datetime().optional(),
+});
+
+export const bookingJoinCheckQuerySchema = z.object({
+  channel: z.enum(["message", "audio", "video"]),
+});

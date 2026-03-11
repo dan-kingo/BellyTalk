@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { supabaseAdmin } from "../configs/supabase.js";
 import { AuthRequest } from "../middlewares/auth.middleware.js";
 import { uploadFile } from "./upload.controller.js";
+import { checkDirectInteractionAccess } from "../services/booking-access.service.js";
 
 type ProfileRole = "mother" | "doctor" | "admin" | "counselor" | string;
 
@@ -17,6 +18,289 @@ const parsePagination = (query: Request["query"]) => {
   const from = (page - 1) * limit;
   const to = from + limit - 1;
   return { page, from, to };
+};
+
+const writeBookingHistory = async (
+  bookingId: string,
+  actorId: string,
+  fromStatus: string | null,
+  toStatus: string,
+  note?: string,
+) => {
+  const { error } = await supabaseAdmin.from("booking_status_history").insert([
+    {
+      booking_id: bookingId,
+      actor_id: actorId,
+      from_status: fromStatus,
+      to_status: toStatus,
+      note: note || null,
+    },
+  ]);
+
+  if (error) {
+    console.warn("booking status history insert warning:", error.message);
+  }
+};
+
+export const confirmBooking = async (req: AuthRequest, res: Response) => {
+  try {
+    const actorId = req.user!.id;
+    const { id } = req.params;
+    const { note } = req.body;
+
+    const access = await ensureBookingParticipantOrAdmin(id, actorId);
+    if (!access.ok) {
+      return res.status(access.status || 403).json({ error: access.error });
+    }
+    const accessProfile = access.profile!;
+    const accessBooking = access.booking!;
+
+    const profileRole = accessProfile.role;
+    const isAdmin = profileRole === "admin";
+    const isDoctor = accessBooking.doctor_id === actorId;
+    if (!isAdmin && !isDoctor) {
+      return res
+        .status(403)
+        .json({ error: "Only assigned doctor or admin can confirm booking" });
+    }
+
+    const { data: booking, error: bookingError } = await supabaseAdmin
+      .from("bookings")
+      .select("id, status, payment_method, payment_status")
+      .eq("id", id)
+      .maybeSingle();
+    if (bookingError) throw bookingError;
+    if (!booking) return res.status(404).json({ error: "Booking not found" });
+
+    if (!["pending_confirmation", "pending_payment"].includes(booking.status)) {
+      return res
+        .status(400)
+        .json({ error: "Booking cannot be confirmed from current status" });
+    }
+
+    if (
+      booking.payment_method === "proof_upload" &&
+      booking.payment_status !== "paid"
+    ) {
+      return res
+        .status(400)
+        .json({
+          error:
+            "Proof-upload bookings must have paid status before confirmation",
+        });
+    }
+
+    const updates: Record<string, any> = {
+      status: "confirmed",
+      confirmed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: updatedBooking, error: updateError } = await supabaseAdmin
+      .from("bookings")
+      .update(updates)
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (updateError) throw updateError;
+
+    await writeBookingHistory(
+      id,
+      actorId,
+      booking.status,
+      "confirmed",
+      note || "Booking confirmed",
+    );
+
+    return res.json({ booking: updatedBooking });
+  } catch (err: any) {
+    console.error("confirmBooking error:", err);
+    return res
+      .status(500)
+      .json({ error: err.message || "Failed to confirm booking" });
+  }
+};
+
+export const cancelBooking = async (req: AuthRequest, res: Response) => {
+  try {
+    const actorId = req.user!.id;
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const access = await ensureBookingParticipantOrAdmin(id, actorId);
+    if (!access.ok) {
+      return res.status(access.status || 403).json({ error: access.error });
+    }
+    const accessProfile = access.profile!;
+    const accessBooking = access.booking!;
+
+    const profileRole = accessProfile.role;
+    const isAdmin = profileRole === "admin";
+    const isDoctor = accessBooking.doctor_id === actorId;
+    const isMother = accessBooking.mother_id === actorId;
+
+    if (!isAdmin && !isDoctor && !isMother) {
+      return res
+        .status(403)
+        .json({ error: "Not allowed to cancel this booking" });
+    }
+
+    const { data: booking, error: bookingError } = await supabaseAdmin
+      .from("bookings")
+      .select("id, status")
+      .eq("id", id)
+      .maybeSingle();
+    if (bookingError) throw bookingError;
+    if (!booking) return res.status(404).json({ error: "Booking not found" });
+
+    if (["completed", "cancelled", "expired"].includes(booking.status)) {
+      return res
+        .status(400)
+        .json({ error: "Booking cannot be cancelled from current status" });
+    }
+
+    const { data: updatedBooking, error: updateError } = await supabaseAdmin
+      .from("bookings")
+      .update({
+        status: "cancelled",
+        cancelled_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (updateError) throw updateError;
+
+    await writeBookingHistory(
+      id,
+      actorId,
+      booking.status,
+      "cancelled",
+      reason ? `Cancelled: ${reason}` : "Booking cancelled",
+    );
+
+    return res.json({ booking: updatedBooking });
+  } catch (err: any) {
+    console.error("cancelBooking error:", err);
+    return res
+      .status(500)
+      .json({ error: err.message || "Failed to cancel booking" });
+  }
+};
+
+export const completeBooking = async (req: AuthRequest, res: Response) => {
+  try {
+    const actorId = req.user!.id;
+    const { id } = req.params;
+    const { note } = req.body;
+
+    const access = await ensureBookingParticipantOrAdmin(id, actorId);
+    if (!access.ok) {
+      return res.status(access.status || 403).json({ error: access.error });
+    }
+    const accessProfile = access.profile!;
+    const accessBooking = access.booking!;
+
+    const profileRole = accessProfile.role;
+    const isAdmin = profileRole === "admin";
+    const isDoctor = accessBooking.doctor_id === actorId;
+    if (!isAdmin && !isDoctor) {
+      return res
+        .status(403)
+        .json({ error: "Only assigned doctor or admin can complete booking" });
+    }
+
+    const { data: booking, error: bookingError } = await supabaseAdmin
+      .from("bookings")
+      .select("id, status")
+      .eq("id", id)
+      .maybeSingle();
+    if (bookingError) throw bookingError;
+    if (!booking) return res.status(404).json({ error: "Booking not found" });
+
+    if (booking.status !== "confirmed") {
+      return res
+        .status(400)
+        .json({ error: "Only confirmed bookings can be completed" });
+    }
+
+    const { data: updatedBooking, error: updateError } = await supabaseAdmin
+      .from("bookings")
+      .update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (updateError) throw updateError;
+
+    await writeBookingHistory(
+      id,
+      actorId,
+      booking.status,
+      "completed",
+      note || "Booking completed",
+    );
+
+    return res.json({ booking: updatedBooking });
+  } catch (err: any) {
+    console.error("completeBooking error:", err);
+    return res
+      .status(500)
+      .json({ error: err.message || "Failed to complete booking" });
+  }
+};
+
+export const joinCheck = async (req: AuthRequest, res: Response) => {
+  try {
+    const actorId = req.user!.id;
+    const { id } = req.params;
+    const channel = String(req.query.channel || "");
+
+    if (!["message", "audio", "video"].includes(channel)) {
+      return res
+        .status(400)
+        .json({ error: "channel must be one of message|audio|video" });
+    }
+
+    const { data: booking, error: bookingError } = await supabaseAdmin
+      .from("bookings")
+      .select("id, mother_id, doctor_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (bookingError) throw bookingError;
+    if (!booking) return res.status(404).json({ error: "Booking not found" });
+
+    if (booking.mother_id !== actorId && booking.doctor_id !== actorId) {
+      return res.status(403).json({ error: "Not allowed for this booking" });
+    }
+
+    const peerId =
+      booking.mother_id === actorId ? booking.doctor_id : booking.mother_id;
+    const access = await checkDirectInteractionAccess({
+      actorId,
+      peerId,
+      channel: channel as "message" | "audio" | "video",
+      bookingId: id,
+    });
+
+    if (!access.ok) {
+      return res.status(access.status).json({
+        allowed: false,
+        error: access.error,
+        code: access.code || "JOIN_NOT_ALLOWED",
+      });
+    }
+
+    return res.json({ allowed: true, booking: access.booking });
+  } catch (err: any) {
+    console.error("joinCheck error:", err);
+    return res
+      .status(500)
+      .json({ error: err.message || "Failed to evaluate join check" });
+  }
 };
 
 const getProfile = async (userId: string) => {
@@ -193,11 +477,9 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
       if (
         !checkAvailabilityWindow(availability, scheduledStart, scheduledEnd)
       ) {
-        return res
-          .status(400)
-          .json({
-            error: "Scheduled time is outside selected availability window",
-          });
+        return res.status(400).json({
+          error: "Scheduled time is outside selected availability window",
+        });
       }
 
       resolvedAvailabilityId = availability.id;
