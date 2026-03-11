@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import Dialog from "../components/common/Dialog";
 import Layout from "../components/layout/Layout";
-import { Edit2, X } from "lucide-react";
+import { Edit2, KeyRound, X } from "lucide-react";
+import { authService } from "../services/auth.service";
 import { useProfileStore } from "../stores/profile.store";
 import { toast } from "react-toastify";
 import Skeleton from "../components/common/Skeleton";
@@ -9,16 +11,13 @@ import Skeleton from "../components/common/Skeleton";
 const ProfilePage: React.FC = () => {
   const { profile, refreshProfile } = useAuth();
   const updateProfile = useProfileStore((state) => state.updateProfile);
-  const requestRoleUpgrade = useProfileStore(
-    (state) => state.requestRoleUpgrade,
-  );
   const loading = useProfileStore((state) => state.loading);
   const [editing, setEditing] = useState(false);
-  const [showRoleUpgrade, setShowRoleUpgrade] = useState(false);
-  const [upgradeRole, setUpgradeRole] = useState<"doctor" | "counselor">(
-    "doctor",
-  );
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const [formData, setFormData] = useState({
     full_name: "",
@@ -64,25 +63,41 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  const handleRoleUpgrade = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    try {
-      await requestRoleUpgrade(upgradeRole, uploadedFiles);
-      await refreshProfile();
-      toast.success("Role upgrade request submitted successfully.");
-      setShowRoleUpgrade(false);
-      setUploadedFiles([]);
-    } catch (err: any) {
-      toast.error(
-        err.response?.data?.error || "Failed to submit role upgrade request.",
-      );
-    }
+  const closeChangePasswordDialog = () => {
+    if (passwordLoading) return;
+    setShowChangePassword(false);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setUploadedFiles(Array.from(e.target.files));
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match.");
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      toast.error("New password must be different from current password.");
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      await authService.changePassword(currentPassword, newPassword);
+      toast.success("Password changed successfully.");
+      closeChangePasswordDialog();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || "Unable to change password.");
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -123,105 +138,27 @@ const ProfilePage: React.FC = () => {
               Profile Information
             </h1>
           </div>
-          {!editing && (
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
             <button
-              onClick={() => setEditing(true)}
-              className="flex items-center gap-2 w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary-700 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-6 py-2 rounded-lg font-medium transition"
+              type="button"
+              onClick={() => setShowChangePassword(true)}
+              className="flex items-center justify-center gap-2 w-full sm:w-auto cursor-pointer border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 px-6 py-2 rounded-lg font-medium transition"
             >
-              <Edit2 className="w-5 h-5" />
-              Edit Profile
+              <KeyRound className="w-5 h-5" />
+              Change Password
             </button>
-          )}
+
+            {!editing && (
+              <button
+                onClick={() => setEditing(true)}
+                className="flex items-center justify-center gap-2 w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary-700 dark:bg-secondary dark:hover:bg-secondary/90 text-white px-6 py-2 rounded-lg font-medium transition"
+              >
+                <Edit2 className="w-5 h-5" />
+                Edit Profile
+              </button>
+            )}
+          </div>
         </div>
-
-        {/* Role Upgrade Section */}
-        {profile.role === "mother" &&
-          profile.role_status !== "pending" &&
-          !showRoleUpgrade && (
-            <div className="mb-6 bg-blue-50 dark:bg-primary-900/20 rounded-lg p-4 border border-primary-200 dark:border-primary-800">
-              <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
-                Become a Professional
-              </h3>
-              <p className="text-blue-800 dark:text-blue-200 mb-4">
-                Are you a doctor or counselor? Request an upgrade to access
-                professional features.
-              </p>
-              <button
-                onClick={() => setShowRoleUpgrade(true)}
-                className="bg-primary-600 cursor-pointer hover:bg-primary-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                Request Role Upgrade
-              </button>
-            </div>
-          )}
-
-        {profile.role_status === "pending" && (
-          <div className="mb-6 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4 border border-yellow-200 dark:border-yellow-800">
-            <h3 className="text-lg font-semibold text-yellow-900 dark:text-yellow-100 mb-2">
-              Role Upgrade Pending
-            </h3>
-            <p className="text-yellow-800 dark:text-yellow-200">
-              Your role upgrade request is being reviewed by administrators.
-            </p>
-          </div>
-        )}
-
-        {/* Role Upgrade Form */}
-        {showRoleUpgrade && (
-          <div className="mb-6 bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-100 dark:border-gray-700">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                Request Role Upgrade
-              </h3>
-              <button
-                onClick={() => setShowRoleUpgrade(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            <form onSubmit={handleRoleUpgrade} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Select Role
-                </label>
-                <select
-                  value={upgradeRole}
-                  onChange={(e) =>
-                    setUpgradeRole(e.target.value as "doctor" | "counselor")
-                  }
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                >
-                  <option value="doctor">Doctor</option>
-                  <option value="counselor">Counselor</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Upload Documents (License, Certificate, etc.)
-                </label>
-                <input
-                  type="file"
-                  multiple
-                  onChange={handleFileChange}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                />
-                {uploadedFiles.length > 0 && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                    {uploadedFiles.length} file(s) selected
-                  </p>
-                )}
-              </div>
-              <button
-                type="submit"
-                disabled={loading || uploadedFiles.length === 0}
-                className="w-full bg-primary hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-medium transition disabled:opacity-50"
-              >
-                {loading ? "Submitting..." : "Submit Request"}
-              </button>
-            </form>
-          </div>
-        )}
 
         {/* Profile Card */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-xl transition p-6 border border-gray-100 dark:border-gray-700">
@@ -379,6 +316,83 @@ const ProfilePage: React.FC = () => {
             </div>
           )}
         </div>
+
+        <Dialog
+          isOpen={showChangePassword}
+          onClose={closeChangePasswordDialog}
+          title="Change Password"
+        >
+          <form className="space-y-5" onSubmit={handleChangePassword}>
+            <div>
+              <label
+                htmlFor="currentPassword"
+                className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1"
+              >
+                Current password
+              </label>
+              <input
+                id="currentPassword"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                required
+                className="block w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 bg-transparent focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="newPassword"
+                className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1"
+              >
+                New password
+              </label>
+              <input
+                id="newPassword"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                className="block w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 bg-transparent focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1"
+              >
+                Confirm new password
+              </label>
+              <input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                className="block w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 bg-transparent focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={passwordLoading}
+                className="flex-1 cursor-pointer py-2 px-4 rounded-xl text-white font-semibold bg-primary-600 hover:bg-primary-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {passwordLoading ? "Updating..." : "Change password"}
+              </button>
+              <button
+                type="button"
+                onClick={closeChangePasswordDialog}
+                disabled={passwordLoading}
+                className="flex-1 cursor-pointer px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </Dialog>
       </div>
     </Layout>
   );

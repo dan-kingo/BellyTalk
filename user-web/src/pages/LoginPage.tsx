@@ -92,6 +92,15 @@ const LoginPage: React.FC = () => {
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>
+
+          <p className="text-center text-sm text-gray-600 dark:text-gray-400">
+            <Link
+              to="/forgot-password"
+              className="font-medium text-primary-600 dark:text-primary-400 hover:underline"
+            >
+              Forgot your password?
+            </Link>
+          </p>
         </form>
       </div>
     </div>

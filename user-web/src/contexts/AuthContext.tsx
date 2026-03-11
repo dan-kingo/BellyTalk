@@ -31,8 +31,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     email: string,
     password: string,
     fullName: string,
+    role: "mother" | "doctor" = "mother",
   ) => {
-    await authService.register(email, password, fullName);
+    await authService.registerWithRole(email, password, fullName, role);
   };
 
   const logout = async () => {

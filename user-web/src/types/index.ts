@@ -33,6 +33,7 @@ export interface AuthContextType {
     email: string,
     password: string,
     fullName: string,
+    role?: "mother" | "doctor",
   ) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;

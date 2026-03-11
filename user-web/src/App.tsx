@@ -26,6 +26,8 @@ import OrderManagementPage from "./pages/OrderManagementPage";
 import AudioCallPage from "./pages/AudioCallPage";
 import VideoCallPage from "./pages/VideoCallPage";
 import GroupChatPage from "./pages/GroupChatPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import { AgoraProvider } from "./contexts/AgoraContext";
 import { GlobalCallDialog } from "./components/audio/GlobalCallDialog";
@@ -51,6 +53,8 @@ const App: React.FC = () => {
               <Route path="/" element={<HomePage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
               <Route

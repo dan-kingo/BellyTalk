@@ -30,6 +30,28 @@ export const authService = {
     return response.data;
   },
 
+  async registerWithRole(
+    email: string,
+    password: string,
+    full_name: string,
+    role: "mother" | "doctor" = "mother",
+  ) {
+    const response = await api.post(
+      "/auth/register",
+      {
+        email,
+        password,
+        full_name,
+        role,
+        language: "en",
+      },
+      {
+        timeout: 20000,
+      },
+    );
+    return response.data;
+  },
+
   async logout() {
     await api.post("/auth/logout").catch(() => {}); // optional, ignore if backend handles it
     await supabase.auth.signOut(); // ✅ clear Supabase session
@@ -45,6 +67,27 @@ export const authService = {
   async updateProfile(data: any) {
     const response = await api.put("/profile/me", data);
     return response.data.profile;
+  },
+
+  async forgotPassword(email: string) {
+    const response = await api.post("/auth/forgot-password", { email });
+    return response.data;
+  },
+
+  async resetPassword(token_hash: string, new_password: string) {
+    const response = await api.post("/auth/reset-password", {
+      token_hash,
+      new_password,
+    });
+    return response.data;
+  },
+
+  async changePassword(current_password: string, new_password: string) {
+    const response = await api.post("/auth/change-password", {
+      current_password,
+      new_password,
+    });
+    return response.data;
   },
 
   isAuthenticated() {
