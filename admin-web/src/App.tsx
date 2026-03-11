@@ -8,7 +8,6 @@ import {
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import PrivateRoute from "./components/common/PrivateRoute";
-import ActivityLogsPage from "./pages/ActivityLogsPage";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import ProviderApprovalsPage from "./pages/ProviderApprovalsPage";
@@ -75,15 +74,6 @@ const App: React.FC = () => {
               element={
                 <PrivateRoute>
                   <BookingsQueuePage />
-                </PrivateRoute>
-              }
-            />
-
-            <Route
-              path="/activity-logs"
-              element={
-                <PrivateRoute>
-                  <ActivityLogsPage />
                 </PrivateRoute>
               }
             />

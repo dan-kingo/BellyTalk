@@ -4,7 +4,7 @@ const API_ORIGIN =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(
     /\/+$/,
     "",
-  ) || "https://api.bellytalkapp.com";
+  ) || "http://localhost:3000";
 
 const api = axios.create({
   baseURL: `${API_ORIGIN}/api`,

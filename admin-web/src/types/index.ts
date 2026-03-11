@@ -38,15 +38,6 @@ export interface OverviewStats {
   timestamp: string;
 }
 
-export interface ActivityLog {
-  id: string;
-  user_id: string | null;
-  method: string;
-  path: string;
-  timestamp?: string;
-  created_at?: string;
-}
-
 export interface ProviderApproval extends Profile {
   extra?: {
     requested_role?: string;

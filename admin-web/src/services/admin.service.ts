@@ -16,11 +16,6 @@ export const adminService = {
     return response.data;
   },
 
-  async getLogs() {
-    const response = await api.get("/admin/panel/logs");
-    return response.data;
-  },
-
   async listProviders(status: "pending" | "approved" | "rejected" = "pending") {
     const response = await api.get("/admin/providers", {
       params: { status },
