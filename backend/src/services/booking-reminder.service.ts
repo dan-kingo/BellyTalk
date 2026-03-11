@@ -2,9 +2,20 @@ import { supabaseAdmin } from "../configs/supabase.js";
 import { sendMail } from "./email.service.js";
 
 type ReminderType = "reminder_24h" | "reminder_1h";
+type ReminderRow = {
+  id: string;
+  status: "processing" | "sent" | "failed";
+  retry_count: number;
+  next_retry_at: string | null;
+  updated_at: string;
+};
 
 let intervalHandle: NodeJS.Timeout | null = null;
 let isRunning = false;
+const WORKER_LOCK_NAME = "booking_reminder_worker";
+const WORKER_OWNER_ID = `worker-${process.pid}-${Math.random()
+  .toString(36)
+  .slice(2, 8)}`;
 
 const WINDOW_MINUTES: Record<ReminderType, number> = {
   reminder_24h: 24 * 60,
@@ -24,6 +35,24 @@ const reminderSubject = (type: ReminderType) =>
 const reminderLabel = (type: ReminderType) =>
   type === "reminder_24h" ? "24 hours" : "1 hour";
 
+const getLockTtlMs = () =>
+  Number(process.env.BOOKING_REMINDER_LOCK_TTL_MS || 120000);
+const getProcessingTimeoutMs = () =>
+  Number(process.env.BOOKING_REMINDER_PROCESSING_TIMEOUT_MS || 900000);
+const getMaxRetries = () =>
+  Number(process.env.BOOKING_REMINDER_MAX_RETRIES || 5);
+const getBackoffBaseMinutes = () =>
+  Number(process.env.BOOKING_REMINDER_RETRY_BASE_MINUTES || 5);
+
+const calculateNextRetryAt = (attemptNumber: number) => {
+  const base = getBackoffBaseMinutes();
+  const backoffMinutes = Math.min(
+    base * 2 ** Math.max(0, attemptNumber - 1),
+    360,
+  );
+  return new Date(Date.now() + backoffMinutes * 60 * 1000).toISOString();
+};
+
 const shouldSendReminder = (
   scheduledStart: string,
   reminderType: ReminderType,
@@ -40,54 +69,181 @@ const shouldSendReminder = (
   );
 };
 
-const reserveReminderSlot = async (
-  bookingId: string,
-  reminderType: ReminderType,
-) => {
+const acquireDistributedWorkerLock = async () => {
+  const now = new Date();
+  const lockExpiry = new Date(now.getTime() + getLockTtlMs()).toISOString();
+  const nowIso = now.toISOString();
+
   const { data, error } = await supabaseAdmin
-    .from("booking_reminders")
+    .from("worker_locks")
     .insert([
       {
-        booking_id: bookingId,
-        reminder_type: reminderType,
-        status: "processing",
+        lock_name: WORKER_LOCK_NAME,
+        owner_id: WORKER_OWNER_ID,
+        expires_at: lockExpiry,
       },
     ])
-    .select("id")
+    .select("lock_name")
     .maybeSingle();
 
+  if (!error && data) return true;
+
   if (error) {
-    if (error.code === "23505") return null;
-    throw error;
+    if (error.code !== "23505") throw error;
+
+    const { data: takeover, error: takeoverError } = await supabaseAdmin
+      .from("worker_locks")
+      .update({
+        owner_id: WORKER_OWNER_ID,
+        expires_at: lockExpiry,
+        updated_at: nowIso,
+      })
+      .eq("lock_name", WORKER_LOCK_NAME)
+      .lt("expires_at", nowIso)
+      .select("lock_name")
+      .maybeSingle();
+
+    if (takeoverError) throw takeoverError;
+    return Boolean(takeover);
   }
 
-  return data?.id || null;
+  return false;
 };
 
-const updateReminderResult = async (
-  reminderId: string,
-  status: "sent" | "failed",
-  lastError?: string,
-) => {
-  const updateData: Record<string, any> = {
-    status,
-    updated_at: new Date().toISOString(),
-  };
+const releaseDistributedWorkerLock = async () => {
+  const { error } = await supabaseAdmin
+    .from("worker_locks")
+    .delete()
+    .eq("lock_name", WORKER_LOCK_NAME)
+    .eq("owner_id", WORKER_OWNER_ID);
 
-  if (status === "sent") {
-    updateData.sent_at = new Date().toISOString();
-    updateData.last_error = null;
-  } else {
-    updateData.last_error = lastError || "Unknown error";
+  if (error) {
+    console.warn("[booking-reminder] release lock warning:", error.message);
+  }
+};
+
+const reserveReminderSlot = async (
+  booking: any,
+  reminderType: ReminderType,
+  now: Date,
+) => {
+  const { data: existing, error: existingError } = await supabaseAdmin
+    .from("booking_reminders")
+    .select("id, status, retry_count, next_retry_at, updated_at")
+    .eq("booking_id", booking.id)
+    .eq("reminder_type", reminderType)
+    .maybeSingle<ReminderRow>();
+
+  if (existingError) throw existingError;
+
+  if (!existing) {
+    if (!shouldSendReminder(booking.scheduled_start, reminderType, now)) {
+      return null;
+    }
+
+    const { data: inserted, error: insertError } = await supabaseAdmin
+      .from("booking_reminders")
+      .insert([
+        {
+          booking_id: booking.id,
+          reminder_type: reminderType,
+          status: "processing",
+        },
+      ])
+      .select("id, retry_count")
+      .maybeSingle();
+
+    if (insertError) {
+      if (insertError.code === "23505") return null;
+      throw insertError;
+    }
+
+    return inserted || null;
   }
 
+  if (existing.status === "sent") return null;
+
+  if (existing.status === "failed") {
+    if (existing.retry_count >= getMaxRetries()) return null;
+    if (existing.next_retry_at && new Date(existing.next_retry_at) > now) {
+      return null;
+    }
+
+    const { data: claimed, error: claimError } = await supabaseAdmin
+      .from("booking_reminders")
+      .update({
+        status: "processing",
+        updated_at: now.toISOString(),
+      })
+      .eq("id", existing.id)
+      .eq("status", "failed")
+      .select("id, retry_count")
+      .maybeSingle();
+
+    if (claimError) throw claimError;
+    return claimed || null;
+  }
+
+  const staleCutoff = new Date(
+    now.getTime() - getProcessingTimeoutMs(),
+  ).toISOString();
+  if (existing.status === "processing" && existing.updated_at < staleCutoff) {
+    const { data: reclaimed, error: reclaimError } = await supabaseAdmin
+      .from("booking_reminders")
+      .update({
+        updated_at: now.toISOString(),
+      })
+      .eq("id", existing.id)
+      .eq("status", "processing")
+      .lt("updated_at", staleCutoff)
+      .select("id, retry_count")
+      .maybeSingle();
+
+    if (reclaimError) throw reclaimError;
+    return reclaimed || null;
+  }
+
+  return null;
+};
+
+const updateReminderSent = async (reminderId: string) => {
   const { error } = await supabaseAdmin
     .from("booking_reminders")
-    .update(updateData)
+    .update({
+      status: "sent",
+      sent_at: new Date().toISOString(),
+      last_error: null,
+      next_retry_at: null,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", reminderId);
 
   if (error) {
-    console.warn("booking reminder update warning:", error.message);
+    console.warn("booking reminder sent update warning:", error.message);
+  }
+};
+
+const updateReminderFailed = async (
+  reminderId: string,
+  currentRetryCount: number,
+  lastError?: string,
+) => {
+  const nextRetryCount = currentRetryCount + 1;
+  const nextRetryAt = calculateNextRetryAt(nextRetryCount);
+
+  const { error } = await supabaseAdmin
+    .from("booking_reminders")
+    .update({
+      status: "failed",
+      retry_count: nextRetryCount,
+      next_retry_at: nextRetryAt,
+      last_error: lastError || "Unknown error",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", reminderId);
+
+  if (error) {
+    console.warn("booking reminder failed update warning:", error.message);
   }
 };
 
@@ -96,10 +252,8 @@ const sendReminderForBooking = async (
   reminderType: ReminderType,
   now: Date,
 ) => {
-  if (!shouldSendReminder(booking.scheduled_start, reminderType, now)) return;
-
-  const reminderId = await reserveReminderSlot(booking.id, reminderType);
-  if (!reminderId) return;
+  const reminderSlot = await reserveReminderSlot(booking, reminderType, now);
+  if (!reminderSlot?.id) return;
 
   try {
     const { data: users } = await supabaseAdmin
@@ -114,7 +268,11 @@ const sendReminderForBooking = async (
     ) as string[];
 
     if (!recipients.length) {
-      await updateReminderResult(reminderId, "failed", "No recipients found");
+      await updateReminderFailed(
+        reminderSlot.id,
+        reminderSlot.retry_count || 0,
+        "No recipients found",
+      );
       return;
     }
 
@@ -126,21 +284,29 @@ const sendReminderForBooking = async (
       await sendMail(to, reminderSubject(reminderType), html);
     }
 
-    await updateReminderResult(reminderId, "sent");
+    await updateReminderSent(reminderSlot.id);
     console.info(
-      `[booking-reminder] sent ${reminderType} for booking=${booking.id}`,
+      `[booking-reminder] sent ${reminderType} booking=${booking.id}`,
     );
   } catch (error: any) {
     console.error("[booking-reminder] send failed:", error);
-    await updateReminderResult(reminderId, "failed", error?.message);
+    await updateReminderFailed(
+      reminderSlot.id,
+      reminderSlot.retry_count || 0,
+      error?.message,
+    );
   }
 };
 
 export const runBookingReminderCycle = async () => {
   if (isRunning) return;
-  isRunning = true;
+  let lockAcquired = false;
 
   try {
+    lockAcquired = await acquireDistributedWorkerLock();
+    if (!lockAcquired) return;
+
+    isRunning = true;
     const now = new Date();
     const windowEnd = new Date(now.getTime() + (24 * 60 + 15) * 60 * 1000);
 
@@ -162,6 +328,9 @@ export const runBookingReminderCycle = async () => {
     console.error("[booking-reminder] cycle failed:", error);
   } finally {
     isRunning = false;
+    if (lockAcquired) {
+      await releaseDistributedWorkerLock();
+    }
   }
 };
 
@@ -182,9 +351,13 @@ export const startBookingReminderWorker = () => {
     intervalHandle = null;
   }
 
-  runBookingReminderCycle();
+  runBookingReminderCycle().catch((error) => {
+    console.error("[booking-reminder] startup cycle failed:", error);
+  });
   intervalHandle = setInterval(() => {
-    runBookingReminderCycle();
+    runBookingReminderCycle().catch((error) => {
+      console.error("[booking-reminder] interval cycle failed:", error);
+    });
   }, intervalMs);
 
   console.info(`[booking-reminder] worker started interval=${intervalMs}ms`);
