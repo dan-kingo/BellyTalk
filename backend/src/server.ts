@@ -10,7 +10,10 @@ import profileRouter from "./routes/profile.route.js";
 import adminRouter from "./routes/admin.route.js";
 import uploadRouter from "./routes/upload.route.js";
 import healthRouter from "./routes/health.route.js";
-import { errorHandler, notFoundHandler } from "./middlewares/error.middleware.js";
+import {
+  errorHandler,
+  notFoundHandler,
+} from "./middlewares/error.middleware.js";
 import contentRouter from "./routes/content.route.js";
 import hospitalRouter from "./routes/hospital.route.js";
 import chatRouter from "./routes/chat.route.js";
@@ -20,29 +23,34 @@ import hmsWebhookRouter from "./routes/hms.webhook.route.js";
 import videoRouter from "./routes/video.route.js";
 import groupChatRouter from "./routes/groupchat.route.js";
 import adminPanelRouter from "./routes/admin.panel.route.js";
+import doctorServiceRouter from "./routes/doctor.service.route.js";
 import { logActivity } from "./middlewares/logging.middleware.js";
 
 dotenv.config();
 
 const app = express();
-app.use(cors({
-  origin: [
-    'https://bellytalkapp.com',
-    'https://www.bellytalkapp.com',
-    'http://localhost:3000', 
-    'https://admin.bellytalkapp.com',
-    'https://www.admin.bellytalkapp.com', 
-    'http://localhost:5000',
-    'https://api.bellytalkapp.com',
-'http://localhost:5173',
-  ],
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: [
+      "https://bellytalkapp.com",
+      "https://www.bellytalkapp.com",
+      "http://localhost:3000",
+      "https://admin.bellytalkapp.com",
+      "https://www.admin.bellytalkapp.com",
+      "http://localhost:5000",
+      "https://api.bellytalkapp.com",
+      "http://localhost:5173",
+    ],
+    credentials: true,
+  }),
+);
 app.use(express.json());
 app.use(morgan("combined"));
 
 app.get("/api/auth/redirect", (req, res) => {
-  res.json({ message: "Email verified successfully! You can close this window." });
+  res.json({
+    message: "Email verified successfully! You can close this window.",
+  });
 });
 
 // routes
@@ -60,6 +68,7 @@ app.use("/api/hms/webhook", express.json({ limit: "2mb" }), hmsWebhookRouter);
 app.use("/api/video", videoRouter);
 app.use("/api/groupchats", groupChatRouter);
 app.use("/api/admin/panel", adminPanelRouter);
+app.use("/api/doctor-services", doctorServiceRouter);
 
 // not found + error handler
 app.use(notFoundHandler);
@@ -67,7 +76,7 @@ app.use(errorHandler);
 
 // performance monitoring
 app.use(logActivity);
-app.use(helmet())
+app.use(helmet());
 app.use(compression());
 app.use(rateLimit({ windowMs: 1 * 60 * 1000, max: 100 }));
 // start server
