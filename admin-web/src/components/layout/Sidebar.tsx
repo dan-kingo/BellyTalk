@@ -7,6 +7,7 @@ import {
   X,
   Building2,
   RollerCoasterIcon,
+  CalendarCheck2,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -23,6 +24,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { path: "/hospitals", icon: Building2, label: "Hospitals" },
     { path: "/users", icon: Users, label: "Users" },
     { path: "/role-requests", icon: RollerCoasterIcon, label: "Role Requests" },
+    { path: "/bookings-queue", icon: CalendarCheck2, label: "Bookings Queue" },
     // { path: '/activity-logs', icon: Activity, label: 'Activity Logs' },
   ];
 

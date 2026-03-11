@@ -1,15 +1,21 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
-import { ThemeProvider } from './contexts/ThemeContext';
-import PrivateRoute from './components/common/PrivateRoute';
-import LoginPage from './pages/LoginPage';
-import DashboardPage from './pages/DashboardPage';
-import UsersPage from './pages/UsersPage';
-import RoleRequestsPage from './pages/RoleRequestsPage';
-import UnauthorizedPage from './pages/UnauthorizedPage';
-import ContentPage from './pages/ContentPage';
-import HospitalsPage from './pages/HospitalsPage';
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
+import PrivateRoute from "./components/common/PrivateRoute";
+import LoginPage from "./pages/LoginPage";
+import DashboardPage from "./pages/DashboardPage";
+import UsersPage from "./pages/UsersPage";
+import RoleRequestsPage from "./pages/RoleRequestsPage";
+import UnauthorizedPage from "./pages/UnauthorizedPage";
+import ContentPage from "./pages/ContentPage";
+import HospitalsPage from "./pages/HospitalsPage";
+import BookingsQueuePage from "./pages/BookingsQueuePage";
 
 const App: React.FC = () => {
   return (
@@ -64,7 +70,14 @@ const App: React.FC = () => {
               }
             />
 
-           
+            <Route
+              path="/bookings-queue"
+              element={
+                <PrivateRoute>
+                  <BookingsQueuePage />
+                </PrivateRoute>
+              }
+            />
 
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

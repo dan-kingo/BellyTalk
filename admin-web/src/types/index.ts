@@ -83,3 +83,66 @@ export interface Hospital {
   created_at: string;
   updated_at: string;
 }
+
+export interface BookingParticipantProfile {
+  id: string;
+  full_name: string;
+  email: string;
+}
+
+export interface BookingPaymentProof {
+  id: string;
+  booking_id: string;
+  amount?: number;
+  currency?: string;
+  payment_method?: string;
+  transaction_reference?: string;
+  proof_document_id?: string;
+  status?: string;
+  created_at?: string;
+}
+
+export interface AdminBookingQueueItem {
+  id: string;
+  mother_id: string;
+  doctor_id: string;
+  status: string;
+  payment_status?: string;
+  payment_method?: string;
+  service_mode?: string;
+  scheduled_start?: string;
+  scheduled_end?: string;
+  created_at?: string;
+  mother_profile?: BookingParticipantProfile | null;
+  doctor_profile?: BookingParticipantProfile | null;
+  pending_payment?: BookingPaymentProof | null;
+}
+
+export interface AdminBookingQueueMetrics {
+  pending_confirmations: number;
+  pending_payment_reviews: number;
+  todays_bookings: number;
+  overdue_confirmations: number;
+}
+
+export interface BookingDocument {
+  id: string;
+  document_type: string;
+  file_url: string;
+  file_name?: string;
+  created_at?: string;
+}
+
+export interface BookingDetail {
+  id: string;
+  booking_documents?: BookingDocument[];
+  booking_payments?: Array<{
+    id: string;
+    transaction_reference?: string;
+    proof_document_id?: string;
+    amount?: number;
+    currency?: string;
+    status?: string;
+    created_at?: string;
+  }>;
+}
