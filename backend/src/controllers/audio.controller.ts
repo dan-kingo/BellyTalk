@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { agoraService } from "../services/agora.service.js";
 import { supabase, supabaseAdmin } from "../configs/supabase.js";
 import { AuthRequest } from "../middlewares/auth.middleware.js";
+import { checkDirectInteractionAccess } from "../services/booking-access.service.js";
 
 /**
  * POST /api/audio/create
@@ -15,11 +16,34 @@ export const createSession = async (req: AuthRequest, res: Response) => {
 
   try {
     const initiatorId = req.user!.id;
-    const { receiver_id, channel_name, call_type = "audio" } = req.body; // Add call_type
+    const {
+      receiver_id,
+      channel_name,
+      call_type = "audio",
+      booking_id,
+    } = req.body;
 
     if (!receiver_id) {
       console.warn("❌ Missing receiver_id");
-      return res.status(400).json({ error: "receiver_id required" });
+      return res
+        .status(400)
+        .json({ error: "receiver_id required", code: "RECEIVER_ID_REQUIRED" });
+    }
+
+    const requestedChannel = call_type === "video" ? "video" : "audio";
+    const access = await checkDirectInteractionAccess({
+      actorId: initiatorId,
+      peerId: receiver_id,
+      channel: requestedChannel,
+      bookingId: booking_id,
+    });
+    if (!access.ok) {
+      return res
+        .status(access.status)
+        .json({
+          error: access.error,
+          code: access.code || "INTERACTION_FORBIDDEN",
+        });
     }
 
     // Validate receiver exists
@@ -32,7 +56,9 @@ export const createSession = async (req: AuthRequest, res: Response) => {
 
     if (receiverError || !receiver) {
       console.error("❌ Receiver not found:", receiverError);
-      return res.status(404).json({ error: "Receiver user not found" });
+      return res
+        .status(404)
+        .json({ error: "Receiver user not found", code: "RECEIVER_NOT_FOUND" });
     }
 
     console.log("✅ Receiver validated:", receiver);
@@ -122,77 +148,90 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
   });
 
   try {
-    const {
-      session_id,
-      channel_name,
-      role = "publisher",
-      user_name,
-    } = req.body;
+    const { session_id, booking_id, role = "publisher" } = req.body;
     const user_id = req.user!.id;
 
-    let channelName = channel_name;
+    if (!session_id) {
+      return res.status(400).json({
+        error:
+          "Legacy token flow is deprecated. session_id and booking_id are required.",
+        code: "SESSION_ID_REQUIRED",
+      });
+    }
+
+    if (!booking_id) {
+      return res
+        .status(400)
+        .json({ error: "booking_id is required", code: "BOOKING_ID_REQUIRED" });
+    }
+
+    let channelName: string;
     let uid: number;
     let session = null;
 
-    // If session_id provided, get channel_name and validate session
-    if (session_id) {
-      console.log("🔍 Fetching session:", { session_id });
+    console.log("🔍 Fetching session:", { session_id });
 
-      const { data: sessionData, error: sessionError } = await supabaseAdmin
-        .from("audio_sessions")
-        .select("*")
-        .eq("id", session_id)
-        .single();
+    const { data: sessionData, error: sessionError } = await supabaseAdmin
+      .from("audio_sessions")
+      .select("*")
+      .eq("id", session_id)
+      .single();
 
-      if (sessionError || !sessionData) {
-        console.error("❌ Session not found:", sessionError);
-        return res.status(404).json({ error: "Session not found" });
-      }
-
-      session = sessionData;
-      channelName = sessionData.channel_name;
-
-      // ✅ CRITICAL FIX: Generate DIFFERENT UID for receiver
-      if (sessionData.initiator_id === user_id) {
-        // Initiator uses the session UID
-        uid = sessionData.uid;
-        console.log("🎯 Initiator using session UID:", uid);
-      } else {
-        // Receiver gets a NEW UID
-        uid = Math.floor(Math.random() * 100000);
-        console.log("🎯 Receiver generated new UID:", uid);
-      }
-
-      // Check if user is authorized for this session
-      if (
-        sessionData.initiator_id !== user_id &&
-        sessionData.receiver_id !== user_id
-      ) {
-        console.warn("🚫 Unauthorized access attempt:", {
-          user_id,
-          session_id,
-        });
-        return res
-          .status(403)
-          .json({ error: "Not authorized for this session" });
-      }
-
-      // Check if session is active
-      if (sessionData.status === "ended") {
-        console.warn("📵 Session already ended:", { session_id });
-        return res.status(400).json({ error: "Session has ended" });
-      }
-    } else {
-      // Generate new UID if no session (shouldn't happen in our flow)
-      uid = Math.floor(Math.random() * 100000);
-      console.log("📋 Generated new UID (no session):", uid);
+    if (sessionError || !sessionData) {
+      console.error("❌ Session not found:", sessionError);
+      return res
+        .status(404)
+        .json({ error: "Session not found", code: "SESSION_NOT_FOUND" });
     }
 
-    if (!channelName) {
-      console.warn("❌ Missing channel_name");
+    session = sessionData;
+    channelName = sessionData.channel_name;
+
+    if (
+      sessionData.initiator_id !== user_id &&
+      sessionData.receiver_id !== user_id
+    ) {
+      console.warn("🚫 Unauthorized access attempt:", {
+        user_id,
+        session_id,
+      });
+      return res.status(403).json({ error: "Not authorized for this session" });
+    }
+
+    if (sessionData.status === "ended") {
+      console.warn("📵 Session already ended:", { session_id });
       return res
         .status(400)
-        .json({ error: "channel_name or valid session_id required" });
+        .json({ error: "Session has ended", code: "SESSION_ENDED" });
+    }
+
+    const peerId =
+      sessionData.initiator_id === user_id
+        ? sessionData.receiver_id
+        : sessionData.initiator_id;
+    const channel = sessionData.call_type === "video" ? "video" : "audio";
+    const access = await checkDirectInteractionAccess({
+      actorId: user_id,
+      peerId,
+      channel,
+      bookingId: booking_id,
+    });
+    if (!access.ok) {
+      return res
+        .status(access.status)
+        .json({
+          error: access.error,
+          code: access.code || "INTERACTION_FORBIDDEN",
+        });
+    }
+
+    // Keep initiator UID stable, receiver gets a unique UID.
+    if (sessionData.initiator_id === user_id) {
+      uid = sessionData.uid;
+      console.log("🎯 Initiator using session UID:", uid);
+    } else {
+      uid = Math.floor(Math.random() * 100000);
+      console.log("🎯 Receiver generated new UID:", uid);
     }
 
     // Generate tokens
@@ -212,7 +251,6 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
 
     // Update session status if receiver is joining
     if (
-      session_id &&
       session &&
       session.status === "pending" &&
       session.initiator_id !== user_id
@@ -266,22 +304,10 @@ export const endSession = async (req: AuthRequest, res: Response) => {
 
     if (fetchErr || !session) {
       console.error("❌ Session not found:", fetchErr);
-      return res.status(404).json({ error: "Session not found" });
+      return res
+        .status(404)
+        .json({ error: "Session not found", code: "SESSION_NOT_FOUND" });
     }
-
-    // CRITICAL DEBUG LOG
-    console.log("🔍 AUTH DEBUG:", {
-      user_id, // From JWT
-      initiator_id: session.initiator_id,
-      receiver_id: session.receiver_id,
-      user_is_initiator: session.initiator_id === user_id,
-      user_is_receiver: session.receiver_id === user_id,
-      types_match: {
-        user_type: typeof user_id,
-        initiator_type: typeof session.initiator_id,
-        receiver_type: typeof session.receiver_id,
-      },
-    });
 
     // Auth check
     if (session.initiator_id !== user_id && session.receiver_id !== user_id) {
@@ -291,12 +317,7 @@ export const endSession = async (req: AuthRequest, res: Response) => {
       });
       return res.status(403).json({
         error: "Not authorized to end this session",
-        debug: {
-          // TEMP: Remove in production
-          user_id,
-          initiator_id: session.initiator_id,
-          receiver_id: session.receiver_id,
-        },
+        code: "SESSION_FORBIDDEN",
       });
     }
 
@@ -315,7 +336,10 @@ export const endSession = async (req: AuthRequest, res: Response) => {
 
     if (error) {
       console.error("❌ Update failed:", error);
-      return res.status(500).json({ error: "Failed to end session" });
+      return res.status(500).json({
+        error: "Failed to end session",
+        code: "SESSION_END_FAILED",
+      });
     }
 
     console.log("✅ Session ended - WebSocket fired!");
@@ -347,7 +371,9 @@ export const getSession = async (req: AuthRequest, res: Response) => {
 
     if (error || !session) {
       console.error("❌ Session not found:", error);
-      return res.status(404).json({ error: "Session not found" });
+      return res
+        .status(404)
+        .json({ error: "Session not found", code: "SESSION_NOT_FOUND" });
     }
 
     // Check authorization
@@ -355,7 +381,10 @@ export const getSession = async (req: AuthRequest, res: Response) => {
       console.warn("🚫 Unauthorized session access:", { user_id, session_id });
       return res
         .status(403)
-        .json({ error: "Not authorized to view this session" });
+        .json({
+          error: "Not authorized to view this session",
+          code: "SESSION_FORBIDDEN",
+        });
     }
 
     console.log("✅ Session retrieved:", session_id);

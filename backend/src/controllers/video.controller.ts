@@ -5,13 +5,25 @@ import { supabaseAdmin } from "../configs/supabase.js";
 import { hmsService } from "../services/hms.service.js";
 import { AuthRequest } from "../middlewares/auth.middleware.js";
 import { sendMail } from "../services/email.service.js";
+import { checkDirectInteractionAccess } from "../services/booking-access.service.js";
 dotenv.config();
 
 export const createVideoSession = async (req: AuthRequest, res: Response) => {
   try {
     const initiatorId = req.user!.id;
-    const { receiver_id, region } = req.body;
-    if (!receiver_id) return res.status(400).json({ error: "receiver_id required" });
+    const { receiver_id, booking_id } = req.body;
+    if (!receiver_id)
+      return res.status(400).json({ error: "receiver_id required" });
+
+    const access = await checkDirectInteractionAccess({
+      actorId: initiatorId,
+      peerId: receiver_id,
+      channel: "video",
+      bookingId: booking_id,
+    });
+    if (!access.ok) {
+      return res.status(access.status).json({ error: access.error });
+    }
 
     let room;
     try {
@@ -20,7 +32,7 @@ export const createVideoSession = async (req: AuthRequest, res: Response) => {
         description: "BellyTalk video consultation",
         template_id: process.env.HMS_VIDEO_TEMPLATE_ID,
       });
-      console.log('Video room created:', room);
+      console.log("Video room created:", room);
     } catch (hmsError: any) {
       console.error("Full HMS createRoom error:", {
         message: hmsError.message,
@@ -29,8 +41,10 @@ export const createVideoSession = async (req: AuthRequest, res: Response) => {
         headers: hmsError.response?.headers,
       });
       return res.status(500).json({
-        error: hmsError.message || "Failed to create video room. Please check HMS configuration.",
-        details: hmsError.response?.data?.message || hmsError.message
+        error:
+          hmsError.message ||
+          "Failed to create video room. Please check HMS configuration.",
+        details: hmsError.response?.data?.message || hmsError.message,
       });
     }
 
@@ -39,7 +53,7 @@ export const createVideoSession = async (req: AuthRequest, res: Response) => {
       console.error("No room ID returned from HMS. Response:", room);
       return res.status(500).json({
         error: "Failed to create room: No room ID returned",
-        details: "The HMS service did not return a valid room identifier"
+        details: "The HMS service did not return a valid room identifier",
       });
     }
 
@@ -63,31 +77,86 @@ export const createVideoSession = async (req: AuthRequest, res: Response) => {
     res.status(201).json({ session: data });
   } catch (err: any) {
     console.error("createVideoSession error:", err?.response?.data || err);
-    res.status(500).json({ error: err.message || "Failed to create video session" });
+    res
+      .status(500)
+      .json({ error: err.message || "Failed to create video session" });
   }
 };
 
 export const getVideoToken = async (req: AuthRequest, res: Response) => {
   try {
     const user_id = req.user!.id;
-    const { session_id, room_id, role = "guest", user_name } = req.body;
-    let roomId = room_id;
-
-    if (session_id && !roomId) {
-      const { data: s } = await supabaseAdmin
-        .from("video_sessions")
-        .select("room_id")
-        .eq("id", session_id)
-        .maybeSingle();
-      if (!s) return res.status(404).json({ error: "Session not found" });
-      roomId = s.room_id;
+    const { session_id, booking_id, role = "guest", user_name } = req.body;
+    if (!session_id) {
+      return res.status(400).json({
+        error:
+          "Legacy token flow is deprecated. session_id and booking_id are required.",
+        code: "SESSION_ID_REQUIRED",
+      });
     }
 
-    if (!roomId) return res.status(400).json({ error: "room_id or session_id required" });
+    if (!booking_id) {
+      return res
+        .status(400)
+        .json({ error: "booking_id is required", code: "BOOKING_ID_REQUIRED" });
+    }
 
-    const token = hmsService.generateAuthToken({ room_id: roomId, user_id, role, user_name });
+    const { data: session, error: sessionError } = await supabaseAdmin
+      .from("video_sessions")
+      .select("id, room_id, initiator_id, receiver_id, status")
+      .eq("id", session_id)
+      .maybeSingle();
 
-    if (session_id) {
+    if (sessionError) throw sessionError;
+    if (!session)
+      return res
+        .status(404)
+        .json({ error: "Session not found", code: "SESSION_NOT_FOUND" });
+
+    if (session.initiator_id !== user_id && session.receiver_id !== user_id) {
+      return res
+        .status(403)
+        .json({
+          error: "Not authorized for this session",
+          code: "SESSION_FORBIDDEN",
+        });
+    }
+
+    if (session.status === "ended") {
+      return res
+        .status(400)
+        .json({ error: "Session has ended", code: "SESSION_ENDED" });
+    }
+
+    const peerId =
+      session.initiator_id === user_id
+        ? session.receiver_id
+        : session.initiator_id;
+    const access = await checkDirectInteractionAccess({
+      actorId: user_id,
+      peerId,
+      channel: "video",
+      bookingId: booking_id,
+    });
+    if (!access.ok) {
+      return res
+        .status(access.status)
+        .json({
+          error: access.error,
+          code: access.code || "INTERACTION_FORBIDDEN",
+        });
+    }
+
+    const roomId = session.room_id;
+
+    const token = hmsService.generateAuthToken({
+      room_id: roomId,
+      user_id,
+      role,
+      user_name,
+    });
+
+    if (session.status === "pending") {
       await supabaseAdmin
         .from("video_sessions")
         .update({
@@ -99,7 +168,7 @@ export const getVideoToken = async (req: AuthRequest, res: Response) => {
         .eq("id", session_id);
     }
 
-    res.json({ token, room_id: roomId });
+    res.json({ token, room_id: roomId, session_id });
   } catch (err: any) {
     console.error("getVideoToken error:", err);
     res.status(500).json({ error: err.message });

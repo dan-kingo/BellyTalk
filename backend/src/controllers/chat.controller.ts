@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { supabaseAdmin } from "../configs/supabase.js";
 import { AuthRequest } from "../middlewares/auth.middleware.js";
 import { uploadFile } from "./upload.controller.js"; // your existing function
+import { checkDirectInteractionAccess } from "../services/booking-access.service.js";
 
 /**
  * Create or return an existing conversation between requester and participantId.
@@ -9,12 +10,28 @@ import { uploadFile } from "./upload.controller.js"; // your existing function
 export const createConversation = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { participantId } = req.body;
+    const { participantId, booking_id } = req.body;
 
     if (userId === participantId)
       return res
         .status(400)
         .json({ error: "Cannot create conversation with yourself" });
+
+    const access = await checkDirectInteractionAccess({
+      actorId: userId,
+      peerId: participantId,
+      channel: "message",
+      bookingId: booking_id,
+    });
+
+    if (!access.ok) {
+      return res
+        .status(access.status)
+        .json({
+          error: access.error,
+          code: access.code || "INTERACTION_FORBIDDEN",
+        });
+    }
 
     // Check existing conversation (either order of participants)
     const { data: existing, error: existErr } = await supabaseAdmin
@@ -149,11 +166,9 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
       !content &&
       !(req.files && (req.files as Express.Multer.File[]).length)
     ) {
-      return res
-        .status(400)
-        .json({
-          error: "Either content or at least one attachment is required",
-        });
+      return res.status(400).json({
+        error: "Either content or at least one attachment is required",
+      });
     }
 
     // Validate conversation exists and participants

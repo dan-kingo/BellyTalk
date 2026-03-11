@@ -5,13 +5,14 @@ import { z } from "zod";
  * Make them optional and coerce numbers only when present.
  */
 export const createConversationSchema = z.object({
-  participantId: z.string().uuid()
+  participantId: z.string().uuid(),
+  booking_id: z.string().uuid().optional(),
 });
 
 export const sendMessageSchema = z.object({
   conversationId: z.string().uuid(),
   content: z.string().optional(), // content optional if attachments present
-  metadata: z.string().optional() // JSON string if used
+  metadata: z.string().optional(), // JSON string if used
 });
 
 /**
@@ -24,5 +25,5 @@ export const getMessagesQuery = z.object({
     return Number(val);
   }, z.number().int().positive().optional()),
   before: z.string().optional(),
-  after: z.string().optional()
+  after: z.string().optional(),
 });
