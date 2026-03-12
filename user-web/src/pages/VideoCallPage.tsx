@@ -21,6 +21,7 @@ import {
 import { Profile } from "../types";
 import { videoService } from "../services/video.service";
 import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 type CallHistoryItem = {
   id: string;
@@ -58,7 +59,7 @@ const VideoCallPage: React.FC = () => {
     toggleVideo,
   } = useAgora();
 
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const searchUsersList = useChatStore((state) => state.searchUsersList);
   const location = useLocation();
   const navigate = useNavigate();
@@ -500,6 +501,13 @@ const VideoCallPage: React.FC = () => {
 
   const handleRedialFromHistory = (item: CallHistoryItem) => {
     if (!item.counterpart?.id || loading || joinState) return;
+
+    if (profile?.role === "mother") {
+      toast.info("Please book an appointment to start a call.");
+      navigate("/doctors");
+      return;
+    }
+
     void handleStartCall(item.counterpart.id, {
       id: item.counterpart.id,
       full_name: item.counterpart.full_name,
@@ -633,7 +641,7 @@ const VideoCallPage: React.FC = () => {
               Video Call
             </h1>
           </div>
-          {!joinState && !callStatus && (
+          {!joinState && !callStatus && profile?.role !== "mother" && (
             <button
               onClick={handleOpenNewCallDialog}
               className="bg-primary-600 hover:bg-primary-700 cursor-pointer text-white px-5 py-2.5 rounded-lg transition font-medium inline-flex items-center gap-2"

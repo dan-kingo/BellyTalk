@@ -191,7 +191,7 @@ const DashboardPage: React.FC = () => {
   const todaysBookings = doctorUpcomingBookings.filter(
     (booking) => booking.scheduled_start.slice(0, 10) === todayDateIso,
   );
-  const motherNextBooking = motherBookings
+  const motherUpcomingBookings = motherBookings
     .filter(
       (booking) =>
         ["pending_confirmation", "confirmed", "pending_payment"].includes(
@@ -202,7 +202,8 @@ const DashboardPage: React.FC = () => {
       (a, b) =>
         new Date(a.scheduled_start).getTime() -
         new Date(b.scheduled_start).getTime(),
-    )[0];
+    );
+  const motherNextBooking = motherUpcomingBookings[0];
 
   const formatStatusLabel = (status: Booking["status"]) =>
     status.replace(/_/g, " ");
@@ -222,37 +223,48 @@ const DashboardPage: React.FC = () => {
         <div className="mb-3 flex items-center gap-2">
           <CalendarClock className="h-5 w-5 text-primary dark:text-secondary" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Next Appointment
+            Upcoming Appointments
           </h3>
         </div>
 
         {motherBookingsLoading ? (
           <Skeleton className="h-28 w-full rounded-xl" />
-        ) : motherNextBooking ? (
-          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">
-              {motherNextBooking.service_title_snapshot}
-            </p>
-            <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
-              {new Date(motherNextBooking.scheduled_start).toLocaleString()} •{" "}
-              {motherNextBooking.service_mode}
-            </p>
-            <p className="mt-2 inline-flex rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-primary dark:bg-gray-800">
-              {formatStatusLabel(motherNextBooking.status)}
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
+        ) : motherUpcomingBookings.length > 0 ? (
+          <>
+            <div className="space-y-3">
+              {motherUpcomingBookings.slice(0, 3).map((booking) => (
+                <button
+                  key={booking.id}
+                  type="button"
+                  onClick={() =>
+                    navigate("/bookings", {
+                      state: { openBookingId: booking.id },
+                    })
+                  }
+                  className="w-full rounded-xl border border-primary/20 bg-primary/5 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md cursor-pointer"
+                >
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {booking.service_title_snapshot}
+                  </p>
+                  <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+                    {new Date(booking.scheduled_start).toLocaleString()} •{" "}
+                    {booking.service_mode}
+                  </p>
+                  <p className="mt-2 inline-flex rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-primary dark:bg-gray-800">
+                    {formatStatusLabel(booking.status)}
+                  </p>
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 flex justify-end">
               <button
-                onClick={() =>
-                  navigate("/bookings", {
-                    state: { openBookingId: motherNextBooking.id },
-                  })
-                }
+                onClick={() => navigate("/doctors")}
                 className="rounded-lg bg-primary cursor-pointer px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-primary-700"
               >
-                Open Details
+                Find Doctors
               </button>
             </div>
-          </div>
+          </>
         ) : (
           <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
             <p className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -265,7 +277,7 @@ const DashboardPage: React.FC = () => {
               onClick={() => navigate("/doctors")}
               className="mt-3 rounded-lg cursor-pointer bg-primary px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-primary-700"
             >
-              Find Doctor
+              Find Doctors
             </button>
           </div>
         )}
