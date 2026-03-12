@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/layout/Layout";
-import { Booking, Content, DoctorService, Hospital, Product } from "../types";
+import { Booking, DoctorService } from "../types";
 import {
   BookOpen,
   Building2,
@@ -12,36 +12,43 @@ import {
   ClipboardCheck,
   CalendarClock,
   CircleAlert,
+  HeartPulse,
+  ShieldPlus,
+  Stethoscope,
+  MessageCircle,
 } from "lucide-react";
-import Dialog from "../components/common/Dialog";
 import { useDashboardStore } from "../stores/dashboard.store";
 import Skeleton from "../components/common/Skeleton";
 import { doctorServiceService } from "../services/doctor-service.service";
 import { bookingService } from "../services/booking.service";
+import { doctorDiscoveryService } from "../services/doctor-discovery.service";
 
 const DashboardPage: React.FC = () => {
   const { profile } = useAuth();
   const navigate = useNavigate();
-  const products = useDashboardStore((state) => state.previewProducts);
   const contents = useDashboardStore((state) => state.previewContents);
-  const hospitals = useDashboardStore((state) => state.previewHospitals);
   const loading = useDashboardStore((state) => state.loading);
   const fetchDashboardData = useDashboardStore(
     (state) => state.fetchDashboardData,
   );
-  const [viewingContent, setViewingContent] = useState<Content | null>(null);
-  const [showContentDialog, setShowContentDialog] = useState(false);
-  const [viewingHospital, setViewingHospital] = useState<Hospital | null>(null);
-  const [showHospitalDialog, setShowHospitalDialog] = useState(false);
   const [doctorServices, setDoctorServices] = useState<DoctorService[]>([]);
   const [doctorUpcomingBookings, setDoctorUpcomingBookings] = useState<
     Booking[]
   >([]);
   const [doctorSummaryLoading, setDoctorSummaryLoading] = useState(false);
+  const [motherBookingsLoading, setMotherBookingsLoading] = useState(false);
+  const [motherBookings, setMotherBookings] = useState<Booking[]>([]);
+  const [trustedDoctors, setTrustedDoctors] = useState<
+    Array<{
+      id: string;
+      full_name: string;
+      status: "online" | "offline" | "away";
+      last_seen: string | null;
+      bookings_count: number;
+    }>
+  >([]);
 
-  const previewProducts = products.slice(0, 6);
   const previewContents = contents.slice(0, 6);
-  const previewHospitals = hospitals.slice(0, 6);
 
   const canManageContent =
     profile?.role === "doctor" ||
@@ -85,15 +92,66 @@ const DashboardPage: React.FC = () => {
     loadDoctorSummary();
   }, [profile]);
 
-  const handleViewContent = (content: Content) => {
-    setViewingContent(content);
-    setShowContentDialog(true);
-  };
+  useEffect(() => {
+    const loadMotherJourney = async () => {
+      if (!profile || profile.role !== "mother") {
+        setMotherBookings([]);
+        setTrustedDoctors([]);
+        return;
+      }
 
-  const handleViewHospital = (hospital: Hospital) => {
-    setViewingHospital(hospital);
-    setShowHospitalDialog(true);
-  };
+      try {
+        setMotherBookingsLoading(true);
+        const bookings = await bookingService.listMyBookings({ limit: 100 });
+        setMotherBookings(bookings);
+
+        const counts = new Map<string, number>();
+        for (const booking of bookings) {
+          counts.set(
+            booking.doctor_id,
+            (counts.get(booking.doctor_id) || 0) + 1,
+          );
+        }
+        const doctorIds = Array.from(counts.keys());
+        if (!doctorIds.length) {
+          setTrustedDoctors([]);
+          return;
+        }
+
+        const presence =
+          await doctorDiscoveryService.getDoctorsPresence(doctorIds);
+        const presenceMap = new Map(
+          presence.map((doctor) => [doctor.id, doctor]),
+        );
+
+        const trusted = doctorIds
+          .map((id) => {
+            const profileData = presenceMap.get(id);
+            return {
+              id,
+              full_name: profileData?.full_name || `Dr. ${id.slice(0, 8)}`,
+              status: (profileData?.status || "offline") as
+                | "online"
+                | "offline"
+                | "away",
+              last_seen: profileData?.last_seen || null,
+              bookings_count: counts.get(id) || 0,
+            };
+          })
+          .sort((a, b) => b.bookings_count - a.bookings_count)
+          .slice(0, 4);
+
+        setTrustedDoctors(trusted);
+      } catch {
+        setMotherBookings([]);
+        setTrustedDoctors([]);
+      } finally {
+        setMotherBookingsLoading(false);
+      }
+    };
+
+    loadMotherJourney();
+  }, [profile]);
 
   if (!profile) {
     return (
@@ -116,8 +174,6 @@ const DashboardPage: React.FC = () => {
       </Layout>
     );
   }
-  const mother = profile.role === "mother";
-  const doctor = profile.role === "doctor";
   const activeDoctorServices = doctorServices.filter(
     (service) => service.is_active,
   );
@@ -131,412 +187,240 @@ const DashboardPage: React.FC = () => {
   const todaysBookings = doctorUpcomingBookings.filter(
     (booking) => booking.scheduled_start.slice(0, 10) === todayDateIso,
   );
+  const motherNextBooking = motherBookings
+    .filter(
+      (booking) =>
+        ["pending_confirmation", "confirmed", "pending_payment"].includes(
+          booking.status,
+        ) && new Date(booking.scheduled_start).getTime() >= Date.now(),
+    )
+    .sort(
+      (a, b) =>
+        new Date(a.scheduled_start).getTime() -
+        new Date(b.scheduled_start).getTime(),
+    )[0];
+
+  const formatStatusLabel = (status: Booking["status"]) =>
+    status.replace(/_/g, " ");
 
   const renderMotherDashboard = () => (
     <div className="space-y-8">
-      <div className="bg-linear-to-r from-primary to-primary-600 dark:from-secondary dark:to-secondary/80 rounded-xl shadow-lg p-8 text-white">
-        <h2 className="text-3xl font-bold mb-2">
-          Welcome back, {doctor ? "Dr." : mother ? "Ms." : "Mr."}{" "}
-          {profile.full_name}!
+      <div className="rounded-xl bg-linear-to-r from-primary to-primary-600 p-8 text-white shadow-lg dark:from-secondary dark:to-secondary/80">
+        <h2 className="mb-2 text-3xl font-bold">
+          Care Journey, {profile.full_name}
         </h2>
         <p className="text-white/90">
-          {" "}
-          {mother
-            ? "Track your pregnancy journey and stay connected with your care team."
-            : "Manage your patients and stay updated with the latest information."}
+          Your next care step first, then your trusted doctors, then essentials.
         </p>
       </div>
 
-      <section>
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <ShoppingBag className="w-6 h-6 text-primary dark:text-secondary" />
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Shop
+      <section className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
+        <div className="mb-3 flex items-center gap-2">
+          <CalendarClock className="h-5 w-5 text-primary dark:text-secondary" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Next Appointment
+          </h3>
+        </div>
+
+        {motherBookingsLoading ? (
+          <Skeleton className="h-28 w-full rounded-xl" />
+        ) : motherNextBooking ? (
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+              {motherNextBooking.service_title_snapshot}
+            </p>
+            <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+              {new Date(motherNextBooking.scheduled_start).toLocaleString()} •{" "}
+              {motherNextBooking.service_mode}
+            </p>
+            <p className="mt-2 inline-flex rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-primary dark:bg-gray-800">
+              {formatStatusLabel(motherNextBooking.status)}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                onClick={() => navigate("/bookings")}
+                className="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-primary-700"
+              >
+                Open Care Session
+              </button>
+              <button
+                onClick={() => navigate("/doctors")}
+                className="rounded-lg border border-primary px-3 py-1.5 text-sm font-semibold text-primary transition hover:bg-primary/5"
+              >
+                Message Doctor
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+              No upcoming appointments yet.
+            </p>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+              Book a trusted doctor to start your next care step.
+            </p>
+            <button
+              onClick={() => navigate("/doctors")}
+              className="mt-3 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-primary-700"
+            >
+              Find Doctor
+            </button>
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Stethoscope className="h-5 w-5 text-primary dark:text-secondary" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Trusted Doctors
             </h3>
           </div>
           <button
-            onClick={() => navigate("/shop")}
-            className="flex cursor-pointer items-center gap-2 text-primary dark:text-secondary hover:gap-3 transition-all"
+            onClick={() => navigate("/doctors")}
+            className="text-sm font-semibold text-primary hover:underline dark:text-secondary"
           >
-            View All <ArrowRight className="w-4 h-4" />
+            Browse all
           </button>
         </div>
-        {loading ? (
-          <div className="flex gap-4 overflow-x-hidden">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <div
-                key={index}
-                className="min-w-[85%] sm:min-w-[48%] lg:min-w-[32%] bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6"
-              >
-                <Skeleton className="h-40 w-full rounded-lg" />
-                <Skeleton className="h-6 w-2/3 mt-4" />
-                <Skeleton className="h-4 w-full mt-3" />
-                <Skeleton className="h-4 w-1/2 mt-2" />
-              </div>
+
+        {motherBookingsLoading ? (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {Array.from({ length: 2 }).map((_, idx) => (
+              <Skeleton key={idx} className="h-20 w-full rounded-xl" />
             ))}
           </div>
+        ) : trustedDoctors.length === 0 ? (
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Your trusted doctor list will appear after your first booking.
+          </p>
         ) : (
-          <div className="overflow-x-auto scrollbar-hide">
-            <div className="flex gap-4 pb-2">
-              {previewProducts.map((product: Product) => (
-                <div
-                  key={product.id}
-                  className="min-w-[85%] sm:min-w-[48%] lg:min-w-[32%] bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-xl transition p-6 border border-gray-100 dark:border-gray-700"
-                >
-                  {product.image_url ? (
-                    <img
-                      src={product.image_url}
-                      alt={product.title}
-                      className="w-full h-40 object-cover rounded-lg mb-4"
-                    />
-                  ) : (
-                    <div className="w-full h-40 rounded-lg mb-4 bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400">
-                      <ShoppingBag className="w-8 h-8" />
-                    </div>
-                  )}
-                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
-                    {product.title}
-                  </h4>
-                  {product.description && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mt-2">
-                      {product.description}
-                    </p>
-                  )}
-                  <p className="mt-3 text-primary dark:text-secondary font-bold">
-                    ${Number(product.price).toFixed(2)}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {trustedDoctors.map((doctorItem) => (
+              <article
+                key={doctorItem.id}
+                className="rounded-xl border border-gray-200 p-4 dark:border-gray-700"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {doctorItem.full_name}
                   </p>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${doctorItem.status === "online" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" : doctorItem.status === "away" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"}`}
+                  >
+                    {doctorItem.status}
+                  </span>
                 </div>
-              ))}
-            </div>
+                <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+                  {doctorItem.bookings_count} booking
+                  {doctorItem.bookings_count > 1 ? "s" : ""} together
+                </p>
+              </article>
+            ))}
           </div>
         )}
-        <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-          Showing up to 6 products. Use "View All" to browse the full shop.
-        </p>
+      </section>
+
+      <section className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
+        <div className="mb-4 flex items-center gap-2">
+          <ShieldPlus className="h-5 w-5 text-primary dark:text-secondary" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Essentials
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <button
+            onClick={() => navigate("/bookings")}
+            className="rounded-xl border border-gray-200 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700"
+          >
+            <HeartPulse className="h-5 w-5 text-primary dark:text-secondary" />
+            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+              My Care Sessions
+            </p>
+          </button>
+
+          <button
+            onClick={() => navigate("/doctors")}
+            className="rounded-xl border border-gray-200 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700"
+          >
+            <MessageCircle className="h-5 w-5 text-primary dark:text-secondary" />
+            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+              Contact Doctors
+            </p>
+          </button>
+
+          <button
+            onClick={() => navigate("/shop")}
+            className="rounded-xl border border-gray-200 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700"
+          >
+            <ShoppingBag className="h-5 w-5 text-primary dark:text-secondary" />
+            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+              Care Essentials Shop
+            </p>
+          </button>
+
+          <button
+            onClick={() => navigate("/hospitals")}
+            className="rounded-xl border border-gray-200 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700"
+          >
+            <Building2 className="h-5 w-5 text-primary dark:text-secondary" />
+            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+              Nearby Hospitals
+            </p>
+          </button>
+        </div>
       </section>
 
       <section>
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <BookOpen className="w-6 h-6 text-primary dark:text-secondary" />
+            <BookOpen className="h-6 w-6 text-primary dark:text-secondary" />
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Educational Content
+              Education For This Week
             </h3>
           </div>
           <button
             onClick={() => navigate("/content")}
-            className="flex cursor-pointer items-center gap-2 text-primary dark:text-secondary hover:gap-3 transition-all"
+            className="flex cursor-pointer items-center gap-2 text-primary transition-all hover:gap-3 dark:text-secondary"
           >
-            View All <ArrowRight className="w-4 h-4" />
+            View All <ArrowRight className="h-4 w-4" />
           </button>
         </div>
+
         {loading ? (
           <div className="flex gap-4 overflow-x-hidden">
             {Array.from({ length: 3 }).map((_, index) => (
               <div
                 key={index}
-                className="min-w-[85%] sm:min-w-[48%] lg:min-w-[32%] bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6"
+                className="min-w-[85%] rounded-xl border border-gray-100 bg-white p-6 dark:border-gray-700 dark:bg-gray-800 sm:min-w-[48%] lg:min-w-[32%]"
               >
                 <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-4 w-full mt-4" />
-                <Skeleton className="h-4 w-5/6 mt-2" />
-                <div className="flex gap-2 mt-4">
-                  <Skeleton className="h-6 w-16 rounded-full" />
-                  <Skeleton className="h-6 w-20 rounded-full" />
-                </div>
+                <Skeleton className="mt-4 h-4 w-full" />
+                <Skeleton className="mt-2 h-4 w-5/6" />
               </div>
             ))}
           </div>
         ) : (
           <div className="overflow-x-auto scrollbar-hide">
             <div className="flex gap-4 pb-2">
-              <Dialog
-                isOpen={showContentDialog}
-                onClose={() => setShowContentDialog(false)}
-                title={viewingContent?.title || "Content Details"}
-              >
-                {viewingContent && (
-                  <div className="space-y-4">
-                    {viewingContent.cover_url && (
-                      <img
-                        src={viewingContent.cover_url}
-                        alt={viewingContent.title}
-                        className="w-full h-64 object-cover rounded-lg"
-                      />
-                    )}
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                        Description
-                      </h3>
-                      <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                        {viewingContent.body}
-                      </p>
-                    </div>
-                    {viewingContent.category && (
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                          Category
-                        </h3>
-                        <p className="text-gray-600 dark:text-gray-400">
-                          {viewingContent.category}
-                        </p>
-                      </div>
-                    )}
-                    {viewingContent.tags && viewingContent.tags.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                          Tags
-                        </h3>
-                        <div className="flex flex-wrap gap-2">
-                          {viewingContent.tags.map((tag, index) => (
-                            <span
-                              key={index}
-                              className="px-3 py-1 text-xs font-medium rounded-full bg-primary/10 dark:bg-secondary/10 text-primary dark:text-secondary"
-                            >
-                              #{tag}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                        Language
-                      </h3>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        {viewingContent.language.toUpperCase()}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </Dialog>
               {previewContents.map((content) => (
                 <div
                   key={content.id}
-                  className="min-w-[85%] sm:min-w-[48%] lg:min-w-[32%] bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-xl transition p-6 border border-gray-100 dark:border-gray-700"
+                  className="min-w-[85%] rounded-xl border border-gray-100 bg-white p-6 shadow-md transition hover:shadow-xl dark:border-gray-700 dark:bg-gray-800 sm:min-w-[48%] lg:min-w-[32%]"
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white flex-1">
-                      {content.title}
-                    </h3>
-                    {content.is_published ? (
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400">
-                        Published
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400">
-                        Draft
-                      </span>
-                    )}
-                  </div>
-
-                  <p className="text-gray-700 dark:text-gray-300 mb-4 line-clamp-4">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {content.title}
+                  </h3>
+                  <p className="mt-3 line-clamp-4 text-gray-700 dark:text-gray-300">
                     {content.body}
                   </p>
-                  {content.body.length > 150 && (
-                    <button
-                      onClick={() => handleViewContent(content)}
-                      className="text-sm text-primary dark:text-secondary hover:underline mb-3"
-                    >
-                      See more
-                    </button>
-                  )}
-
-                  {content.category && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                      Category:{" "}
-                      <span className="font-medium">{content.category}</span>
-                    </p>
-                  )}
-
-                  {content.tags && content.tags.length > 0 && (
-                    <div className="mb-4 flex flex-wrap gap-2">
-                      {content.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="px-2 py-1 text-xs font-medium rounded-full bg-primary/10 dark:bg-secondary/10 text-primary dark:text-secondary"
-                        >
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  <p className="text-xs text-gray-500 dark:text-gray-500 mb-4">
-                    Language: {content.language.toUpperCase()}
-                  </p>
                 </div>
               ))}
             </div>
           </div>
         )}
-        <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-          Showing up to 6 content items. Use "View All" to see everything.
-        </p>
-      </section>
-
-      <section>
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <Building2 className="w-6 h-6 text-primary dark:text-secondary" />
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Hospitals
-            </h3>
-          </div>
-          <button
-            onClick={() => navigate("/hospitals")}
-            className="flex cursor-pointer items-center gap-2 text-primary dark:text-secondary hover:gap-3 transition-all"
-          >
-            View All <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-        {loading ? (
-          <div className="flex gap-4 overflow-x-hidden">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <div
-                key={index}
-                className="min-w-[85%] sm:min-w-[48%] lg:min-w-[32%] bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6"
-              >
-                <Skeleton className="h-6 w-2/3" />
-                <Skeleton className="h-4 w-1/3 mt-3" />
-                <Skeleton className="h-4 w-full mt-4" />
-                <Skeleton className="h-4 w-5/6 mt-2" />
-                <div className="mt-4 space-y-2">
-                  <Skeleton className="h-4 w-4/5" />
-                  <Skeleton className="h-4 w-2/3" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="overflow-x-auto scrollbar-hide">
-            <div className="flex gap-4 pb-2">
-              <Dialog
-                isOpen={showHospitalDialog}
-                onClose={() => setShowHospitalDialog(false)}
-                title={viewingHospital?.name || "Hospital Details"}
-              >
-                {viewingHospital && (
-                  <div className="space-y-4">
-                    {viewingHospital.city && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {viewingHospital.city}
-                      </p>
-                    )}
-
-                    {viewingHospital.description && (
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                          Description
-                        </h3>
-                        <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                          {viewingHospital.description}
-                        </p>
-                      </div>
-                    )}
-
-                    {viewingHospital.services &&
-                      viewingHospital.services.length > 0 && (
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                            Services
-                          </h3>
-                          <div className="flex flex-wrap gap-2">
-                            {viewingHospital.services.map((service, index) => (
-                              <span
-                                key={index}
-                                className="px-2 py-1 text-xs font-medium rounded-full bg-primary/10 dark:bg-secondary/10 text-primary dark:text-secondary"
-                              >
-                                {service}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                    <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                      {viewingHospital.address && (
-                        <p>{viewingHospital.address}</p>
-                      )}
-                      {viewingHospital.phone && <p>{viewingHospital.phone}</p>}
-                      {viewingHospital.email && <p>{viewingHospital.email}</p>}
-                      {viewingHospital.website && (
-                        <a
-                          href={viewingHospital.website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary dark:text-secondary hover:underline"
-                        >
-                          Visit Website
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </Dialog>
-              {previewHospitals.map((hospital) => (
-                <div
-                  key={hospital.id}
-                  className="min-w-[85%] sm:min-w-[48%] lg:min-w-[32%] bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-xl transition p-6 border border-gray-100 dark:border-gray-700"
-                >
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                    {hospital.name}
-                  </h3>
-                  {hospital.city && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                      {hospital.city}
-                    </p>
-                  )}
-                  {hospital.description && (
-                    <p className="text-gray-700 dark:text-gray-300 mb-4 line-clamp-3">
-                      {hospital.description}
-                    </p>
-                  )}
-                  {hospital.description &&
-                    hospital.description.length > 140 && (
-                      <button
-                        onClick={() => handleViewHospital(hospital)}
-                        className="text-sm text-primary dark:text-secondary hover:underline mb-3"
-                      >
-                        See more
-                      </button>
-                    )}
-                  {hospital.services && hospital.services.length > 0 && (
-                    <div className="mb-4 flex flex-wrap gap-2">
-                      {hospital.services.map((service, index) => (
-                        <span
-                          key={index}
-                          className="px-2 py-1 text-xs font-medium rounded-full bg-primary/10 dark:bg-secondary/10 text-primary dark:text-secondary"
-                        >
-                          {service}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                    {hospital.address && <p>{hospital.address}</p>}
-                    {hospital.phone && <p>{hospital.phone}</p>}
-                    {hospital.email && <p>{hospital.email}</p>}
-                    {hospital.website && (
-                      <a
-                        href={hospital.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary dark:text-secondary hover:underline"
-                      >
-                        Visit Website
-                      </a>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-          Showing up to 6 hospitals. Use "View All" for the full list.
-        </p>
       </section>
     </div>
   );

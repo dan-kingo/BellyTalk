@@ -36,6 +36,7 @@ import DoctorBookingsPage from "./pages/DoctorBookingsPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import AudioCallPage from "./pages/AudioCallPage";
 import VideoCallPage from "./pages/VideoCallPage";
+import ResourcesPage from "./pages/ResourcesPage";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import DoctorOnboardingGuard from "./components/common/DoctorOnboardingGuard";
 import { AgoraProvider } from "./contexts/AgoraContext";
@@ -105,6 +106,17 @@ const App: React.FC = () => {
                   <PrivateRoute>
                     <DoctorOnboardingGuard>
                       <ContentPage />
+                    </DoctorOnboardingGuard>
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/resources"
+                element={
+                  <PrivateRoute>
+                    <DoctorOnboardingGuard>
+                      <ResourcesPage />
                     </DoctorOnboardingGuard>
                   </PrivateRoute>
                 }

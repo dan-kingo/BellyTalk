@@ -2,7 +2,6 @@ import React, { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Home,
-  Building2,
   FileText,
   User,
   X,
@@ -31,9 +30,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { profile, user } = useAuth();
   const messageCount = useChatStore((state) => state.unreadCount);
   const fetchUnreadCount = useChatStore((state) => state.fetchUnreadCount);
-  const cartItems = useShopStore((state) => state.cartItems);
   const myOrders = useShopStore((state) => state.myOrders);
-  const fetchCart = useShopStore((state) => state.fetchCart);
   const fetchOrders = useShopStore((state) => state.fetchOrders);
   const notificationUnreadCount = useNotificationStore(
     (state) => state.unreadCount,
@@ -41,7 +38,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const fetchDoctorNotifications = useNotificationStore(
     (state) => state.fetchDoctorNotifications,
   );
-  const cartCount = cartItems.length;
   const orderCount = myOrders.filter(
     (order) => order.order_status === "pending",
   ).length;
@@ -54,19 +50,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       roles: ["mother", "doctor", "counselor", "admin"],
     },
     {
-      path: "/content",
+      path: "/resources",
       icon: FileText,
-      label: "Content",
-      roles: ["mother", "doctor", "counselor", "admin"],
-    },
-    {
-      path: "/hospitals",
-      icon: Building2,
-      label: "Hospitals",
+      label: "Resources",
       roles: ["mother", "doctor", "counselor", "admin"],
     },
     { path: "/shop", icon: ShoppingBag, label: "Shop", roles: ["mother"] },
-    { path: "/cart", icon: ShoppingCart, label: "Cart", roles: ["mother"] },
     { path: "/orders", icon: ShoppingCart, label: "Orders", roles: ["mother"] },
     {
       path: "/manage/products",
@@ -136,10 +125,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (user && profile?.role === "mother") {
-      fetchCart();
       fetchOrders("my");
     }
-  }, [user, profile?.role, fetchCart, fetchOrders]);
+  }, [user, profile?.role, fetchOrders]);
 
   useEffect(() => {
     if (!user || profile?.role !== "mother") {
@@ -222,11 +210,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 >
                   <Icon className="w-5 h-5" />
                   <span className="font-medium">{item.label}</span>
-                  {item.path === "/cart" && cartCount > 0 && (
-                    <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                      {cartCount}
-                    </span>
-                  )}
                   {item.path === "/orders" && orderCount > 0 && (
                     <span className="ml-auto bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                       {orderCount}

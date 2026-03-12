@@ -1,8 +1,11 @@
 import React, { useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { ShoppingCart } from "lucide-react";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 import { useAuth } from "../../contexts/AuthContext";
+import { useShopStore } from "../../stores/shop.store";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -10,8 +13,11 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, profile } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const cartItems = useShopStore((state) => state.cartItems);
+  const fetchCart = useShopStore((state) => state.fetchCart);
 
   const isDoctorUnderOnboarding =
     profile?.role === "doctor" && profile?.role_status !== "approved";
@@ -19,6 +25,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     isDoctorUnderOnboarding ||
     location.pathname === "/doctor/complete-profile" ||
     location.pathname === "/doctor/pending-approval";
+
+  useEffect(() => {
+    if (!user || profile?.role !== "mother") {
+      return;
+    }
+
+    fetchCart();
+  }, [user, profile?.role, fetchCart]);
+
+  const showFloatingCart =
+    user &&
+    profile?.role === "mother" &&
+    cartItems.length > 0 &&
+    location.pathname !== "/cart";
 
   return (
     <div className="h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
@@ -42,6 +62,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           >
             {children}
           </main>
+
+          {showFloatingCart && (
+            <button
+              type="button"
+              onClick={() => navigate("/cart")}
+              className="fixed bottom-6 right-6 z-40 inline-flex items-center gap-3 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white shadow-xl transition hover:scale-[1.02] hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90"
+            >
+              <span className="relative inline-flex items-center">
+                <ShoppingCart className="h-5 w-5" />
+                <span className="absolute -right-2 -top-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                  {cartItems.length > 99 ? "99+" : cartItems.length}
+                </span>
+              </span>
+              Go to cart
+            </button>
+          )}
         </div>
       </div>
     </div>
