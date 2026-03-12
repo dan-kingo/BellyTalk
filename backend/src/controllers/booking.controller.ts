@@ -960,6 +960,7 @@ export const listMyBookings = async (req: AuthRequest, res: Response) => {
     const { type, status, service_mode } = req.query;
     const { page, from, to } = parsePagination(req.query);
     const now = new Date().toISOString();
+    const terminalStatuses = "(completed,cancelled,no_show,expired)";
 
     let q = supabaseAdmin
       .from("bookings")
@@ -968,8 +969,12 @@ export const listMyBookings = async (req: AuthRequest, res: Response) => {
       .range(from, to)
       .order("scheduled_start", { ascending: type === "upcoming" });
 
-    if (type === "upcoming") q = q.gte("scheduled_start", now);
-    if (type === "past") q = q.lt("scheduled_start", now);
+    if (type === "upcoming") {
+      q = q.gte("scheduled_start", now).not("status", "in", terminalStatuses);
+    }
+    if (type === "past") {
+      q = q.or(`scheduled_start.lt.${now},status.in.${terminalStatuses}`);
+    }
     if (status) q = q.eq("status", String(status));
     if (service_mode) q = q.eq("service_mode", String(service_mode));
 
@@ -997,6 +1002,7 @@ export const listDoctorBookings = async (req: AuthRequest, res: Response) => {
     const { type, status, service_mode } = req.query;
     const { page, from, to } = parsePagination(req.query);
     const now = new Date().toISOString();
+    const terminalStatuses = "(completed,cancelled,no_show,expired)";
 
     let q = supabaseAdmin
       .from("bookings")
@@ -1005,8 +1011,12 @@ export const listDoctorBookings = async (req: AuthRequest, res: Response) => {
       .range(from, to)
       .order("scheduled_start", { ascending: type === "upcoming" });
 
-    if (type === "upcoming") q = q.gte("scheduled_start", now);
-    if (type === "past") q = q.lt("scheduled_start", now);
+    if (type === "upcoming") {
+      q = q.gte("scheduled_start", now).not("status", "in", terminalStatuses);
+    }
+    if (type === "past") {
+      q = q.or(`scheduled_start.lt.${now},status.in.${terminalStatuses}`);
+    }
     if (status) q = q.eq("status", String(status));
     if (service_mode) q = q.eq("service_mode", String(service_mode));
 

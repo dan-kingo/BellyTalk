@@ -132,22 +132,30 @@ const MyBookingsPage: React.FC = () => {
   );
 
   useEffect(() => {
-    const openBookingId = (
-      location.state as { openBookingId?: string } | null
-    )?.openBookingId;
+    const openBookingId = (location.state as { openBookingId?: string } | null)
+      ?.openBookingId;
 
     if (!openBookingId || loading || bookings.length === 0) {
       return;
     }
 
-    const matchingBooking = bookings.find((booking) => booking.id === openBookingId);
+    const matchingBooking = bookings.find(
+      (booking) => booking.id === openBookingId,
+    );
     if (!matchingBooking) {
       return;
     }
 
     void openBookingDetail(openBookingId, matchingBooking);
     navigate(location.pathname, { replace: true, state: null });
-  }, [location.pathname, location.state, bookings, loading, navigate, openBookingDetail]);
+  }, [
+    location.pathname,
+    location.state,
+    bookings,
+    loading,
+    navigate,
+    openBookingDetail,
+  ]);
 
   const statusOptions = useMemo(
     () =>
@@ -619,7 +627,9 @@ const MyBookingsPage: React.FC = () => {
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                   Start time
                 </p>
-                <p>{new Date(detailBooking.scheduled_start).toLocaleString()}</p>
+                <p>
+                  {new Date(detailBooking.scheduled_start).toLocaleString()}
+                </p>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -638,7 +648,8 @@ const MyBookingsPage: React.FC = () => {
                   Payment
                 </p>
                 <p>
-                  {detailBooking.payment_method} • {detailBooking.payment_status || "pending"}
+                  {detailBooking.payment_method} •{" "}
+                  {detailBooking.payment_status || "pending"}
                 </p>
               </div>
               <div>
@@ -646,7 +657,8 @@ const MyBookingsPage: React.FC = () => {
                   Price
                 </p>
                 <p>
-                  {Number(detailBooking.service_price_snapshot).toFixed(2)} {detailBooking.currency}
+                  {Number(detailBooking.service_price_snapshot).toFixed(2)}{" "}
+                  {detailBooking.currency}
                 </p>
               </div>
               {detailBooking.patient_age ? (
