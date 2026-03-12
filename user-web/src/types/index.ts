@@ -41,7 +41,7 @@ export interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<Profile | null>;
   register: (
     email: string,
     password: string,

@@ -15,9 +15,24 @@ const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
-      await login(email, password);
+      const profile = await login(email, password);
       toast.success("Logged in successfully.");
-      navigate("/dashboard");
+
+      if (profile?.role === "doctor" && profile.role_status !== "approved") {
+        const hasDoctorSubmission =
+          Boolean(profile.extra?.doctor_profile) ||
+          Boolean(profile.extra?.completion_submitted_at) ||
+          (Array.isArray(profile.extra?.verification_documents) &&
+            profile.extra.verification_documents.length > 0);
+
+        navigate(
+          hasDoctorSubmission
+            ? "/doctor/pending-approval"
+            : "/doctor/complete-profile",
+        );
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err: any) {
       const errorMessage =
         err.response?.data?.error ||

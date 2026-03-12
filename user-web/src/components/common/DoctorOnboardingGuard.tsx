@@ -14,8 +14,14 @@ const isDoctorProfileComplete = (
   doctorProfile: DoctorProfile | null,
   profileExtra: any,
 ) => {
+  const profileHasSubmission =
+    Boolean(profileExtra?.doctor_profile) ||
+    Boolean(profileExtra?.completion_submitted_at) ||
+    (Array.isArray(profileExtra?.verification_documents) &&
+      profileExtra.verification_documents.length > 0);
+
   if (!doctorProfile) {
-    return false;
+    return profileHasSubmission;
   }
 
   const hasHeadline = Boolean(doctorProfile.headline?.trim());
@@ -36,12 +42,13 @@ const isDoctorProfileComplete = (
     Array.isArray(verificationDocs) && verificationDocs.length > 0;
 
   return (
-    hasHeadline &&
-    hasBio &&
-    hasSpecialties &&
-    hasLanguages &&
-    hasExperience &&
-    hasVerificationDocs
+    profileHasSubmission ||
+    (hasHeadline &&
+      hasBio &&
+      hasSpecialties &&
+      hasLanguages &&
+      hasExperience &&
+      hasVerificationDocs)
   );
 };
 

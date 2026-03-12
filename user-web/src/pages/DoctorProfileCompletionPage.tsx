@@ -192,6 +192,8 @@ const DoctorProfileCompletionPage: React.FC = () => {
         extra: {
           ...(profile?.extra || {}),
           verification_documents: uniqueVerificationDocuments,
+          completion_submitted_at: new Date().toISOString(),
+          rejection_reason: null,
           doctor_profile: {
             headline: payload.headline,
             specialties: payload.specialties,
@@ -205,7 +207,10 @@ const DoctorProfileCompletionPage: React.FC = () => {
 
       await refreshProfile();
       toast.success("Doctor profile completed. Awaiting approval.");
-      navigate("/doctor/pending-approval", { replace: true });
+      navigate("/doctor/pending-approval", {
+        replace: true,
+        state: { justSubmitted: true },
+      });
     } catch (error: any) {
       const message =
         error?.response?.data?.error ||

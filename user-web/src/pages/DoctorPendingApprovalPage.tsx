@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Hourglass, Sparkles } from "lucide-react";
 import Layout from "../components/layout/Layout";
 import { useAuth } from "../contexts/AuthContext";
+import { authService } from "../services/auth.service";
 import { doctorProfileService } from "../services/doctor-profile.service";
 import { DoctorProfile } from "../types";
 
@@ -20,6 +21,7 @@ const statusTone = (status?: string) => {
 
 const DoctorPendingApprovalPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { profile, refreshProfile, logout } = useAuth();
   const [doctorProfile, setDoctorProfile] = useState<DoctorProfile | null>(
     null,
@@ -31,22 +33,31 @@ const DoctorPendingApprovalPage: React.FC = () => {
 
   const profileStatus = profile?.role_status || "pending";
 
+  const justSubmitted = Boolean((location.state as any)?.justSubmitted);
+
+  const effectiveProfileStatus = justSubmitted ? "pending" : profileStatus;
+  const effectiveVerificationStatus = justSubmitted
+    ? "pending"
+    : doctorVerificationStatus;
+
   const isApproved = useMemo(
     () =>
-      profileStatus === "approved" || doctorVerificationStatus === "approved",
-    [profileStatus, doctorVerificationStatus],
+      effectiveProfileStatus === "approved" ||
+      effectiveVerificationStatus === "approved",
+    [effectiveProfileStatus, effectiveVerificationStatus],
   );
 
   const handleRefreshStatus = async () => {
     setRefreshing(true);
     try {
       await refreshProfile();
+      const refreshedProfile = await authService.getProfile();
       const data = await doctorProfileService.getMyDoctorProfile();
       setDoctorProfile(data);
 
       if (
         data?.verification_status === "approved" ||
-        profile?.role_status === "approved"
+        refreshedProfile?.role_status === "approved"
       ) {
         toast.success("Approval confirmed. Redirecting to dashboard.");
         navigate("/dashboard", { replace: true });
@@ -106,9 +117,9 @@ const DoctorPendingApprovalPage: React.FC = () => {
               Account status:
             </span>
             <span
-              className={`px-3 py-1 rounded-full text-xs font-semibold ${statusTone(profileStatus)}`}
+              className={`px-3 py-1 rounded-full text-xs font-semibold ${statusTone(effectiveProfileStatus)}`}
             >
-              {profileStatus}
+              {effectiveProfileStatus}
             </span>
           </div>
 
@@ -117,13 +128,13 @@ const DoctorPendingApprovalPage: React.FC = () => {
               Verification status:
             </span>
             <span
-              className={`px-3 py-1 rounded-full text-xs font-semibold ${statusTone(doctorVerificationStatus)}`}
+              className={`px-3 py-1 rounded-full text-xs font-semibold ${statusTone(effectiveVerificationStatus)}`}
             >
-              {doctorVerificationStatus}
+              {effectiveVerificationStatus}
             </span>
           </div>
 
-          {profileStatus === "rejected" && (
+          {effectiveProfileStatus === "rejected" && (
             <p className="text-sm text-red-600 dark:text-red-400">
               Your profile review is rejected. Please update your profile and
               contact support.

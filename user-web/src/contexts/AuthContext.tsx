@@ -16,15 +16,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const profileData = await authService.getProfile();
       setProfile(profileData);
+      return profileData;
     } catch (error) {
       console.error("Error fetching profile:", error);
+      return null;
     }
   };
 
   const login = async (email: string, password: string) => {
     const data = await authService.login(email, password);
     setUser(data.user);
-    await refreshProfile();
+    return await refreshProfile();
   };
 
   const register = async (
