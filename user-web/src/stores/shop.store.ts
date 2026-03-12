@@ -45,10 +45,16 @@ type ShopStore = {
     productId: string,
     quantity: number,
   ) => Promise<void>;
-  createOrder: (orderData: CreateOrderData) => Promise<Order>;
+  createOrder: (orderData: CreateOrderData | FormData) => Promise<Order>;
   processPayment: (
     orderId: string,
-    paymentMethod?: string,
+    payload?:
+      | {
+          payment_method?: string;
+          transaction_reference?: string;
+          payment_document_url?: string;
+        }
+      | FormData,
   ) => Promise<{
     success: boolean;
     order: Order;
@@ -408,7 +414,7 @@ export const useShopStore = create<ShopStore>((set, get) => ({
     }
   },
 
-  createOrder: async (orderData: CreateOrderData) => {
+  createOrder: async (orderData: CreateOrderData | FormData) => {
     set({ checkoutLoading: true, error: null });
     try {
       const response = await shopService.createOrder(orderData);
@@ -431,10 +437,19 @@ export const useShopStore = create<ShopStore>((set, get) => ({
     }
   },
 
-  processPayment: async (orderId: string, paymentMethod?: string) => {
+  processPayment: async (
+    orderId: string,
+    payload?:
+      | {
+          payment_method?: string;
+          transaction_reference?: string;
+          payment_document_url?: string;
+        }
+      | FormData,
+  ) => {
     set({ checkoutLoading: true, error: null });
     try {
-      const response = await shopService.processPayment(orderId, paymentMethod);
+      const response = await shopService.processPayment(orderId, payload);
       const updated = response.order;
 
       set((state) => ({

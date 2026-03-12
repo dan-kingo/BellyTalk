@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
-import { Menu, Sun, Moon, LogOut } from "lucide-react";
+import { Menu, Sun, Moon, LogOut, Bell } from "lucide-react";
 import { toast } from "react-toastify";
+import { useNotificationStore } from "../../stores/notification.store";
 
 interface NavbarProps {
   onMenuClick: () => void;
@@ -13,6 +14,20 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
   const { user, profile, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const notificationUnreadCount = useNotificationStore(
+    (state) => state.unreadCount,
+  );
+  const fetchDoctorNotifications = useNotificationStore(
+    (state) => state.fetchDoctorNotifications,
+  );
+
+  useEffect(() => {
+    if (!user || (profile?.role !== "doctor" && profile?.role !== "admin")) {
+      return;
+    }
+
+    fetchDoctorNotifications();
+  }, [user, profile?.role, fetchDoctorNotifications]);
 
   const handleLogout = async () => {
     try {
@@ -67,6 +82,22 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
                     <Moon className="w-5 h-5" />
                   )}
                 </button>
+                {(profile?.role === "doctor" || profile?.role === "admin") && (
+                  <Link
+                    to="/notifications"
+                    className="relative p-2 cursor-pointer rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all"
+                    aria-label="Notifications"
+                  >
+                    <Bell className="w-5 h-5" />
+                    {notificationUnreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center">
+                        {notificationUnreadCount > 99
+                          ? "99+"
+                          : notificationUnreadCount}
+                      </span>
+                    )}
+                  </Link>
+                )}
                 <button
                   onClick={handleLogout}
                   className="p-2 cursor-pointer rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all"

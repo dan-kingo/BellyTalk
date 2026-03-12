@@ -198,8 +198,20 @@ export interface Order {
   id: string;
   user_id: string;
   total_price: number;
-  payment_status: "pending" | "paid" | "failed";
+  payment_status:
+    | "pending"
+    | "pending_review"
+    | "unpaid"
+    | "paid"
+    | "rejected"
+    | "failed";
   order_status: "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
+  payment_method?: "cod" | "proof_upload";
+  payment_document_url?: string | null;
+  payment_reference?: string | null;
+  payment_submitted_at?: string | null;
+  payment_reviewed_at?: string | null;
+  payment_rejection_reason?: string | null;
   payment_intent_id?: string;
   shipping_address: ShippingAddress;
   tracking_number?: string;
@@ -232,14 +244,19 @@ export interface OrderItem {
 export interface ShippingAddress {
   address: string;
   city: string;
-  zipCode: string;
+  zipCode?: string;
+  postal_code?: string;
+  region?: string;
   country: string;
-  phone: string;
+  phone?: string;
 }
 
 export interface CreateOrderData {
   shipping_address: ShippingAddress;
   notes?: string;
+  payment_method: "cod" | "proof_upload";
+  payment_document_url?: string;
+  transaction_reference?: string;
 }
 export interface Conversation {
   id: string;

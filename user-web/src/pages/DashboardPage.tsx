@@ -2,11 +2,22 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/layout/Layout";
-import { Content, Hospital, Product } from "../types";
-import { BookOpen, Building2, ArrowRight, ShoppingBag } from "lucide-react";
+import { Booking, Content, DoctorService, Hospital, Product } from "../types";
+import {
+  BookOpen,
+  Building2,
+  ArrowRight,
+  ShoppingBag,
+  BriefcaseMedical,
+  ClipboardCheck,
+  CalendarClock,
+  CircleAlert,
+} from "lucide-react";
 import Dialog from "../components/common/Dialog";
 import { useDashboardStore } from "../stores/dashboard.store";
 import Skeleton from "../components/common/Skeleton";
+import { doctorServiceService } from "../services/doctor-service.service";
+import { bookingService } from "../services/booking.service";
 
 const DashboardPage: React.FC = () => {
   const { profile } = useAuth();
@@ -22,6 +33,11 @@ const DashboardPage: React.FC = () => {
   const [showContentDialog, setShowContentDialog] = useState(false);
   const [viewingHospital, setViewingHospital] = useState<Hospital | null>(null);
   const [showHospitalDialog, setShowHospitalDialog] = useState(false);
+  const [doctorServices, setDoctorServices] = useState<DoctorService[]>([]);
+  const [doctorUpcomingBookings, setDoctorUpcomingBookings] = useState<
+    Booking[]
+  >([]);
+  const [doctorSummaryLoading, setDoctorSummaryLoading] = useState(false);
 
   const previewProducts = products.slice(0, 6);
   const previewContents = contents.slice(0, 6);
@@ -40,6 +56,34 @@ const DashboardPage: React.FC = () => {
     if (!profile) return;
     fetchDashboardData(canManageContent, canManageHospitals);
   }, [profile, canManageContent, canManageHospitals, fetchDashboardData]);
+
+  useEffect(() => {
+    const loadDoctorSummary = async () => {
+      if (!profile || profile.role !== "doctor") {
+        setDoctorServices([]);
+        setDoctorUpcomingBookings([]);
+        return;
+      }
+
+      try {
+        setDoctorSummaryLoading(true);
+        const [services, bookings] = await Promise.all([
+          doctorServiceService.listMyServices(),
+          bookingService.listDoctorBookings({ type: "upcoming", limit: 100 }),
+        ]);
+
+        setDoctorServices(services);
+        setDoctorUpcomingBookings(bookings);
+      } catch {
+        setDoctorServices([]);
+        setDoctorUpcomingBookings([]);
+      } finally {
+        setDoctorSummaryLoading(false);
+      }
+    };
+
+    loadDoctorSummary();
+  }, [profile]);
 
   const handleViewContent = (content: Content) => {
     setViewingContent(content);
@@ -74,6 +118,19 @@ const DashboardPage: React.FC = () => {
   }
   const mother = profile.role === "mother";
   const doctor = profile.role === "doctor";
+  const activeDoctorServices = doctorServices.filter(
+    (service) => service.is_active,
+  );
+  const pendingConfirmations = doctorUpcomingBookings.filter(
+    (booking) => booking.status === "pending_confirmation",
+  );
+  const confirmedBookings = doctorUpcomingBookings.filter(
+    (booking) => booking.status === "confirmed",
+  );
+  const todayDateIso = new Date().toISOString().slice(0, 10);
+  const todaysBookings = doctorUpcomingBookings.filter(
+    (booking) => booking.scheduled_start.slice(0, 10) === todayDateIso,
+  );
 
   const renderMotherDashboard = () => (
     <div className="space-y-8">
@@ -485,7 +542,178 @@ const DashboardPage: React.FC = () => {
   );
 
   const renderCounselorDashboard = () => renderMotherDashboard();
-  const renderDoctorDashboard = () => renderMotherDashboard();
+  const renderDoctorDashboard = () => (
+    <div className="space-y-8">
+      <div className="rounded-xl bg-linear-to-r from-blue-600 to-cyan-600 p-8 text-white shadow-lg">
+        <h2 className="mb-2 text-3xl font-bold">
+          Welcome back, Dr. {profile.full_name}!
+        </h2>
+        <p className="text-white/90">
+          Manage your consultation pipeline, keep services bookable, and respond
+          to pending booking actions.
+        </p>
+      </div>
+
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {doctorSummaryLoading ? (
+          Array.from({ length: 4 }).map((_, idx) => (
+            <Skeleton key={idx} className="h-28 w-full rounded-xl" />
+          ))
+        ) : (
+          <>
+            <article className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Active Services
+              </p>
+              <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
+                {activeDoctorServices.length}
+              </p>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                {doctorServices.length} total configured
+              </p>
+            </article>
+
+            <article className="rounded-xl border border-orange-200 bg-orange-50 p-5 dark:border-orange-900/40 dark:bg-orange-900/20">
+              <p className="text-xs font-semibold uppercase tracking-wide text-orange-700 dark:text-orange-300">
+                Pending Confirmations
+              </p>
+              <p className="mt-2 text-3xl font-bold text-orange-800 dark:text-orange-200">
+                {pendingConfirmations.length}
+              </p>
+              <p className="mt-1 text-sm text-orange-700/90 dark:text-orange-200/90">
+                Requires action from you
+              </p>
+            </article>
+
+            <article className="rounded-xl border border-blue-200 bg-blue-50 p-5 dark:border-blue-900/40 dark:bg-blue-900/20">
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
+                Upcoming Confirmed
+              </p>
+              <p className="mt-2 text-3xl font-bold text-blue-800 dark:text-blue-200">
+                {confirmedBookings.length}
+              </p>
+              <p className="mt-1 text-sm text-blue-700/90 dark:text-blue-200/90">
+                Confirmed consultations ahead
+              </p>
+            </article>
+
+            <article className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/40 dark:bg-emerald-900/20">
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                Today\'s Sessions
+              </p>
+              <p className="mt-2 text-3xl font-bold text-emerald-800 dark:text-emerald-200">
+                {todaysBookings.length}
+              </p>
+              <p className="mt-1 text-sm text-emerald-700/90 dark:text-emerald-200/90">
+                Scheduled for today
+              </p>
+            </article>
+          </>
+        )}
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <button
+          onClick={() => navigate("/doctor/services")}
+          className="group rounded-xl border border-gray-200 bg-white p-5 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700 dark:bg-gray-900"
+        >
+          <div className="flex items-center gap-3">
+            <BriefcaseMedical className="h-5 w-5 text-primary dark:text-secondary" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Manage Services
+            </h3>
+          </div>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+            Add services, set pricing, and maintain availability so patients can
+            book.
+          </p>
+          <p className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-primary dark:text-secondary">
+            Open Service Desk{" "}
+            <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+          </p>
+        </button>
+
+        <button
+          onClick={() => navigate("/doctor/bookings")}
+          className="group rounded-xl border border-gray-200 bg-white p-5 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700 dark:bg-gray-900"
+        >
+          <div className="flex items-center gap-3">
+            <ClipboardCheck className="h-5 w-5 text-primary dark:text-secondary" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Operate Bookings
+            </h3>
+          </div>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+            Confirm, reschedule, complete, or cancel consultations with full
+            context.
+          </p>
+          <p className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-primary dark:text-secondary">
+            Open Booking Queue{" "}
+            <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+          </p>
+        </button>
+      </section>
+
+      <section className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CalendarClock className="h-5 w-5 text-primary dark:text-secondary" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Pending Confirmation Queue
+            </h3>
+          </div>
+          <button
+            onClick={() => navigate("/doctor/bookings")}
+            className="text-sm font-semibold text-primary transition hover:underline dark:text-secondary"
+          >
+            View all
+          </button>
+        </div>
+
+        {doctorSummaryLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <Skeleton key={idx} className="h-20 w-full rounded-xl" />
+            ))}
+          </div>
+        ) : pendingConfirmations.length === 0 ? (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center dark:border-gray-700 dark:bg-gray-800">
+            <CircleAlert className="mx-auto h-8 w-8 text-gray-400" />
+            <p className="mt-2 text-sm font-semibold text-gray-800 dark:text-gray-200">
+              No pending confirmations right now.
+            </p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              New requests will appear here automatically.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {pendingConfirmations.slice(0, 5).map((booking) => (
+              <article
+                key={booking.id}
+                className="rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-700"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {booking.service_title_snapshot}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+                      {new Date(booking.scheduled_start).toLocaleString()} •{" "}
+                      {booking.service_mode}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                    pending confirmation
+                  </span>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
 
   const renderDashboardContent = () => {
     switch (profile.role) {
