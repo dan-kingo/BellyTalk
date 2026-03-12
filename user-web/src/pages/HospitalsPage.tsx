@@ -28,13 +28,14 @@ const HospitalsPage: React.FC = () => {
     limit?: number;
   }>({ page: 1, limit: 10 });
   const [showDialog, setShowDialog] = useState(false);
-  const [dialogMode, setDialogMode] = useState<"add" | "edit" | "delete">(
-    "add",
-  );
+  const [dialogMode, setDialogMode] = useState<
+    "add" | "edit" | "delete" | "view"
+  >("add");
   const [editingHospital, setEditingHospital] = useState<Hospital | null>(null);
   const [deletingHospital, setDeletingHospital] = useState<Hospital | null>(
     null,
   );
+  const [viewingHospital, setViewingHospital] = useState<Hospital | null>(null);
   const [savingHospital, setSavingHospital] = useState(false);
   const [deletingHospitalLoading, setDeletingHospitalLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -165,6 +166,12 @@ const HospitalsPage: React.FC = () => {
     }
   };
 
+  const handleViewHospital = (hospital: Hospital) => {
+    setViewingHospital(hospital);
+    setDialogMode("view");
+    setShowDialog(true);
+  };
+
   const resetForm = () => {
     setFormData({
       name: "",
@@ -178,6 +185,7 @@ const HospitalsPage: React.FC = () => {
     });
     setEditingHospital(null);
     setDeletingHospital(null);
+    setViewingHospital(null);
     setShowDialog(false);
   };
 
@@ -263,7 +271,7 @@ const HospitalsPage: React.FC = () => {
         )}
 
         <Dialog
-          isOpen={showDialog && dialogMode !== "delete"}
+          isOpen={showDialog && (dialogMode === "add" || dialogMode === "edit")}
           onClose={resetForm}
           title={editingHospital ? "Edit Hospital" : "Add New Hospital"}
         >
@@ -439,6 +447,68 @@ const HospitalsPage: React.FC = () => {
           </div>
         </Dialog>
 
+        <Dialog
+          isOpen={showDialog && dialogMode === "view"}
+          onClose={resetForm}
+          title={viewingHospital?.name || "Hospital Details"}
+        >
+          {viewingHospital && (
+            <div className="space-y-4">
+              {viewingHospital.city && (
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {viewingHospital.city}
+                </p>
+              )}
+
+              {viewingHospital.description && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                    Description
+                  </h3>
+                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                    {viewingHospital.description}
+                  </p>
+                </div>
+              )}
+
+              {viewingHospital.services &&
+                viewingHospital.services.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                      Services
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {viewingHospital.services.map((service, index) => (
+                        <span
+                          key={index}
+                          className="px-2 py-1 text-xs font-medium rounded-full bg-primary/10 dark:bg-secondary/10 text-primary dark:text-secondary"
+                        >
+                          {service}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                {viewingHospital.address && <p>{viewingHospital.address}</p>}
+                {viewingHospital.phone && <p>{viewingHospital.phone}</p>}
+                {viewingHospital.email && <p>{viewingHospital.email}</p>}
+                {viewingHospital.website && (
+                  <a
+                    href={viewingHospital.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary dark:text-secondary hover:underline"
+                  >
+                    Visit Website
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+        </Dialog>
+
         {loading && hospitals.length === 0 ? (
           <div className="space-y-6 py-2">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -504,6 +574,14 @@ const HospitalsPage: React.FC = () => {
                   <p className="text-gray-700 dark:text-gray-300 mb-4 line-clamp-3">
                     {hospital.description}
                   </p>
+                )}
+                {hospital.description && hospital.description.length > 140 && (
+                  <button
+                    onClick={() => handleViewHospital(hospital)}
+                    className="text-sm text-primary cursor-pointer dark:text-secondary hover:underline mb-3"
+                  >
+                    See more
+                  </button>
                 )}
                 {hospital.services && hospital.services.length > 0 && (
                   <div className="mb-4 flex flex-wrap gap-2">

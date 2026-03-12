@@ -1,9 +1,11 @@
 import { create } from "zustand";
 import { contentService } from "../services/content.service";
 import { hospitalService } from "../services/hospital.service";
-import { Content, Hospital } from "../types";
+import { shopService } from "../services/shop.service";
+import { Content, Hospital, Product } from "../types";
 
 type DashboardStore = {
+  previewProducts: Product[];
   previewContents: Content[];
   previewHospitals: Hospital[];
   loading: boolean;
@@ -26,6 +28,7 @@ const getKey = (canManageContent: boolean, canManageHospitals: boolean) => {
 };
 
 export const useDashboardStore = create<DashboardStore>((set, get) => ({
+  previewProducts: [],
   previewContents: [],
   previewHospitals: [],
   loading: false,
@@ -52,7 +55,9 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
       lastFetchedAt !== null && Date.now() - lastFetchedAt < STALE_TIME_MS;
     const hasCachedData =
       state.currentKey === key &&
-      (state.previewContents.length > 0 || state.previewHospitals.length > 0);
+      (state.previewProducts.length > 0 ||
+        state.previewContents.length > 0 ||
+        state.previewHospitals.length > 0);
 
     if (!force && isFresh && hasCachedData) {
       return;
@@ -61,16 +66,18 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     const request = (async () => {
       set({ loading: true, error: null });
       try {
-        const [contentRes, hospitalRes] = await Promise.all([
+        const [productsRes, contentRes, hospitalRes] = await Promise.all([
+          shopService.getProducts({ page: 1, limit: 6 }),
           canManageContent
-            ? contentService.getMyContents({ limit: 3 })
-            : contentService.getAllContent({ limit: 3 }),
+            ? contentService.getMyContents({ limit: 6 })
+            : contentService.getAllContent({ limit: 6 }),
           canManageHospitals
-            ? hospitalService.getMyHospitals({ limit: 3 })
-            : hospitalService.getHospitals({ limit: 3 }),
+            ? hospitalService.getMyHospitals({ limit: 6 })
+            : hospitalService.getHospitals({ limit: 6 }),
         ]);
 
         set((current) => ({
+          previewProducts: productsRes.products || [],
           previewContents: contentRes.data || [],
           previewHospitals: hospitalRes.data || [],
           loading: false,
