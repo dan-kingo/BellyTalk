@@ -1,4 +1,5 @@
 import api from "./api";
+import { supabase } from "./supabase";
 import {
   DoctorDirectoryItem,
   DoctorProfile,
@@ -26,11 +27,61 @@ export const doctorDiscoveryService = {
       return [];
     }
 
-    const response = await api.get("/presence/doctors", {
-      params: { ids: doctorIds.join(",") },
-    });
+    try {
+      const response = await api.get("/presence/doctors", {
+        params: { ids: doctorIds.join(",") },
+      });
 
-    return (response.data.doctors || []) as PresenceDoctor[];
+      return (response.data.doctors || []) as PresenceDoctor[];
+    } catch (error) {
+      console.error("Failed to fetch doctor presence from API:", error);
+
+      try {
+        const [presenceResult, profilesResult] = await Promise.all([
+          supabase
+            .from("user_presence")
+            .select("user_id, status, last_seen")
+            .in("user_id", doctorIds),
+          supabase.from("profiles").select("id, full_name").in("id", doctorIds),
+        ]);
+
+        if (presenceResult.error) throw presenceResult.error;
+        if (profilesResult.error) throw profilesResult.error;
+
+        const presenceMap = new Map(
+          (presenceResult.data || []).map((row) => [row.user_id, row]),
+        );
+        const profileMap = new Map(
+          (profilesResult.data || []).map((row) => [row.id, row]),
+        );
+
+        return doctorIds.map((id) => {
+          const presence = presenceMap.get(id);
+          const profile = profileMap.get(id);
+
+          return {
+            id,
+            full_name: profile?.full_name || `Dr. ${id.slice(0, 8)}`,
+            status: (presence?.status || "offline") as
+              | "online"
+              | "offline"
+              | "away",
+            last_seen: presence?.last_seen || null,
+          };
+        });
+      } catch (fallbackError) {
+        console.error(
+          "Supabase fallback for doctor presence failed:",
+          fallbackError,
+        );
+        return doctorIds.map((id) => ({
+          id,
+          full_name: `Dr. ${id.slice(0, 8)}`,
+          status: "offline" as const,
+          last_seen: null,
+        }));
+      }
+    }
   },
 
   async listDoctors(options: ListDoctorsOptions = {}) {

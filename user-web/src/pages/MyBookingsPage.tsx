@@ -31,12 +31,6 @@ const statusStyles: Record<BookingStatus, string> = {
   expired: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
 };
 
-const cancellableStatuses: BookingStatus[] = [
-  "pending_payment",
-  "pending_confirmation",
-  "confirmed",
-];
-
 const MyBookingsPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -195,7 +189,7 @@ const MyBookingsPage: React.FC = () => {
     );
 
   const canCancelBooking = (booking: Booking) =>
-    cancellableStatuses.includes(booking.status) && !hasSubmittedProof(booking);
+    booking.status === "pending_payment" && !hasSubmittedProof(booking);
 
   const openProofDialog = (booking: Booking) => {
     setProofBooking(booking);

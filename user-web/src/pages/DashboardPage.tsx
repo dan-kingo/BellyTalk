@@ -177,9 +177,13 @@ const DashboardPage: React.FC = () => {
   const activeDoctorServices = doctorServices.filter(
     (service) => service.is_active,
   );
-  const pendingConfirmations = doctorUpcomingBookings.filter(
-    (booking) => booking.status === "pending_confirmation",
-  );
+  const pendingConfirmationQueue = doctorUpcomingBookings
+    .filter((booking) => booking.status === "pending_confirmation")
+    .sort(
+      (a, b) =>
+        new Date(a.scheduled_start).getTime() -
+        new Date(b.scheduled_start).getTime(),
+    );
   const confirmedBookings = doctorUpcomingBookings.filter(
     (booking) => booking.status === "confirmed",
   );
@@ -465,7 +469,7 @@ const DashboardPage: React.FC = () => {
                 Pending Confirmations
               </p>
               <p className="mt-2 text-3xl font-bold text-orange-800 dark:text-orange-200">
-                {pendingConfirmations.length}
+                {pendingConfirmationQueue.length}
               </p>
               <p className="mt-1 text-sm text-orange-700/90 dark:text-orange-200/90">
                 Requires action from you
@@ -563,7 +567,7 @@ const DashboardPage: React.FC = () => {
               <Skeleton key={idx} className="h-20 w-full rounded-xl" />
             ))}
           </div>
-        ) : pendingConfirmations.length === 0 ? (
+        ) : pendingConfirmationQueue.length === 0 ? (
           <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center dark:border-gray-700 dark:bg-gray-800">
             <CircleAlert className="mx-auto h-8 w-8 text-gray-400" />
             <p className="mt-2 text-sm font-semibold text-gray-800 dark:text-gray-200">
@@ -575,7 +579,7 @@ const DashboardPage: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {pendingConfirmations.slice(0, 5).map((booking) => (
+            {pendingConfirmationQueue.slice(0, 5).map((booking) => (
               <article
                 key={booking.id}
                 className="rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-700"

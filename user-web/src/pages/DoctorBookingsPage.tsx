@@ -327,21 +327,55 @@ const DoctorBookingsPage: React.FC = () => {
     }
   };
 
+  const hasApprovedPayment = (booking: Booking) => {
+    const normalizedBookingStatus = `${booking.payment_status || ""}`
+      .trim()
+      .toLowerCase();
+
+    if (
+      normalizedBookingStatus === "approved" ||
+      normalizedBookingStatus === "paid"
+    ) {
+      return true;
+    }
+
+    const payments = (booking as any).booking_payments || [];
+    return payments.some((payment: any) => {
+      const status = `${payment?.status || ""}`.trim().toLowerCase();
+      return status === "approved" || status === "paid";
+    });
+  };
+
+  const hasSessionStarted = (booking: Booking) =>
+    clockTick >= new Date(booking.scheduled_start).getTime();
+
   const canRunActions = (booking: Booking) => {
+    const paymentApproved = hasApprovedPayment(booking);
+
     if (booking.status === "pending_confirmation") {
-      return { confirm: true, complete: false, reschedule: true, cancel: true };
+      return {
+        confirm: true,
+        complete: false,
+        reschedule: false,
+        cancel: !paymentApproved,
+      };
     }
 
     if (booking.status === "confirmed") {
-      return { confirm: false, complete: true, reschedule: true, cancel: true };
+      return {
+        confirm: false,
+        complete: hasSessionStarted(booking),
+        reschedule: false,
+        cancel: !paymentApproved,
+      };
     }
 
     if (booking.status === "pending_payment") {
       return {
         confirm: false,
         complete: false,
-        reschedule: true,
-        cancel: true,
+        reschedule: false,
+        cancel: !paymentApproved,
       };
     }
 
@@ -663,7 +697,7 @@ const DoctorBookingsPage: React.FC = () => {
         title="Booking Detail"
       >
         {selectedBooking ? (
-          <div className="space-y-3 text-sm">
+          <div className="space-y-3 text-sm text-gray-800 dark:text-gray-100">
             <p>
               <span className="font-semibold">Service:</span>{" "}
               {selectedBooking.service_title_snapshot}
