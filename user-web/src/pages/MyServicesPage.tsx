@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, PlusCircle, Trash2, Wrench } from "lucide-react";
 import { toast } from "react-toastify";
 import Layout from "../components/layout/Layout";
+import Dialog from "../components/common/Dialog";
 import Skeleton from "../components/common/Skeleton";
 import { DoctorService, DoctorServiceMode } from "../types";
 import { doctorServiceService } from "../services/doctor-service.service";
@@ -17,6 +18,16 @@ interface ServiceFormState {
   is_active: boolean;
 }
 
+interface AvailabilityFormState {
+  scheduleType: "weekly" | "date";
+  day_of_week: string;
+  specific_date: string;
+  start_time: string;
+  end_time: string;
+  timezone: string;
+  slot_capacity: string;
+}
+
 const DEFAULT_FORM: ServiceFormState = {
   title: "",
   description: "",
@@ -28,12 +39,43 @@ const DEFAULT_FORM: ServiceFormState = {
   is_active: true,
 };
 
+const DEFAULT_AVAILABILITY_FORM: AvailabilityFormState = {
+  scheduleType: "weekly",
+  day_of_week: "1",
+  specific_date: "",
+  start_time: "09:00",
+  end_time: "10:00",
+  timezone: "UTC",
+  slot_capacity: "1",
+};
+
+const WEEKDAY_OPTIONS = [
+  { value: 0, label: "Sunday" },
+  { value: 1, label: "Monday" },
+  { value: 2, label: "Tuesday" },
+  { value: 3, label: "Wednesday" },
+  { value: 4, label: "Thursday" },
+  { value: 5, label: "Friday" },
+  { value: 6, label: "Saturday" },
+];
+
 const MyServicesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [services, setServices] = useState<DoctorService[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ServiceFormState>(DEFAULT_FORM);
+  const [availabilityDialogOpen, setAvailabilityDialogOpen] = useState(false);
+  const [availabilitySaving, setAvailabilitySaving] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(
+    null,
+  );
+  const [availabilityForm, setAvailabilityForm] =
+    useState<AvailabilityFormState>(DEFAULT_AVAILABILITY_FORM);
+  const [availabilityService, setAvailabilityService] =
+    useState<DoctorService | null>(null);
+  const [enforceAvailabilitySetup, setEnforceAvailabilitySetup] =
+    useState(false);
 
   const modeOptions = useMemo(
     () => ["video", "audio", "message", "in_person"] as DoctorServiceMode[],
@@ -61,6 +103,108 @@ const MyServicesPage: React.FC = () => {
   const resetForm = () => {
     setForm(DEFAULT_FORM);
     setEditingId(null);
+  };
+
+  const resetAvailabilityForm = () => {
+    setAvailabilityForm(DEFAULT_AVAILABILITY_FORM);
+    setAvailabilityError(null);
+  };
+
+  const openAvailabilityDialog = (service: DoctorService, enforce: boolean) => {
+    setAvailabilityService(service);
+    setEnforceAvailabilitySetup(enforce);
+    resetAvailabilityForm();
+    setAvailabilityDialogOpen(true);
+  };
+
+  const closeAvailabilityDialog = () => {
+    if (enforceAvailabilitySetup) {
+      setAvailabilityError(
+        "Please add at least one availability to finish creating this service.",
+      );
+      return;
+    }
+
+    setAvailabilityDialogOpen(false);
+    setAvailabilityService(null);
+    setEnforceAvailabilitySetup(false);
+    resetAvailabilityForm();
+  };
+
+  const validateAvailabilityForm = () => {
+    const start = availabilityForm.start_time;
+    const end = availabilityForm.end_time;
+
+    if (!start || !end) return "Start and end time are required.";
+    if (start >= end) return "End time must be later than start time.";
+
+    const capacity = Number(availabilityForm.slot_capacity);
+    if (!Number.isFinite(capacity) || capacity <= 0) {
+      return "Slot capacity must be greater than zero.";
+    }
+
+    if (availabilityForm.scheduleType === "weekly") {
+      const day = Number(availabilityForm.day_of_week);
+      if (!Number.isInteger(day) || day < 0 || day > 6) {
+        return "Choose a valid weekday.";
+      }
+    } else if (!availabilityForm.specific_date) {
+      return "Specific date is required.";
+    }
+
+    return null;
+  };
+
+  const submitAvailability = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setAvailabilityError(null);
+
+    if (!availabilityService) {
+      setAvailabilityError("No service selected for availability setup.");
+      return;
+    }
+
+    const validationError = validateAvailabilityForm();
+    if (validationError) {
+      setAvailabilityError(validationError);
+      return;
+    }
+
+    try {
+      setAvailabilitySaving(true);
+
+      await doctorServiceService.createServiceAvailability(
+        availabilityService.id,
+        {
+          day_of_week:
+            availabilityForm.scheduleType === "weekly"
+              ? Number(availabilityForm.day_of_week)
+              : undefined,
+          specific_date:
+            availabilityForm.scheduleType === "date"
+              ? availabilityForm.specific_date
+              : undefined,
+          start_time: availabilityForm.start_time,
+          end_time: availabilityForm.end_time,
+          timezone: availabilityForm.timezone || "UTC",
+          slot_capacity: Number(availabilityForm.slot_capacity),
+          is_active: true,
+        },
+      );
+
+      toast.success("Availability added successfully.");
+      await loadServices();
+      setAvailabilityDialogOpen(false);
+      setAvailabilityService(null);
+      setEnforceAvailabilitySetup(false);
+      resetAvailabilityForm();
+    } catch (err: any) {
+      setAvailabilityError(
+        err?.response?.data?.error || "Failed to create availability.",
+      );
+    } finally {
+      setAvailabilitySaving(false);
+    }
   };
 
   const startEdit = (service: DoctorService) => {
@@ -126,8 +270,12 @@ const MyServicesPage: React.FC = () => {
         await doctorServiceService.updateService(editingId, payload);
         toast.success("Service updated.");
       } else {
-        await doctorServiceService.createService(payload);
-        toast.success("Service created.");
+        const createdService =
+          await doctorServiceService.createService(payload);
+        toast.success(
+          "Service created. Add availability to publish bookable slots.",
+        );
+        openAvailabilityDialog(createdService, true);
       }
 
       resetForm();
@@ -380,6 +528,12 @@ const MyServicesPage: React.FC = () => {
                       {service.is_active ? "Deactivate" : "Activate"}
                     </button>
                     <button
+                      onClick={() => openAvailabilityDialog(service, false)}
+                      className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-indigo-300 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-300 dark:hover:bg-indigo-900/20"
+                    >
+                      <PlusCircle className="h-3.5 w-3.5" /> Add Availability
+                    </button>
+                    <button
                       onClick={() => removeService(service.id)}
                       className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/20"
                     >
@@ -391,6 +545,199 @@ const MyServicesPage: React.FC = () => {
             </div>
           )}
         </section>
+
+        <Dialog
+          isOpen={availabilityDialogOpen}
+          onClose={closeAvailabilityDialog}
+          title="Configure Service Availability"
+        >
+          <form className="space-y-4" onSubmit={submitAvailability}>
+            {availabilityService && (
+              <div className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
+                <p className="font-semibold">{availabilityService.title}</p>
+                <p className="mt-1 text-xs opacity-90">
+                  {enforceAvailabilitySetup
+                    ? "Add at least one availability rule now so mothers can book this service."
+                    : "Add a new availability window for this service."}
+                </p>
+              </div>
+            )}
+
+            <div>
+              <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                Schedule type
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <input
+                    type="radio"
+                    name="scheduleType"
+                    checked={availabilityForm.scheduleType === "weekly"}
+                    onChange={() =>
+                      setAvailabilityForm((prev) => ({
+                        ...prev,
+                        scheduleType: "weekly",
+                        specific_date: "",
+                      }))
+                    }
+                  />
+                  Weekly recurring
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <input
+                    type="radio"
+                    name="scheduleType"
+                    checked={availabilityForm.scheduleType === "date"}
+                    onChange={() =>
+                      setAvailabilityForm((prev) => ({
+                        ...prev,
+                        scheduleType: "date",
+                      }))
+                    }
+                  />
+                  Specific date
+                </label>
+              </div>
+            </div>
+
+            {availabilityForm.scheduleType === "weekly" ? (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Weekday
+                </label>
+                <select
+                  value={availabilityForm.day_of_week}
+                  onChange={(event) =>
+                    setAvailabilityForm((prev) => ({
+                      ...prev,
+                      day_of_week: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none ring-primary-500 transition focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                >
+                  {WEEKDAY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={availabilityForm.specific_date}
+                  onChange={(event) =>
+                    setAvailabilityForm((prev) => ({
+                      ...prev,
+                      specific_date: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none ring-primary-500 transition focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                />
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Start time
+                </label>
+                <input
+                  type="time"
+                  value={availabilityForm.start_time}
+                  onChange={(event) =>
+                    setAvailabilityForm((prev) => ({
+                      ...prev,
+                      start_time: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none ring-primary-500 transition focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  End time
+                </label>
+                <input
+                  type="time"
+                  value={availabilityForm.end_time}
+                  onChange={(event) =>
+                    setAvailabilityForm((prev) => ({
+                      ...prev,
+                      end_time: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none ring-primary-500 transition focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Timezone
+                </label>
+                <input
+                  type="text"
+                  value={availabilityForm.timezone}
+                  onChange={(event) =>
+                    setAvailabilityForm((prev) => ({
+                      ...prev,
+                      timezone: event.target.value,
+                    }))
+                  }
+                  placeholder="UTC"
+                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none ring-primary-500 transition focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Slot capacity
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={availabilityForm.slot_capacity}
+                  onChange={(event) =>
+                    setAvailabilityForm((prev) => ({
+                      ...prev,
+                      slot_capacity: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none ring-primary-500 transition focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                />
+              </div>
+            </div>
+
+            {availabilityError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">
+                {availabilityError}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeAvailabilityDialog}
+                disabled={availabilitySaving}
+                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+              >
+                Close
+              </button>
+              <button
+                type="submit"
+                disabled={availabilitySaving}
+                className="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-60"
+              >
+                {availabilitySaving ? "Saving..." : "Save Availability"}
+              </button>
+            </div>
+          </form>
+        </Dialog>
       </div>
     </Layout>
   );
