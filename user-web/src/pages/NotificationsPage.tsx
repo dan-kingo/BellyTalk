@@ -13,15 +13,29 @@ const NotificationsPage: React.FC = () => {
   const unreadCount = useNotificationStore((state) => state.unreadCount);
   const loading = useNotificationStore((state) => state.loading);
   const error = useNotificationStore((state) => state.error);
-  const fetchDoctorNotifications = useNotificationStore(
-    (state) => state.fetchDoctorNotifications,
+  const fetchNotifications = useNotificationStore(
+    (state) => state.fetchNotifications,
   );
   const markAsRead = useNotificationStore((state) => state.markAsRead);
   const markAllAsRead = useNotificationStore((state) => state.markAllAsRead);
 
+  const notificationRole: "mother" | "doctor" | "admin" | null =
+    profile?.role === "mother"
+      ? "mother"
+      : profile?.role === "doctor"
+        ? "doctor"
+        : profile?.role === "admin"
+          ? "admin"
+          : null;
+  const canSeeNotifications = notificationRole !== null;
+
+  const seenStorageKey = profile?.role
+    ? `${profile.role}_notification_seen_ids`
+    : "notification_seen_ids";
+
   const seenSet = (() => {
     try {
-      const raw = localStorage.getItem("doctor_notification_seen_ids");
+      const raw = localStorage.getItem(seenStorageKey);
       const parsed = raw ? JSON.parse(raw) : [];
       return new Set<string>(Array.isArray(parsed) ? parsed : []);
     } catch {
@@ -30,28 +44,28 @@ const NotificationsPage: React.FC = () => {
   })();
 
   useEffect(() => {
-    if (profile?.role !== "doctor" && profile?.role !== "admin") {
+    if (!notificationRole) {
       return;
     }
 
-    fetchDoctorNotifications(true);
+    fetchNotifications(notificationRole, true);
     const timer = setInterval(() => {
-      fetchDoctorNotifications();
+      fetchNotifications(notificationRole);
     }, 30_000);
 
     return () => clearInterval(timer);
-  }, [profile?.role, fetchDoctorNotifications]);
+  }, [notificationRole, fetchNotifications]);
 
-  if (profile?.role !== "doctor" && profile?.role !== "admin") {
+  if (!canSeeNotifications) {
     return (
       <Layout>
         <div className="mx-auto max-w-3xl rounded-xl border border-gray-200 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-900">
           <CircleAlert className="mx-auto h-10 w-10 text-gray-400" />
           <h1 className="mt-3 text-xl font-semibold text-gray-900 dark:text-white">
-            Notifications are available for doctor operations
+            Notifications are not available for this role
           </h1>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-            Switch to a doctor/admin account to view booking-related alerts.
+            Use a mother, doctor, or admin account to view activity alerts.
           </p>
         </div>
       </Layout>
@@ -68,8 +82,7 @@ const NotificationsPage: React.FC = () => {
                 Notifications Center
               </h1>
               <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                Operational alerts for bookings, reminders, and payment-proof
-                actions.
+                Booking reminders and status updates for your account.
               </p>
             </div>
 
@@ -78,7 +91,10 @@ const NotificationsPage: React.FC = () => {
                 {unreadCount} unread
               </span>
               <button
-                onClick={() => fetchDoctorNotifications(true)}
+                onClick={() => {
+                  if (!notificationRole) return;
+                  fetchNotifications(notificationRole, true);
+                }}
                 className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
               >
                 <RefreshCw className="h-4 w-4" /> Refresh
@@ -107,7 +123,7 @@ const NotificationsPage: React.FC = () => {
               No notifications right now
             </h2>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-              We will surface booking and payment-proof actions here.
+              We will surface booking and payment updates here.
             </p>
           </section>
         ) : (

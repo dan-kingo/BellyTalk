@@ -17,17 +17,27 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
   const notificationUnreadCount = useNotificationStore(
     (state) => state.unreadCount,
   );
-  const fetchDoctorNotifications = useNotificationStore(
-    (state) => state.fetchDoctorNotifications,
+  const fetchNotifications = useNotificationStore(
+    (state) => state.fetchNotifications,
   );
 
+  const notificationRole: "mother" | "doctor" | "admin" | null =
+    profile?.role === "mother"
+      ? "mother"
+      : profile?.role === "doctor"
+        ? "doctor"
+        : profile?.role === "admin"
+          ? "admin"
+          : null;
+  const canSeeNotifications = notificationRole !== null;
+
   useEffect(() => {
-    if (!user || (profile?.role !== "doctor" && profile?.role !== "admin")) {
+    if (!user || !notificationRole) {
       return;
     }
 
-    fetchDoctorNotifications();
-  }, [user, profile?.role, fetchDoctorNotifications]);
+    fetchNotifications(notificationRole, true);
+  }, [user, notificationRole, fetchNotifications]);
 
   const handleLogout = async () => {
     try {
@@ -82,7 +92,7 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
                     <Moon className="w-5 h-5" />
                   )}
                 </button>
-                {(profile?.role === "doctor" || profile?.role === "admin") && (
+                {canSeeNotifications && (
                   <Link
                     to="/notifications"
                     className="relative p-2 cursor-pointer rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all"

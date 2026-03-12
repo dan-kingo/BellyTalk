@@ -4,7 +4,14 @@ import { bookingService } from "../services/booking.service";
 type NotificationType =
   | "new_booking"
   | "upcoming_reminder"
-  | "payment_proof_submitted";
+  | "payment_proof_submitted"
+  | "booking_confirmed"
+  | "booking_rescheduled"
+  | "booking_cancelled"
+  | "payment_approved"
+  | "payment_rejected";
+
+type NotificationRole = "mother" | "doctor" | "admin";
 
 export interface AppNotification {
   id: string;
@@ -21,19 +28,24 @@ interface NotificationStore {
   loading: boolean;
   error: string | null;
   lastFetched: number | null;
+  activeRole: NotificationRole | null;
   request: Promise<void> | null;
-  fetchDoctorNotifications: (force?: boolean) => Promise<void>;
+  fetchNotifications: (
+    role: NotificationRole,
+    force?: boolean,
+  ) => Promise<void>;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   clearError: () => void;
 }
 
 const STALE_TIME_MS = 20_000;
-const SEEN_STORAGE_KEY = "doctor_notification_seen_ids";
+const getSeenStorageKey = (role: NotificationRole | null) =>
+  role ? `${role}_notification_seen_ids` : "notification_seen_ids";
 
-const readSeenIds = (): Set<string> => {
+const readSeenIds = (role: NotificationRole | null): Set<string> => {
   try {
-    const raw = localStorage.getItem(SEEN_STORAGE_KEY);
+    const raw = localStorage.getItem(getSeenStorageKey(role));
     if (!raw) return new Set<string>();
 
     const parsed = JSON.parse(raw);
@@ -45,15 +57,18 @@ const readSeenIds = (): Set<string> => {
   }
 };
 
-const writeSeenIds = (ids: Set<string>) => {
+const writeSeenIds = (role: NotificationRole | null, ids: Set<string>) => {
   try {
-    localStorage.setItem(SEEN_STORAGE_KEY, JSON.stringify(Array.from(ids)));
+    localStorage.setItem(
+      getSeenStorageKey(role),
+      JSON.stringify(Array.from(ids)),
+    );
   } catch {
     // Ignore storage errors and keep in-memory behavior.
   }
 };
 
-const buildNotifications = async (): Promise<AppNotification[]> => {
+const buildDoctorNotifications = async (): Promise<AppNotification[]> => {
   const bookings = await bookingService.listDoctorBookings({
     type: "upcoming",
     limit: 100,
@@ -135,33 +150,145 @@ const buildNotifications = async (): Promise<AppNotification[]> => {
   return deduped;
 };
 
+const buildMotherNotifications = async (): Promise<AppNotification[]> => {
+  const bookings = await bookingService.listMyBookings({ limit: 100 });
+
+  const now = Date.now();
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  const items: AppNotification[] = [];
+
+  bookings.forEach((booking) => {
+    const startAt = new Date(booking.scheduled_start).getTime();
+    const createdAt =
+      booking.updated_at || booking.created_at || booking.scheduled_start;
+    const paymentStatus = String(booking.payment_status || "").toLowerCase();
+
+    if (booking.status === "confirmed") {
+      items.push({
+        id: `booking_confirmed:${booking.id}`,
+        type: "booking_confirmed",
+        title: "Booking confirmed",
+        message: `${booking.service_title_snapshot} is confirmed for ${new Date(
+          booking.scheduled_start,
+        ).toLocaleString()}`,
+        createdAt,
+        link: "/bookings",
+      });
+    }
+
+    if (
+      booking.status === "confirmed" &&
+      startAt > now &&
+      startAt - now <= oneDayMs
+    ) {
+      items.push({
+        id: `upcoming_reminder:${booking.id}`,
+        type: "upcoming_reminder",
+        title: "Upcoming consultation reminder",
+        message: `${booking.service_title_snapshot} starts ${new Date(
+          booking.scheduled_start,
+        ).toLocaleString()}`,
+        createdAt: booking.scheduled_start,
+        link: "/bookings",
+      });
+    }
+
+    if (booking.status === "cancelled") {
+      items.push({
+        id: `booking_cancelled:${booking.id}`,
+        type: "booking_cancelled",
+        title: "Booking cancelled",
+        message: `${booking.service_title_snapshot} was cancelled.`,
+        createdAt,
+        link: "/bookings",
+      });
+    }
+
+    if (paymentStatus === "approved") {
+      items.push({
+        id: `payment_approved:${booking.id}`,
+        type: "payment_approved",
+        title: "Payment approved",
+        message: `Your payment proof for ${booking.service_title_snapshot} was approved.`,
+        createdAt,
+        link: "/bookings",
+      });
+    }
+
+    if (paymentStatus === "rejected") {
+      items.push({
+        id: `payment_rejected:${booking.id}`,
+        type: "payment_rejected",
+        title: "Payment needs attention",
+        message: `Your payment proof for ${booking.service_title_snapshot} was rejected. Please resubmit.`,
+        createdAt,
+        link: "/bookings",
+      });
+    }
+  });
+
+  const seen = new Set<string>();
+  const deduped: AppNotification[] = [];
+  for (const item of items) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    deduped.push(item);
+  }
+
+  deduped.sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+
+  return deduped;
+};
+
+const buildNotificationsByRole = async (
+  role: NotificationRole,
+): Promise<AppNotification[]> => {
+  if (role === "mother") {
+    return buildMotherNotifications();
+  }
+
+  return buildDoctorNotifications();
+};
+
 export const useNotificationStore = create<NotificationStore>((set, get) => ({
   notifications: [],
   unreadCount: 0,
   loading: false,
   error: null,
   lastFetched: null,
+  activeRole: null,
   request: null,
 
-  fetchDoctorNotifications: async (force = false) => {
+  fetchNotifications: async (role, force = false) => {
     const state = get();
 
     if (state.request) {
       return state.request;
     }
 
+    if (state.activeRole && state.activeRole !== role) {
+      set({
+        notifications: [],
+        unreadCount: 0,
+        lastFetched: null,
+        activeRole: role,
+      });
+    }
+
     const isFresh =
       state.lastFetched !== null &&
       Date.now() - state.lastFetched < STALE_TIME_MS;
-    if (!force && isFresh) {
+    if (!force && isFresh && state.activeRole === role) {
       return;
     }
 
     const request = (async () => {
       set({ loading: true, error: null });
       try {
-        const nextNotifications = await buildNotifications();
-        const seenIds = readSeenIds();
+        const nextNotifications = await buildNotificationsByRole(role);
+        const seenIds = readSeenIds(role);
         const unreadCount = nextNotifications.filter(
           (item) => !seenIds.has(item.id),
         ).length;
@@ -170,6 +297,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
           notifications: nextNotifications,
           unreadCount,
           loading: false,
+          activeRole: role,
           lastFetched: Date.now(),
         });
       } catch (error) {
@@ -189,9 +317,10 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
   },
 
   markAsRead: (id: string) => {
-    const seenIds = readSeenIds();
+    const role = get().activeRole;
+    const seenIds = readSeenIds(role);
     seenIds.add(id);
-    writeSeenIds(seenIds);
+    writeSeenIds(role, seenIds);
 
     const unreadCount = get().notifications.filter(
       (item) => !seenIds.has(item.id),
@@ -201,10 +330,11 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
   },
 
   markAllAsRead: () => {
+    const role = get().activeRole;
     const allIds = get().notifications.map((item) => item.id);
-    const seenIds = readSeenIds();
+    const seenIds = readSeenIds(role);
     allIds.forEach((id) => seenIds.add(id));
-    writeSeenIds(seenIds);
+    writeSeenIds(role, seenIds);
     set({ unreadCount: 0 });
   },
 

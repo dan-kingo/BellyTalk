@@ -292,7 +292,7 @@ const App: React.FC = () => {
               <Route
                 path="/notifications"
                 element={
-                  <PrivateRoute allowedRoles={["doctor", "admin"]}>
+                  <PrivateRoute allowedRoles={["mother", "doctor", "admin"]}>
                     <DoctorOnboardingGuard>
                       <NotificationsPage />
                     </DoctorOnboardingGuard>

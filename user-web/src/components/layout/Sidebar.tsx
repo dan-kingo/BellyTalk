@@ -13,12 +13,10 @@ import {
   CalendarClock,
   BriefcaseMedical,
   ClipboardCheck,
-  Bell,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useShopStore } from "../../stores/shop.store";
 import { useChatStore } from "../../stores/chat.store";
-import { useNotificationStore } from "../../stores/notification.store";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -32,12 +30,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const fetchUnreadCount = useChatStore((state) => state.fetchUnreadCount);
   const myOrders = useShopStore((state) => state.myOrders);
   const fetchOrders = useShopStore((state) => state.fetchOrders);
-  const notificationUnreadCount = useNotificationStore(
-    (state) => state.unreadCount,
-  );
-  const fetchDoctorNotifications = useNotificationStore(
-    (state) => state.fetchDoctorNotifications,
-  );
   const orderCount = myOrders.filter(
     (order) => order.order_status === "pending",
   ).length;
@@ -106,12 +98,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       roles: ["doctor", "admin"],
     },
     {
-      path: "/notifications",
-      icon: Bell,
-      label: "Notifications",
-      roles: ["doctor", "admin"],
-    },
-    {
       path: "/profile",
       icon: User,
       label: "Profile",
@@ -136,36 +122,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
     fetchUnreadCount();
   }, [user, profile?.role, fetchUnreadCount]);
-
-  useEffect(() => {
-    if (!user || (profile?.role !== "doctor" && profile?.role !== "admin")) {
-      return;
-    }
-
-    fetchDoctorNotifications(true);
-    const timer = setInterval(() => {
-      fetchDoctorNotifications();
-    }, 30_000);
-
-    return () => {
-      clearInterval(timer);
-    };
-  }, [user, profile?.role, fetchDoctorNotifications]);
-
-  useEffect(() => {
-    if (profile?.role !== "doctor" && profile?.role !== "admin") {
-      return;
-    }
-
-    if (
-      location.pathname !== "/notifications" &&
-      location.pathname !== "/doctor/bookings"
-    ) {
-      return;
-    }
-
-    fetchDoctorNotifications(true);
-  }, [location.pathname, profile?.role, fetchDoctorNotifications, user]);
 
   return (
     <>
@@ -220,14 +176,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                       {messageCount}
                     </span>
                   )}
-                  {item.path === "/notifications" &&
-                    notificationUnreadCount > 0 && (
-                      <span className="ml-auto bg-orange-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                        {notificationUnreadCount > 99
-                          ? "99+"
-                          : notificationUnreadCount}
-                      </span>
-                    )}
                 </Link>
               );
             })}
