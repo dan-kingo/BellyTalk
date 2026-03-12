@@ -29,6 +29,8 @@ const WEEKDAY_LABELS = [
   "Saturday",
 ];
 
+const DISPLAY_TIMEZONE = 'UTC'
+
 const formatAvailabilityRule = (row: DoctorServiceAvailability) => {
   const dayOrDate = row.specific_date
     ? `Date ${row.specific_date}`
@@ -416,35 +418,41 @@ const DoctorDetailsPage: React.FC = () => {
                         required
                       >
                         <option value="">Select a slot</option>
-                        {serviceSlots.map((slot) => (
-                          <option key={slot.slot_key} value={slot.slot_key}>
-                            {new Date(slot.start_at).toLocaleDateString()}{" "}
-                            {new Date(slot.start_at).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                            {" - "}
-                            {new Date(slot.end_at).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                            {slot.remaining <= 2
-                              ? ` (remaining ${slot.remaining})`
-                              : ""}
-                          </option>
-                        ))}
+                       {serviceSlots.map((slot) => (
+  <option key={slot.slot_key} value={slot.slot_key}>
+    {new Date(slot.start_at).toLocaleDateString(undefined, {
+      timeZone: DISPLAY_TIMEZONE,
+    })}{" "}
+    {new Date(slot.start_at).toLocaleTimeString([], {
+      timeZone: DISPLAY_TIMEZONE,
+      hour: "2-digit",
+      minute: "2-digit",
+    })}
+    {" - "}
+    {new Date(slot.end_at).toLocaleTimeString([], {
+      timeZone: DISPLAY_TIMEZONE,
+      hour: "2-digit",
+      minute: "2-digit",
+    })}
+    {slot.remaining <= 2 ? ` (remaining ${slot.remaining})` : ""}
+  </option>
+))}
                       </select>
                       {selectedSlot && (
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                          Selected slot:{" "}
-                          {new Date(selectedSlot.start_at).toLocaleString()} -{" "}
-                          {new Date(selectedSlot.end_at).toLocaleTimeString(
-                            [],
-                            { hour: "2-digit", minute: "2-digit" },
-                          )}{" "}
-                          ({selectedSlot.timezone})
-                        </p>
-                      )}
+  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+    Selected slot:{" "}
+    {new Date(selectedSlot.start_at).toLocaleString(undefined, {
+      timeZone: DISPLAY_TIMEZONE,
+    })}{" "}
+    -{" "}
+    {new Date(selectedSlot.end_at).toLocaleTimeString([], {
+      timeZone: DISPLAY_TIMEZONE,
+      hour: "2-digit",
+      minute: "2-digit",
+    })}{" "}
+    (UTC)
+  </p>
+)}
                     </div>
                   ) : availability.length > 0 ? (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300">

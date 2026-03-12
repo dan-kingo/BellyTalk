@@ -38,6 +38,7 @@ const DEFAULT_FORM: ServiceFormState = {
   booking_buffer_minutes: "0",
   is_active: true,
 };
+const DEFAULT_TIMEZONE = "UTC";
 
 const DEFAULT_AVAILABILITY_FORM: AvailabilityFormState = {
   scheduleType: "weekly",
@@ -45,7 +46,7 @@ const DEFAULT_AVAILABILITY_FORM: AvailabilityFormState = {
   specific_date: "",
   start_time: "09:00",
   end_time: "10:00",
-  timezone: "UTC",
+  timezone: DEFAULT_TIMEZONE,
   slot_capacity: "1",
 };
 
@@ -186,7 +187,7 @@ const MyServicesPage: React.FC = () => {
               : undefined,
           start_time: availabilityForm.start_time,
           end_time: availabilityForm.end_time,
-          timezone: availabilityForm.timezone || "UTC",
+          timezone: availabilityForm.timezone || DEFAULT_TIMEZONE,
           slot_capacity: Number(availabilityForm.slot_capacity),
           is_active: true,
         },
@@ -678,21 +679,15 @@ const MyServicesPage: React.FC = () => {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Timezone
-                </label>
-                <input
-                  type="text"
-                  value={availabilityForm.timezone}
-                  onChange={(event) =>
-                    setAvailabilityForm((prev) => ({
-                      ...prev,
-                      timezone: event.target.value,
-                    }))
-                  }
-                  placeholder="UTC"
-                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none ring-primary-500 transition focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-                />
+               <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+  Timezone
+</label>
+<input
+  type="text"
+  value={availabilityForm.timezone}
+  readOnly
+  className="w-full rounded-xl border border-gray-300 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+/>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
