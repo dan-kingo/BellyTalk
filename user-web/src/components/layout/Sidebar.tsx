@@ -10,6 +10,8 @@ import {
   MessageSquare,
   ShoppingBag,
   Users,
+  Stethoscope,
+  CalendarClock,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useShopStore } from "../../stores/shop.store";
@@ -78,6 +80,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       path: "/group-chat",
       icon: Users,
       label: "Group Chat",
+      roles: ["mother"],
+    },
+    {
+      path: "/doctors",
+      icon: Stethoscope,
+      label: "Doctors",
+      roles: ["mother"],
+    },
+    {
+      path: "/bookings",
+      icon: CalendarClock,
+      label: "Bookings",
       roles: ["mother"],
     },
     {

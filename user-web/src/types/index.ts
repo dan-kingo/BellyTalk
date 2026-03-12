@@ -49,7 +49,77 @@ export interface AuthContextType {
     role?: "mother" | "doctor",
   ) => Promise<void>;
   logout: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
+  refreshProfile: () => Promise<Profile | null>;
+}
+
+export type DoctorServiceMode = "video" | "audio" | "message" | "in_person";
+export type BookingPaymentMethod = "cod" | "proof_upload";
+export type BookingStatus =
+  | "pending_payment"
+  | "pending_confirmation"
+  | "confirmed"
+  | "completed"
+  | "cancelled"
+  | "no_show"
+  | "expired";
+
+export interface DoctorDirectoryItem extends DoctorProfile {
+  full_name?: string;
+  status?: "online" | "offline" | "away";
+  last_seen?: string | null;
+}
+
+export interface DoctorService {
+  id: string;
+  doctor_id: string;
+  title: string;
+  description?: string;
+  service_mode: DoctorServiceMode;
+  duration_minutes: number;
+  price_amount: number;
+  currency: string;
+  booking_buffer_minutes?: number;
+  is_active: boolean;
+  metadata?: Record<string, any>;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DoctorServiceAvailability {
+  id: string;
+  service_id: string;
+  doctor_id: string;
+  day_of_week?: number | null;
+  specific_date?: string | null;
+  start_time: string;
+  end_time: string;
+  timezone?: string;
+  slot_capacity?: number;
+  is_active?: boolean;
+  metadata?: Record<string, any>;
+}
+
+export interface Booking {
+  id: string;
+  mother_id: string;
+  doctor_id: string;
+  service_id: string;
+  availability_id?: string | null;
+  service_mode: DoctorServiceMode;
+  payment_method: BookingPaymentMethod;
+  payment_status?: string;
+  status: BookingStatus;
+  service_title_snapshot: string;
+  service_description_snapshot?: string;
+  service_price_snapshot: number;
+  currency: string;
+  scheduled_start: string;
+  scheduled_end: string;
+  patient_age?: number | null;
+  symptoms?: string | null;
+  booking_notes?: string | null;
+  created_at: string;
+  updated_at?: string;
 }
 
 export interface Content {

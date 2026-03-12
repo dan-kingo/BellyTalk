@@ -28,6 +28,9 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DoctorProfileCompletionPage from "./pages/DoctorProfileCompletionPage";
 import DoctorPendingApprovalPage from "./pages/DoctorPendingApprovalPage";
+import DoctorsListPage from "./pages/DoctorsListPage";
+import DoctorDetailsPage from "./pages/DoctorDetailsPage";
+import MyBookingsPage from "./pages/MyBookingsPage";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import DoctorOnboardingGuard from "./components/common/DoctorOnboardingGuard";
 import { AgoraProvider } from "./contexts/AgoraContext";
@@ -209,6 +212,39 @@ const App: React.FC = () => {
                   <PrivateRoute allowedRoles={["mother"]}>
                     <DoctorOnboardingGuard>
                       <GroupChatPage />
+                    </DoctorOnboardingGuard>
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/doctors"
+                element={
+                  <PrivateRoute allowedRoles={["mother"]}>
+                    <DoctorOnboardingGuard>
+                      <DoctorsListPage />
+                    </DoctorOnboardingGuard>
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/doctors/:doctorId"
+                element={
+                  <PrivateRoute allowedRoles={["mother"]}>
+                    <DoctorOnboardingGuard>
+                      <DoctorDetailsPage />
+                    </DoctorOnboardingGuard>
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/bookings"
+                element={
+                  <PrivateRoute allowedRoles={["mother"]}>
+                    <DoctorOnboardingGuard>
+                      <MyBookingsPage />
                     </DoctorOnboardingGuard>
                   </PrivateRoute>
                 }
