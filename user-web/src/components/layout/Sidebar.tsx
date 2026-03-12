@@ -123,6 +123,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     fetchUnreadCount();
   }, [user, profile?.role, fetchUnreadCount]);
 
+  const handleItemClick = () => {
+    // Only close the drawer on mobile widths to avoid desktop route flicker.
+    if (window.innerWidth < 1024) {
+      onClose();
+    }
+  };
+
   return (
     <>
       {isOpen && (
@@ -133,7 +140,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       )}
 
       <aside
-        className={`fixed lg:sticky top-16 lg:top-0 left-0 z-40 h-[calc(100vh-4rem)] lg:h-full transition-transform duration-300 ${
+        className={`fixed lg:sticky top-16 lg:top-0 left-0 z-40 h-[calc(100vh-4rem)] lg:h-full transition-transform duration-200 lg:transition-none ${
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
@@ -157,8 +164,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  onClick={onClose}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  onClick={handleItemClick}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     isActive
                       ? "bg-primary text-white dark:bg-secondary"
                       : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"

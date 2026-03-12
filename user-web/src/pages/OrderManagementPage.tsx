@@ -20,6 +20,7 @@ import { Order } from "../types";
 import { useShopStore } from "../stores/shop.store";
 import { toast } from "react-toastify";
 import Skeleton from "../components/common/Skeleton";
+import { getRenderableImageUrl } from "../utils/image";
 
 const OrderManagementPage: React.FC = () => {
   const { profile } = useAuth();
@@ -111,6 +112,11 @@ const OrderManagementPage: React.FC = () => {
   };
 
   const openUpdateDialog = (order: Order) => {
+    if (isTerminalOrderStatus(order.order_status)) {
+      toast.info("Delivered or cancelled orders can no longer be updated.");
+      return;
+    }
+
     if (!canUpdateOrder(order)) {
       toast.info("You do not have permission to update this order.");
       return;
@@ -154,6 +160,9 @@ const OrderManagementPage: React.FC = () => {
       ) || []
     );
   };
+
+  const isTerminalOrderStatus = (status: string) =>
+    status === "delivered" || status === "cancelled";
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -407,7 +416,9 @@ const OrderManagementPage: React.FC = () => {
           <div className="space-y-6">
             {filteredOrders.map((order) => {
               const myProducts = getMyProductsInOrder(order);
-              const canUpdate = canUpdateOrder(order);
+              const canUpdate =
+                canUpdateOrder(order) &&
+                !isTerminalOrderStatus(order.order_status);
 
               return (
                 <div
@@ -538,7 +549,9 @@ const OrderManagementPage: React.FC = () => {
                             >
                               {item.products?.image_url && (
                                 <img
-                                  src={item.products.image_url}
+                                  src={getRenderableImageUrl(
+                                    item.products.image_url,
+                                  )}
                                   alt={item.products.title}
                                   className="w-16 h-16 object-cover rounded-lg"
                                 />

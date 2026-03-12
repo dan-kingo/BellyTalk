@@ -570,9 +570,16 @@ const DoctorBookingsPage: React.FC = () => {
         </section>
 
         {loading ? (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, idx) => (
-              <Skeleton key={idx} className="h-24 w-full rounded-xl" />
+              <div
+                key={idx}
+                className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900"
+              >
+                <Skeleton className="h-5 w-48" />
+                <Skeleton className="mt-3 h-4 w-72" />
+                <Skeleton className="mt-2 h-4 w-44" />
+              </div>
             ))}
           </div>
         ) : bookings.length === 0 ? (

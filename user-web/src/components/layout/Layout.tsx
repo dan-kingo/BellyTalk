@@ -20,7 +20,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const fetchCart = useShopStore((state) => state.fetchCart);
 
   const isDoctorUnderOnboarding =
-    profile?.role === "doctor" && profile?.role_status !== "approved";
+    profile?.role === "doctor" &&
+    ["pending", "rejected"].includes(
+      (profile?.role_status || "").toLowerCase(),
+    );
   const hideAppChrome =
     isDoctorUnderOnboarding ||
     location.pathname === "/doctor/complete-profile" ||

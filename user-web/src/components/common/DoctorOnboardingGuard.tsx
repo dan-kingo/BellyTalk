@@ -101,7 +101,7 @@ const DoctorOnboardingGuard: React.FC<DoctorOnboardingGuardProps> = ({
     return () => {
       active = false;
     };
-  }, [loading, user?.id, isDoctor, location.pathname]);
+  }, [loading, user?.id, isDoctor]);
 
   const doctorCompletedProfile = useMemo(
     () => isDoctorProfileComplete(doctorProfile, profile?.extra),
