@@ -1,6 +1,7 @@
 import api from "./api";
 import {
   Booking,
+  BookingDocument,
   BookingPaymentMethod,
   BookingStatus,
   DoctorServiceMode,
@@ -24,6 +25,15 @@ interface CreateBookingPayload {
   patient_age?: number;
   symptoms?: string;
   booking_notes?: string;
+}
+
+interface SubmitBookingPaymentPayload {
+  payment_method: BookingPaymentMethod;
+  amount: number;
+  currency?: string;
+  transaction_reference?: string;
+  proof_document_id?: string;
+  metadata?: Record<string, any>;
 }
 
 export const bookingService = {
@@ -100,5 +110,45 @@ export const bookingService = {
       note: note || undefined,
     });
     return response.data.booking as Booking;
+  },
+
+  async addBookingDocuments(
+    id: string,
+    files: File[],
+    documentType:
+      | "prescription"
+      | "health_record"
+      | "payment_proof"
+      | "other" = "other",
+  ): Promise<BookingDocument[]> {
+    const formData = new FormData();
+    files.forEach((file) => formData.append("files", file));
+    formData.append("document_type", documentType);
+
+    const response = await api.post(`/bookings/${id}/documents`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    return (response.data.documents || []) as BookingDocument[];
+  },
+
+  async submitBookingPayment(
+    id: string,
+    payload: SubmitBookingPaymentPayload,
+  ): Promise<{ booking: Booking }> {
+    const response = await api.post(`/bookings/${id}/payments`, payload);
+    return response.data as { booking: Booking };
+  },
+
+  async reviewBookingPayment(
+    id: string,
+    paymentId: string,
+    payload: { status: "approved" | "rejected"; rejection_reason?: string },
+  ): Promise<{ booking: Booking }> {
+    const response = await api.patch(
+      `/bookings/${id}/payments/${paymentId}/review`,
+      payload,
+    );
+    return response.data as { booking: Booking };
   },
 };

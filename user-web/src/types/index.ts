@@ -63,6 +63,38 @@ export type BookingStatus =
   | "no_show"
   | "expired";
 
+export type BookingPaymentStatus = "pending_review" | "approved" | "rejected";
+
+export interface BookingDocument {
+  id: string;
+  booking_id: string;
+  uploaded_by: string;
+  document_type: "prescription" | "health_record" | "payment_proof" | "other";
+  file_url: string;
+  file_name?: string | null;
+  metadata?: Record<string, any>;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface BookingPayment {
+  id: string;
+  booking_id: string;
+  submitted_by: string;
+  payment_method: BookingPaymentMethod;
+  amount: number;
+  currency: string;
+  status: BookingPaymentStatus;
+  transaction_reference?: string | null;
+  proof_document_id?: string | null;
+  rejection_reason?: string | null;
+  reviewer_id?: string | null;
+  reviewed_at?: string | null;
+  metadata?: Record<string, any>;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface DoctorDirectoryItem extends DoctorProfile {
   full_name?: string;
   status?: "online" | "offline" | "away";
@@ -131,6 +163,8 @@ export interface Booking {
   patient_age?: number | null;
   symptoms?: string | null;
   booking_notes?: string | null;
+  booking_documents?: BookingDocument[];
+  booking_payments?: BookingPayment[];
   created_at: string;
   updated_at?: string;
 }

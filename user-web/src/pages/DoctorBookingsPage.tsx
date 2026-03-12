@@ -37,6 +37,11 @@ const DoctorBookingsPage: React.FC = () => {
   const [rescheduleStartLocal, setRescheduleStartLocal] = useState("");
   const [rescheduleDuration, setRescheduleDuration] = useState("30");
   const [actionError, setActionError] = useState<string | null>(null);
+  const [paymentReviewLoading, setPaymentReviewLoading] = useState(false);
+  const [paymentReviewError, setPaymentReviewError] = useState<string | null>(
+    null,
+  );
+  const [rejectReason, setRejectReason] = useState("");
 
   const loadBookings = async () => {
     try {
@@ -245,6 +250,68 @@ const DoctorBookingsPage: React.FC = () => {
     return "Submit";
   }, [activeAction, actionLoading]);
 
+  const pendingProofPayment = useMemo(() => {
+    const payments = selectedBooking?.booking_payments || [];
+    return (
+      payments.find(
+        (payment: any) =>
+          payment?.payment_method === "proof_upload" &&
+          payment?.status === "pending_review",
+      ) || null
+    );
+  }, [selectedBooking]);
+
+  const proofUrlMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    const docs = selectedBooking?.booking_documents || [];
+    for (const doc of docs) {
+      if (doc?.id && doc?.file_url) {
+        map[doc.id] = doc.file_url;
+      }
+    }
+    return map;
+  }, [selectedBooking]);
+
+  const reviewPendingProofPayment = async (status: "approved" | "rejected") => {
+    if (!selectedBooking?.id || !pendingProofPayment?.id) {
+      setPaymentReviewError("No pending proof payment found.");
+      return;
+    }
+
+    if (status === "rejected" && !rejectReason.trim()) {
+      setPaymentReviewError("Please provide a rejection reason.");
+      return;
+    }
+
+    try {
+      setPaymentReviewLoading(true);
+      setPaymentReviewError(null);
+
+      await bookingService.reviewBookingPayment(
+        selectedBooking.id,
+        pendingProofPayment.id,
+        {
+          status,
+          rejection_reason:
+            status === "rejected" ? rejectReason.trim() : undefined,
+        },
+      );
+
+      toast.success(
+        status === "approved" ? "Payment approved." : "Payment rejected.",
+      );
+      setRejectReason("");
+      await openBookingDetail(selectedBooking.id);
+      await loadBookings();
+    } catch (err: any) {
+      setPaymentReviewError(
+        err?.response?.data?.error || "Failed to review payment.",
+      );
+    } finally {
+      setPaymentReviewLoading(false);
+    }
+  };
+
   const canRunActions = (booking: Booking) => {
     if (booking.status === "pending_confirmation") {
       return { confirm: true, complete: false, reschedule: true, cancel: true };
@@ -422,7 +489,11 @@ const DoctorBookingsPage: React.FC = () => {
 
       <Dialog
         isOpen={detailOpen}
-        onClose={() => setDetailOpen(false)}
+        onClose={() => {
+          setDetailOpen(false);
+          setPaymentReviewError(null);
+          setRejectReason("");
+        }}
         title="Booking Detail"
       >
         {selectedBooking ? (
@@ -473,10 +544,73 @@ const DoctorBookingsPage: React.FC = () => {
                       <p>Ref: {payment.transaction_reference}</p>
                     )}
                     {payment.proof_document_id && (
-                      <p>Proof ID: {payment.proof_document_id}</p>
+                      <div className="mt-1">
+                        {proofUrlMap[payment.proof_document_id] ? (
+                          <a
+                            href={proofUrlMap[payment.proof_document_id]}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-medium text-blue-600 underline-offset-2 hover:underline dark:text-blue-300"
+                          >
+                            View payment proof
+                          </a>
+                        ) : (
+                          <p>Proof ID: {payment.proof_document_id}</p>
+                        )}
+                      </div>
+                    )}
+                    {payment.rejection_reason && (
+                      <p className="mt-1 text-red-600 dark:text-red-300">
+                        Rejection reason: {payment.rejection_reason}
+                      </p>
                     )}
                   </div>
                 ))}
+
+                {pendingProofPayment && (
+                  <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/40 dark:bg-amber-900/20">
+                    <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                      Pending payment proof review
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => reviewPendingProofPayment("approved")}
+                        disabled={paymentReviewLoading}
+                        className="inline-flex items-center gap-1 rounded-lg border border-green-300 px-3 py-1.5 text-xs font-semibold text-green-700 transition hover:bg-green-50 disabled:opacity-60 dark:border-green-800 dark:text-green-300 dark:hover:bg-green-900/20"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                      </button>
+                      <button
+                        onClick={() => reviewPendingProofPayment("rejected")}
+                        disabled={paymentReviewLoading}
+                        className="inline-flex items-center gap-1 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/20"
+                      >
+                        <XCircle className="h-3.5 w-3.5" /> Reject
+                      </button>
+                    </div>
+
+                    <div className="mt-2">
+                      <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                        Rejection reason
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={rejectReason}
+                        onChange={(event) =>
+                          setRejectReason(event.target.value)
+                        }
+                        className="w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2 text-xs text-gray-900 outline-none ring-primary-500 focus:ring-2 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                        placeholder="Required when rejecting"
+                      />
+                    </div>
+
+                    {paymentReviewError && (
+                      <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">
+                        {paymentReviewError}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -486,8 +620,12 @@ const DoctorBookingsPage: React.FC = () => {
 
         <div className="mt-4 flex justify-end">
           <button
-            onClick={() => setDetailOpen(false)}
-            disabled={actionLoading}
+            onClick={() => {
+              setDetailOpen(false);
+              setPaymentReviewError(null);
+              setRejectReason("");
+            }}
+            disabled={actionLoading || paymentReviewLoading}
             className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
           >
             Close
