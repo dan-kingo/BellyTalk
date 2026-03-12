@@ -4,6 +4,7 @@ import {
   DoctorProfile,
   DoctorService,
   DoctorServiceAvailability,
+  DoctorServiceSlot,
 } from "../types";
 
 interface ListDoctorsOptions {
@@ -99,5 +100,18 @@ export const doctorDiscoveryService = {
       `/doctor-services/${serviceId}/availability`,
     );
     return (response.data.availability || []) as DoctorServiceAvailability[];
+  },
+
+  async getServiceSlots(
+    serviceId: string,
+    lookaheadDays = 21,
+  ): Promise<DoctorServiceSlot[]> {
+    const response = await api.get(`/doctor-services/${serviceId}/slots`, {
+      params: {
+        lookahead_days: lookaheadDays,
+      },
+    });
+
+    return (response.data.slots || []) as DoctorServiceSlot[];
   },
 };

@@ -6,6 +6,7 @@ import {
   createServiceAvailability,
   deleteDoctorService,
   deleteServiceAvailability,
+  listServiceSlots,
   listDoctorServices,
   listMyDoctorServices,
   listServiceAvailability,
@@ -16,6 +17,7 @@ import {
   createAvailabilitySchema,
   createDoctorServiceSchema,
   listDoctorServicesQuerySchema,
+  listServiceSlotsQuerySchema,
   updateAvailabilitySchema,
   updateDoctorServiceSchema,
 } from "../validators/doctor.service.schema.js";
@@ -55,6 +57,11 @@ router.delete(
 );
 
 router.get("/:serviceId/availability", listServiceAvailability);
+router.get(
+  "/:serviceId/slots",
+  validate(listServiceSlotsQuerySchema, "query"),
+  listServiceSlots,
+);
 router.post(
   "/:serviceId/availability",
   requireAuth,

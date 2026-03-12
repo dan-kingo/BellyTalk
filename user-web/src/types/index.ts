@@ -99,6 +99,19 @@ export interface DoctorServiceAvailability {
   metadata?: Record<string, any>;
 }
 
+export interface DoctorServiceSlot {
+  slot_key: string;
+  availability_id: string;
+  service_id: string;
+  doctor_id: string;
+  start_at: string;
+  end_at: string;
+  timezone: string;
+  slot_capacity: number;
+  booked_count: number;
+  remaining: number;
+}
+
 export interface Booking {
   id: string;
   mother_id: string;

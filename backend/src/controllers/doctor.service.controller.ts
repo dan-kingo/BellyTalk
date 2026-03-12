@@ -94,6 +94,67 @@ const parsePagination = (query: Request["query"]) => {
   return { page, limit, from, to };
 };
 
+const ACTIVE_BOOKING_STATUSES = [
+  "pending_payment",
+  "pending_confirmation",
+  "confirmed",
+];
+
+const parseTimeToMinutes = (time: string) => {
+  const [hoursStr, minutesStr] = String(time).split(":");
+  const hours = Number(hoursStr);
+  const minutes = Number(minutesStr);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return null;
+  }
+  return hours * 60 + minutes;
+};
+
+const buildUtcIsoFromDateAndMinutes = (dateYmd: string, minutes: number) => {
+  const [yearStr, monthStr, dayStr] = dateYmd.split("-");
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+
+  return new Date(Date.UTC(year, month - 1, day, hours, mins, 0)).toISOString();
+};
+
+const getUpcomingDateStringsByWeekdayUtc = (
+  dayOfWeek: number,
+  lookaheadDays: number,
+) => {
+  const results: string[] = [];
+  const now = new Date();
+
+  for (let offset = 0; offset <= lookaheadDays; offset += 1) {
+    const candidate = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() + offset,
+      ),
+    );
+    if (candidate.getUTCDay() === dayOfWeek) {
+      results.push(candidate.toISOString().slice(0, 10));
+    }
+  }
+
+  return results;
+};
+
+const bookingOverlaps = (
+  slotStartIso: string,
+  slotEndIso: string,
+  booking: { scheduled_start: string; scheduled_end: string },
+) => {
+  return (
+    slotStartIso < String(booking.scheduled_end) &&
+    slotEndIso > String(booking.scheduled_start)
+  );
+};
+
 export const listDoctorServices = async (req: Request, res: Response) => {
   try {
     const { doctor_id, service_mode } = req.query;
@@ -289,6 +350,148 @@ export const listServiceAvailability = async (req: Request, res: Response) => {
     return res
       .status(500)
       .json({ error: err.message || "Failed to list availability" });
+  }
+};
+
+export const listServiceSlots = async (req: Request, res: Response) => {
+  try {
+    const { serviceId } = req.params;
+    const lookaheadDays = Number(req.query.lookahead_days || 21);
+    const now = new Date();
+    const nowIso = now.toISOString();
+
+    const { data: service, error: serviceError } = await supabaseAdmin
+      .from("doctor_services")
+      .select(
+        "id, doctor_id, duration_minutes, booking_buffer_minutes, is_active",
+      )
+      .eq("id", serviceId)
+      .maybeSingle();
+
+    if (serviceError) throw serviceError;
+    if (!service || !service.is_active) {
+      return res.status(404).json({ error: "Service not found or inactive" });
+    }
+
+    const { data: availabilityRows, error: availabilityError } =
+      await supabaseAdmin
+        .from("doctor_service_availability")
+        .select(
+          "id, service_id, doctor_id, day_of_week, specific_date, start_time, end_time, timezone, slot_capacity, is_active",
+        )
+        .eq("service_id", serviceId)
+        .eq("is_active", true)
+        .order("day_of_week", { ascending: true, nullsFirst: false })
+        .order("specific_date", { ascending: true, nullsFirst: false })
+        .order("start_time", { ascending: true });
+
+    if (availabilityError) throw availabilityError;
+
+    const horizon = new Date(now);
+    horizon.setUTCDate(horizon.getUTCDate() + lookaheadDays + 1);
+
+    const { data: activeBookings, error: bookingsError } = await supabaseAdmin
+      .from("bookings")
+      .select("id, scheduled_start, scheduled_end")
+      .eq("doctor_id", service.doctor_id)
+      .in("status", ACTIVE_BOOKING_STATUSES)
+      .gte("scheduled_end", nowIso)
+      .lte("scheduled_start", horizon.toISOString());
+
+    if (bookingsError) throw bookingsError;
+
+    const duration = Number(service.duration_minutes || 0);
+    const buffer = Number(service.booking_buffer_minutes || 0);
+    const step = Math.max(duration + buffer, 1);
+
+    const slots: Array<{
+      slot_key: string;
+      availability_id: string;
+      service_id: string;
+      doctor_id: string;
+      start_at: string;
+      end_at: string;
+      timezone: string;
+      slot_capacity: number;
+      booked_count: number;
+      remaining: number;
+    }> = [];
+
+    for (const availability of availabilityRows || []) {
+      const startMinutes = parseTimeToMinutes(availability.start_time);
+      const endMinutes = parseTimeToMinutes(availability.end_time);
+      if (startMinutes === null || endMinutes === null || duration <= 0) {
+        continue;
+      }
+
+      const dates: string[] = [];
+      if (availability.specific_date) {
+        dates.push(String(availability.specific_date));
+      } else if (typeof availability.day_of_week === "number") {
+        dates.push(
+          ...getUpcomingDateStringsByWeekdayUtc(
+            Number(availability.day_of_week),
+            lookaheadDays,
+          ),
+        );
+      }
+
+      for (const dateYmd of dates) {
+        for (
+          let cursor = startMinutes;
+          cursor + duration <= endMinutes;
+          cursor += step
+        ) {
+          const startIso = buildUtcIsoFromDateAndMinutes(dateYmd, cursor);
+          const endIso = buildUtcIsoFromDateAndMinutes(
+            dateYmd,
+            cursor + duration,
+          );
+
+          if (new Date(startIso).getTime() <= now.getTime()) {
+            continue;
+          }
+
+          const overlaps = (activeBookings || []).filter((booking) =>
+            bookingOverlaps(startIso, endIso, {
+              scheduled_start: booking.scheduled_start,
+              scheduled_end: booking.scheduled_end,
+            }),
+          );
+
+          const capacity = Number(availability.slot_capacity || 1);
+          const bookedCount = overlaps.length;
+          const remaining = Math.max(capacity - bookedCount, 0);
+
+          slots.push({
+            slot_key: `${availability.id}__${startIso}`,
+            availability_id: availability.id,
+            service_id: serviceId,
+            doctor_id: service.doctor_id,
+            start_at: startIso,
+            end_at: endIso,
+            timezone: String(availability.timezone || "UTC"),
+            slot_capacity: capacity,
+            booked_count: bookedCount,
+            remaining,
+          });
+        }
+      }
+    }
+
+    const availableSlots = slots
+      .filter((slot) => slot.remaining > 0)
+      .sort((a, b) => a.start_at.localeCompare(b.start_at));
+
+    return res.json({
+      slots: availableSlots,
+      lookahead_days: lookaheadDays,
+      generated_at: nowIso,
+    });
+  } catch (err: any) {
+    return res
+      .status(500)
+      .json({ error: err.message || "Failed to list slots" });
   }
 };
 

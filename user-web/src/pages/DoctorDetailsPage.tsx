@@ -16,15 +16,8 @@ import {
   DoctorProfile,
   DoctorService,
   DoctorServiceAvailability,
+  DoctorServiceSlot,
 } from "../types";
-
-type ComputedSlot = {
-  key: string;
-  availabilityId: string;
-  startIso: string;
-  endIso: string;
-  label: string;
-};
 
 const WEEKDAY_LABELS = [
   "Sunday",
@@ -35,152 +28,6 @@ const WEEKDAY_LABELS = [
   "Friday",
   "Saturday",
 ];
-
-const toLocalDateTimeInput = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-};
-
-const parseTimeToMinutes = (time: string) => {
-  const [hoursStr, minutesStr] = time.split(":");
-  const hours = Number(hoursStr);
-  const minutes = Number(minutesStr);
-  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
-    return null;
-  }
-  return hours * 60 + minutes;
-};
-
-const toIsoUtcFromDateAndMinutes = (dateYmd: string, minutes: number) => {
-  const [yearStr, monthStr, dayStr] = dateYmd.split("-");
-  const year = Number(yearStr);
-  const month = Number(monthStr);
-  const day = Number(dayStr);
-
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-
-  return new Date(Date.UTC(year, month - 1, day, hours, mins, 0)).toISOString();
-};
-
-const formatSlotLabel = (startIso: string, endIso: string) => {
-  const start = new Date(startIso);
-  const end = new Date(endIso);
-  return `${start.toLocaleDateString()} ${start.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  })} - ${end.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
-};
-
-const getUpcomingDateStringsByWeekdayUtc = (
-  dayOfWeek: number,
-  lookaheadDays: number,
-) => {
-  const days: string[] = [];
-  const now = new Date();
-  for (let offset = 0; offset <= lookaheadDays; offset += 1) {
-    const candidate = new Date(
-      Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate() + offset,
-      ),
-    );
-    if (candidate.getUTCDay() === dayOfWeek) {
-      days.push(candidate.toISOString().slice(0, 10));
-    }
-  }
-  return days;
-};
-
-const buildSlotsFromAvailability = (
-  availabilityRows: DoctorServiceAvailability[],
-  service: DoctorService | null,
-) => {
-  if (!service) return [] as ComputedSlot[];
-
-  const duration = service.duration_minutes;
-  const buffer = service.booking_buffer_minutes || 0;
-  const step = Math.max(duration + buffer, 1);
-  const nowMs = Date.now();
-  const slots: ComputedSlot[] = [];
-
-  availabilityRows.forEach((row) => {
-    const startMinutes = parseTimeToMinutes(row.start_time);
-    const endMinutes = parseTimeToMinutes(row.end_time);
-    if (startMinutes === null || endMinutes === null) {
-      return;
-    }
-
-    const dateCandidates: string[] = [];
-    if (row.specific_date) {
-      dateCandidates.push(row.specific_date);
-    } else if (typeof row.day_of_week === "number") {
-      dateCandidates.push(
-        ...getUpcomingDateStringsByWeekdayUtc(row.day_of_week, 21),
-      );
-    }
-
-    dateCandidates.forEach((dateYmd) => {
-      for (
-        let cursor = startMinutes;
-        cursor + duration <= endMinutes;
-        cursor += step
-      ) {
-        const startIso = toIsoUtcFromDateAndMinutes(dateYmd, cursor);
-        const endIso = toIsoUtcFromDateAndMinutes(dateYmd, cursor + duration);
-
-        if (new Date(startIso).getTime() <= nowMs) {
-          continue;
-        }
-
-        slots.push({
-          key: `${row.id}__${startIso}`,
-          availabilityId: row.id,
-          startIso,
-          endIso,
-          label: formatSlotLabel(startIso, endIso),
-        });
-      }
-    });
-  });
-
-  return slots.sort((a, b) => a.startIso.localeCompare(b.startIso));
-};
-
-const isScheduleWithinAvailability = (
-  scheduledStartIso: string,
-  scheduledEndIso: string,
-  availabilityRows: DoctorServiceAvailability[],
-) => {
-  const scheduledStart = new Date(scheduledStartIso);
-  const scheduledEnd = new Date(scheduledEndIso);
-
-  const datePart = scheduledStart.toISOString().slice(0, 10);
-  const dayOfWeek = scheduledStart.getUTCDay();
-  const startTime = scheduledStart.toISOString().slice(11, 19);
-  const endTime = scheduledEnd.toISOString().slice(11, 19);
-
-  return availabilityRows.some((row) => {
-    const matchesDate = row.specific_date
-      ? row.specific_date === datePart
-      : true;
-    const matchesDay =
-      typeof row.day_of_week === "number"
-        ? row.day_of_week === dayOfWeek
-        : true;
-    const withinTime = startTime >= row.start_time && endTime <= row.end_time;
-
-    return matchesDate && matchesDay && withinTime;
-  });
-};
 
 const formatAvailabilityRule = (row: DoctorServiceAvailability) => {
   const dayOrDate = row.specific_date
@@ -205,11 +52,8 @@ const DoctorDetailsPage: React.FC = () => {
     [],
   );
   const [selectedServiceId, setSelectedServiceId] = useState<string>("");
-  const [selectedAvailabilityId, setSelectedAvailabilityId] =
-    useState<string>("");
   const [selectedSlotKey, setSelectedSlotKey] = useState<string>("");
 
-  const [startAt, setStartAt] = useState("");
   const [paymentMethod, setPaymentMethod] =
     useState<BookingPaymentMethod>("proof_upload");
   const [patientAge, setPatientAge] = useState("");
@@ -218,23 +62,20 @@ const DoctorDetailsPage: React.FC = () => {
   const [bookingInputError, setBookingInputError] = useState<string | null>(
     null,
   );
+  const [serviceSlots, setServiceSlots] = useState<DoctorServiceSlot[]>([]);
 
   const selectedService = useMemo(
     () => services.find((item) => item.id === selectedServiceId) || null,
     [services, selectedServiceId],
   );
 
-  const computedSlots = useMemo(
-    () => buildSlotsFromAvailability(availability, selectedService),
-    [availability, selectedService],
-  );
-
   const selectedSlot = useMemo(
-    () => computedSlots.find((slot) => slot.key === selectedSlotKey) || null,
-    [computedSlots, selectedSlotKey],
+    () =>
+      serviceSlots.find((slot) => slot.slot_key === selectedSlotKey) || null,
+    [serviceSlots, selectedSlotKey],
   );
 
-  const shouldUseAvailabilitySlots = computedSlots.length > 0;
+  const shouldUseAvailabilitySlots = serviceSlots.length > 0;
 
   const availabilityRules = useMemo(
     () => availability.map((row) => formatAvailabilityRule(row)),
@@ -242,23 +83,15 @@ const DoctorDetailsPage: React.FC = () => {
   );
 
   const scheduledEndIso = useMemo(() => {
-    const matchingSlot = computedSlots.find(
-      (slot) => slot.key === selectedSlotKey,
+    const matchingSlot = serviceSlots.find(
+      (slot) => slot.slot_key === selectedSlotKey,
     );
     if (matchingSlot) {
-      return matchingSlot.endIso;
+      return matchingSlot.end_at;
     }
 
-    if (!selectedService || !startAt) return null;
-
-    const start = new Date(startAt);
-    if (Number.isNaN(start.getTime())) return null;
-
-    const end = new Date(
-      start.getTime() + selectedService.duration_minutes * 60000,
-    );
-    return end.toISOString();
-  }, [selectedService, startAt, selectedSlotKey]);
+    return null;
+  }, [serviceSlots, selectedSlotKey]);
 
   useEffect(() => {
     if (!doctorId) {
@@ -308,7 +141,7 @@ const DoctorDetailsPage: React.FC = () => {
   useEffect(() => {
     if (!selectedServiceId) {
       setAvailability([]);
-      setSelectedAvailabilityId("");
+      setServiceSlots([]);
       setSelectedSlotKey("");
       setBookingInputError(null);
       return;
@@ -321,15 +154,19 @@ const DoctorDetailsPage: React.FC = () => {
           await doctorDiscoveryService.getServiceAvailability(
             selectedServiceId,
           );
+        const generatedSlots = await doctorDiscoveryService.getServiceSlots(
+          selectedServiceId,
+          21,
+        );
         if (!mounted) return;
         setAvailability(slots);
-        setSelectedAvailabilityId("");
+        setServiceSlots(generatedSlots);
         setSelectedSlotKey("");
         setBookingInputError(null);
       } catch {
         if (!mounted) return;
         setAvailability([]);
-        setSelectedAvailabilityId("");
+        setServiceSlots([]);
         setSelectedSlotKey("");
         setBookingInputError(null);
       }
@@ -370,11 +207,7 @@ const DoctorDetailsPage: React.FC = () => {
       return;
     }
 
-    const scheduledStartIso = selectedSlot
-      ? selectedSlot.startIso
-      : startAt
-        ? new Date(startAt).toISOString()
-        : "";
+    const scheduledStartIso = selectedSlot ? selectedSlot.start_at : "";
 
     const startDate = new Date(scheduledStartIso);
     if (Number.isNaN(startDate.getTime())) {
@@ -384,31 +217,20 @@ const DoctorDetailsPage: React.FC = () => {
       return;
     }
 
-    if (!selectedSlot && availability.length > 0) {
-      const matchesAvailability = isScheduleWithinAvailability(
-        scheduledStartIso,
-        scheduledEndIso,
-        availability,
-      );
+    try {
+      setSaving(true);
 
-      if (!matchesAvailability) {
-        const message =
-          "Selected time does not match this service availability. Please choose one of the required windows shown below.";
+      if (!selectedSlot) {
+        const message = "Please select an available slot.";
         setBookingInputError(message);
         toast.error(message);
         return;
       }
-    }
-
-    try {
-      setSaving(true);
 
       await bookingService.createBooking({
         doctor_id: doctorId,
         service_id: selectedService.id,
-        availability_id: selectedSlot
-          ? selectedSlot.availabilityId
-          : selectedAvailabilityId || undefined,
+        availability_id: selectedSlot.availability_id,
         payment_method: paymentMethod,
         scheduled_start: scheduledStartIso,
         scheduled_end: scheduledEndIso,
@@ -493,9 +315,8 @@ const DoctorDetailsPage: React.FC = () => {
                         key={service.id}
                         onClick={() => {
                           setSelectedServiceId(service.id);
-                          setSelectedAvailabilityId("");
+                          setServiceSlots([]);
                           setSelectedSlotKey("");
-                          setStartAt("");
                         }}
                         className={`w-full cursor-pointer rounded-xl border p-4 text-left transition ${
                           selectedServiceId === service.id
@@ -566,51 +387,49 @@ const DoctorDetailsPage: React.FC = () => {
                           const key = event.target.value;
                           setSelectedSlotKey(key);
                           setBookingInputError(null);
-                          const slot = computedSlots.find(
-                            (item) => item.key === key,
-                          );
-                          if (slot) {
-                            setSelectedAvailabilityId(slot.availabilityId);
-                          }
                         }}
                         className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none ring-primary-500 transition focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                         required
                       >
                         <option value="">Select a slot</option>
-                        {computedSlots.map((slot) => (
-                          <option key={slot.key} value={slot.key}>
-                            {slot.label}
+                        {serviceSlots.map((slot) => (
+                          <option key={slot.slot_key} value={slot.slot_key}>
+                            {new Date(slot.start_at).toLocaleDateString()}{" "}
+                            {new Date(slot.start_at).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                            {" - "}
+                            {new Date(slot.end_at).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                            {slot.remaining <= 2
+                              ? ` (remaining ${slot.remaining})`
+                              : ""}
                           </option>
                         ))}
                       </select>
                       {selectedSlot && (
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                          Selected slot: {selectedSlot.label}
+                          Selected slot:{" "}
+                          {new Date(selectedSlot.start_at).toLocaleString()} -{" "}
+                          {new Date(selectedSlot.end_at).toLocaleTimeString(
+                            [],
+                            { hour: "2-digit", minute: "2-digit" },
+                          )}{" "}
+                          ({selectedSlot.timezone})
                         </p>
                       )}
                     </div>
+                  ) : availability.length > 0 ? (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300">
+                      No bookable slots are currently available for this
+                      service. Please choose another service or check later.
+                    </div>
                   ) : (
-                    <div>
-                      <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Appointment start
-                      </label>
-                      <input
-                        type="datetime-local"
-                        value={startAt}
-                        min={toLocalDateTimeInput(new Date())}
-                        onChange={(event) => {
-                          setStartAt(event.target.value);
-                          setBookingInputError(null);
-                        }}
-                        className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none ring-primary-500 transition focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-                        required
-                      />
-                      {availability.length > 0 && (
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                          No concrete future slots were generated from
-                          availability, so manual scheduling is enabled.
-                        </p>
-                      )}
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                      This service has no active availability configured yet.
                     </div>
                   )}
 
@@ -686,7 +505,12 @@ const DoctorDetailsPage: React.FC = () => {
 
                   <button
                     type="submit"
-                    disabled={saving || !selectedServiceId}
+                    disabled={
+                      saving ||
+                      !selectedServiceId ||
+                      !selectedSlot ||
+                      !shouldUseAvailabilitySlots
+                    }
                     className="w-full cursor-pointer rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {saving ? "Submitting..." : "Create Booking"}

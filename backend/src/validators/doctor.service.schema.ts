@@ -62,3 +62,7 @@ export const listDoctorServicesQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().max(50).optional(),
 });
+
+export const listServiceSlotsQuerySchema = z.object({
+  lookahead_days: z.coerce.number().int().min(1).max(60).optional(),
+});
