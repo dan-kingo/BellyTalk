@@ -40,6 +40,7 @@ interface NotificationStore {
 }
 
 const STALE_TIME_MS = 20_000;
+const MAX_NOTIFICATION_BOOKINGS = 50;
 const getSeenStorageKey = (role: NotificationRole | null) =>
   role ? `${role}_notification_seen_ids` : "notification_seen_ids";
 
@@ -71,7 +72,7 @@ const writeSeenIds = (role: NotificationRole | null, ids: Set<string>) => {
 const buildDoctorNotifications = async (): Promise<AppNotification[]> => {
   const bookings = await bookingService.listDoctorBookings({
     type: "upcoming",
-    limit: 100,
+    limit: MAX_NOTIFICATION_BOOKINGS,
   });
 
   const now = Date.now();
@@ -151,7 +152,9 @@ const buildDoctorNotifications = async (): Promise<AppNotification[]> => {
 };
 
 const buildMotherNotifications = async (): Promise<AppNotification[]> => {
-  const bookings = await bookingService.listMyBookings({ limit: 100 });
+  const bookings = await bookingService.listMyBookings({
+    limit: MAX_NOTIFICATION_BOOKINGS,
+  });
 
   const now = Date.now();
   const oneDayMs = 24 * 60 * 60 * 1000;

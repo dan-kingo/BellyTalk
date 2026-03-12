@@ -36,6 +36,16 @@ interface SubmitBookingPaymentPayload {
   metadata?: Record<string, any>;
 }
 
+const MAX_BOOKING_LIST_LIMIT = 50;
+
+const normalizeListLimit = (limit?: number) => {
+  if (!limit || Number.isNaN(limit)) {
+    return 30;
+  }
+
+  return Math.min(Math.max(limit, 1), MAX_BOOKING_LIST_LIMIT);
+};
+
 export const bookingService = {
   async createBooking(payload: CreateBookingPayload): Promise<Booking> {
     const response = await api.post("/bookings", payload);
@@ -46,7 +56,7 @@ export const bookingService = {
     const response = await api.get("/bookings/my", {
       params: {
         page: options.page ?? 1,
-        limit: options.limit ?? 30,
+        limit: normalizeListLimit(options.limit),
         type: options.type || undefined,
         status: options.status || undefined,
         service_mode: options.service_mode || undefined,
@@ -69,7 +79,7 @@ export const bookingService = {
     const response = await api.get("/bookings/doctor", {
       params: {
         page: options.page ?? 1,
-        limit: options.limit ?? 30,
+        limit: normalizeListLimit(options.limit),
         type: options.type || undefined,
         status: options.status || undefined,
         service_mode: options.service_mode || undefined,

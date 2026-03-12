@@ -238,16 +238,14 @@ const DashboardPage: React.FC = () => {
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <button
-                onClick={() => navigate("/bookings")}
+                onClick={() =>
+                  navigate("/bookings", {
+                    state: { openBookingId: motherNextBooking.id },
+                  })
+                }
                 className="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-primary-700"
               >
-                Open Care Session
-              </button>
-              <button
-                onClick={() => navigate("/doctors")}
-                className="rounded-lg border border-primary px-3 py-1.5 text-sm font-semibold text-primary transition hover:bg-primary/5"
-              >
-                Message Doctor
+                Open Details
               </button>
             </div>
           </div>

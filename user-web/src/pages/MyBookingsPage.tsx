@@ -14,7 +14,7 @@ import { bookingService } from "../services/booking.service";
 import { doctorDiscoveryService } from "../services/doctor-discovery.service";
 import { useChatStore } from "../stores/chat.store";
 import { Booking, BookingStatus, DoctorServiceMode } from "../types";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const statusStyles: Record<BookingStatus, string> = {
   pending_payment:
@@ -38,6 +38,7 @@ const cancellableStatuses: BookingStatus[] = [
 ];
 
 const MyBookingsPage: React.FC = () => {
+  const location = useLocation();
   const navigate = useNavigate();
   const createConversation = useChatStore((state) => state.createConversation);
   const [loading, setLoading] = useState(true);
@@ -52,6 +53,9 @@ const MyBookingsPage: React.FC = () => {
   const [proofReference, setProofReference] = useState("");
   const [proofSubmitting, setProofSubmitting] = useState(false);
   const [proofError, setProofError] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailBooking, setDetailBooking] = useState<Booking | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [sessionActionLoading, setSessionActionLoading] = useState<
     Record<string, boolean>
   >({});
@@ -101,6 +105,49 @@ const MyBookingsPage: React.FC = () => {
   useEffect(() => {
     loadBookings();
   }, [loadBookings]);
+
+  const openBookingDetail = useCallback(
+    async (bookingId: string, fallbackBooking?: Booking) => {
+      try {
+        setDetailLoading(true);
+        setDetailOpen(true);
+        setDetailBooking(fallbackBooking || null);
+        const detail = await bookingService.getBooking(bookingId);
+        setDetailBooking(detail as Booking);
+      } catch (err: any) {
+        if (fallbackBooking) {
+          setDetailBooking(fallbackBooking);
+          return;
+        }
+
+        setDetailOpen(false);
+        toast.error(
+          err?.response?.data?.error || "Failed to load booking details.",
+        );
+      } finally {
+        setDetailLoading(false);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const openBookingId = (
+      location.state as { openBookingId?: string } | null
+    )?.openBookingId;
+
+    if (!openBookingId || loading || bookings.length === 0) {
+      return;
+    }
+
+    const matchingBooking = bookings.find((booking) => booking.id === openBookingId);
+    if (!matchingBooking) {
+      return;
+    }
+
+    void openBookingDetail(openBookingId, matchingBooking);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, bookings, loading, navigate, openBookingDetail]);
 
   const statusOptions = useMemo(
     () =>
@@ -471,6 +518,15 @@ const MyBookingsPage: React.FC = () => {
                   </p>
                 )}
 
+                <div className="mt-4">
+                  <button
+                    onClick={() => void openBookingDetail(booking.id, booking)}
+                    className="cursor-pointer rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                  >
+                    View Details
+                  </button>
+                </div>
+
                 {cancellableStatuses.includes(booking.status) && (
                   <div className="mt-4">
                     <button
@@ -523,6 +579,148 @@ const MyBookingsPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      <Dialog
+        isOpen={detailOpen}
+        onClose={() => {
+          setDetailOpen(false);
+          setDetailBooking(null);
+        }}
+        title="Booking Details"
+      >
+        {detailLoading && !detailBooking ? (
+          <div className="space-y-3">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+            <Skeleton className="h-24 w-full rounded-xl" />
+          </div>
+        ) : detailBooking ? (
+          <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-base font-semibold text-gray-900 dark:text-white">
+                  {detailBooking.service_title_snapshot}
+                </p>
+                <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                  {doctorNames[detailBooking.doctor_id] ||
+                    `Dr. ${detailBooking.doctor_id.slice(0, 8)}`}
+                </p>
+              </div>
+              <span
+                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusStyles[detailBooking.status]}`}
+              >
+                {detailBooking.status.replace(/_/g, " ")}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 p-4 dark:border-gray-700 md:grid-cols-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Start time
+                </p>
+                <p>{new Date(detailBooking.scheduled_start).toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  End time
+                </p>
+                <p>{new Date(detailBooking.scheduled_end).toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Service mode
+                </p>
+                <p>{detailBooking.service_mode}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Payment
+                </p>
+                <p>
+                  {detailBooking.payment_method} • {detailBooking.payment_status || "pending"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Price
+                </p>
+                <p>
+                  {Number(detailBooking.service_price_snapshot).toFixed(2)} {detailBooking.currency}
+                </p>
+              </div>
+              {detailBooking.patient_age ? (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    Patient age
+                  </p>
+                  <p>{detailBooking.patient_age}</p>
+                </div>
+              ) : null}
+            </div>
+
+            {detailBooking.symptoms && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Symptoms
+                </p>
+                <p className="mt-1 rounded-xl bg-gray-50 px-3 py-2 dark:bg-gray-800">
+                  {detailBooking.symptoms}
+                </p>
+              </div>
+            )}
+
+            {detailBooking.booking_notes && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Booking notes
+                </p>
+                <p className="mt-1 rounded-xl bg-gray-50 px-3 py-2 dark:bg-gray-800">
+                  {detailBooking.booking_notes}
+                </p>
+              </div>
+            )}
+
+            {detailBooking.booking_documents?.length ? (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Documents
+                </p>
+                <div className="mt-2 space-y-2">
+                  {detailBooking.booking_documents.map((document) => (
+                    <a
+                      key={document.id}
+                      href={document.file_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block rounded-xl border border-gray-200 px-3 py-2 text-sm text-primary transition hover:bg-primary/5 dark:border-gray-700 dark:text-secondary"
+                    >
+                      {document.file_name || document.document_type}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setDetailOpen(false);
+                  setDetailBooking(null);
+                }}
+                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Booking details are not available right now.
+          </p>
+        )}
+      </Dialog>
 
       <Dialog
         isOpen={proofDialogOpen}
