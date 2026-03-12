@@ -72,6 +72,10 @@ type ShopStore = {
     orderId: string,
     reason?: string,
   ) => Promise<{ order: Order; message: string }>;
+  reviewOrderPayment: (
+    orderId: string,
+    payload: { status: "approved" | "rejected"; rejection_reason?: string },
+  ) => Promise<{ order: Order; message: string }>;
   clearError: () => void;
 };
 
@@ -500,6 +504,25 @@ export const useShopStore = create<ShopStore>((set, get) => ({
     } catch (error) {
       console.error("Failed to cancel order:", error);
       set({ error: "Failed to cancel order" });
+      throw error;
+    }
+  },
+
+  reviewOrderPayment: async (orderId: string, payload) => {
+    set({ error: null });
+    try {
+      const response = await shopService.reviewOrderPayment(orderId, payload);
+      const updatedOrder = response.order;
+
+      set((state) => ({
+        orders: upsertOrder(state.orders, updatedOrder),
+        myOrders: upsertOrder(state.myOrders, updatedOrder),
+      }));
+
+      return response;
+    } catch (error) {
+      console.error("Failed to review payment:", error);
+      set({ error: "Failed to review payment" });
       throw error;
     }
   },

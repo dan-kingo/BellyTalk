@@ -127,4 +127,15 @@ export const shopService = {
     });
     return response.data;
   },
+
+  async reviewOrderPayment(
+    orderId: string,
+    payload: { status: "approved" | "rejected"; rejection_reason?: string },
+  ): Promise<{ order: Order; message: string }> {
+    const response = await api.patch(
+      `/shop/orders/${orderId}/payment/review`,
+      payload,
+    );
+    return response.data;
+  },
 };

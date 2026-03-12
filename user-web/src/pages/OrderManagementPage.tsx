@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import Layout from "../components/layout/Layout";
 import Dialog from "../components/common/Dialog";
@@ -14,6 +14,7 @@ import {
   Phone as PhoneIcon,
   Filter,
   Store,
+  BadgeCheck,
 } from "lucide-react";
 import { Order } from "../types";
 import { useShopStore } from "../stores/shop.store";
@@ -23,18 +24,41 @@ import Skeleton from "../components/common/Skeleton";
 const OrderManagementPage: React.FC = () => {
   const { profile } = useAuth();
   const allOrders = useShopStore((state) => state.orders);
-  const myOrders = useShopStore((state) => state.myOrders);
   const loading = useShopStore((state) => state.ordersLoading);
   const fetchOrders = useShopStore((state) => state.fetchOrders);
   const updateOrderStatus = useShopStore((state) => state.updateOrderStatus);
+  const reviewOrderPayment = useShopStore((state) => state.reviewOrderPayment);
   const [showDialog, setShowDialog] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [updatingOrder, setUpdatingOrder] = useState(false);
+  const [reviewingOrder, setReviewingOrder] = useState(false);
   const [viewFilter, setViewFilter] = useState<"all" | "my_products">(
     "my_products",
   );
-  const orders = viewFilter === "my_products" ? myOrders : allOrders;
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [selectedPaymentOrder, setSelectedPaymentOrder] =
+    useState<Order | null>(null);
+  const [paymentReviewStatus, setPaymentReviewStatus] = useState<
+    "approved" | "rejected"
+  >("approved");
+  const [paymentRejectionReason, setPaymentRejectionReason] = useState("");
+  const myProductOrders = useMemo(() => {
+    if (!profile) return [] as Order[];
+
+    // Backend currently allows doctors and admins to operate all orders.
+    if (profile.role === "admin" || profile.role === "doctor") {
+      return allOrders;
+    }
+
+    return allOrders.filter((order) =>
+      (order.order_items || []).some(
+        (item) => item.products?.created_by === profile.id,
+      ),
+    );
+  }, [allOrders, profile]);
+
+  const orders = viewFilter === "my_products" ? myProductOrders : allOrders;
 
   const [updateData, setUpdateData] = useState({
     order_status: "",
@@ -43,8 +67,19 @@ const OrderManagementPage: React.FC = () => {
   });
 
   useEffect(() => {
-    fetchOrders(viewFilter === "my_products" ? "my" : "all");
-  }, [viewFilter, fetchOrders]);
+    fetchOrders("all");
+  }, [fetchOrders]);
+
+  useEffect(() => {
+    if (!profile) return;
+
+    if (profile.role === "admin" || profile.role === "doctor") {
+      setViewFilter("all");
+      return;
+    }
+
+    setViewFilter("my_products");
+  }, [profile]);
 
   const handleUpdateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,7 +112,7 @@ const OrderManagementPage: React.FC = () => {
 
   const openUpdateDialog = (order: Order) => {
     if (!canUpdateOrder(order)) {
-      toast.info("You can only update orders containing your products.");
+      toast.info("You do not have permission to update this order.");
       return;
     }
 
@@ -94,13 +129,13 @@ const OrderManagementPage: React.FC = () => {
   const canUpdateOrder = (order: Order) => {
     if (!profile) return false;
 
-    // Admin can update all orders
-    if (profile.role === "admin") {
+    // Admin and doctor can update all orders.
+    if (profile.role === "admin" || profile.role === "doctor") {
       return true;
     }
 
-    // Doctor and counselor can only update orders containing their products
-    if (profile.role === "doctor" || profile.role === "counselor") {
+    // Counselor can only update orders containing their products.
+    if (profile.role === "counselor") {
       const hasMyProducts = order.order_items?.some(
         (item) => item.products?.created_by === profile.id,
       );
@@ -159,11 +194,55 @@ const OrderManagementPage: React.FC = () => {
       case "paid":
         return "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400";
       case "pending":
+      case "pending_review":
+      case "unpaid":
         return "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400";
+      case "rejected":
+        return "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400";
       case "failed":
         return "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400";
       default:
         return "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400";
+    }
+  };
+
+  const openPaymentReviewDialog = (
+    order: Order,
+    status: "approved" | "rejected",
+  ) => {
+    setSelectedPaymentOrder(order);
+    setPaymentReviewStatus(status);
+    setPaymentRejectionReason("");
+    setPaymentDialogOpen(true);
+  };
+
+  const handlePaymentReviewSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!selectedPaymentOrder) return;
+
+    if (paymentReviewStatus === "rejected" && !paymentRejectionReason.trim()) {
+      toast.error("Rejection reason is required.");
+      return;
+    }
+
+    try {
+      setReviewingOrder(true);
+      const response = await reviewOrderPayment(selectedPaymentOrder.id, {
+        status: paymentReviewStatus,
+        rejection_reason:
+          paymentReviewStatus === "rejected"
+            ? paymentRejectionReason.trim()
+            : undefined,
+      });
+
+      toast.success(response.message || "Payment review updated.");
+      setPaymentDialogOpen(false);
+      setSelectedPaymentOrder(null);
+      setPaymentRejectionReason("");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || "Failed to review payment.");
+    } finally {
+      setReviewingOrder(false);
     }
   };
 
@@ -524,12 +603,136 @@ const OrderManagementPage: React.FC = () => {
                         </p>
                       </div>
                     )}
+
+                    {order.payment_method === "proof_upload" && (
+                      <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <h5 className="flex items-center gap-2 font-semibold text-gray-900 dark:text-white">
+                              <BadgeCheck className="h-4 w-4" /> Payment Proof
+                            </h5>
+                            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                              Method: proof_upload • Status:{" "}
+                              {order.payment_status}
+                            </p>
+                            {order.payment_submitted_at && (
+                              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                Submitted:{" "}
+                                {new Date(
+                                  order.payment_submitted_at,
+                                ).toLocaleString()}
+                              </p>
+                            )}
+                            {order.payment_document_url && (
+                              <a
+                                href={order.payment_document_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-2 inline-block text-sm font-medium text-primary hover:underline dark:text-primary-300"
+                              >
+                                Open uploaded proof
+                              </a>
+                            )}
+                            {order.payment_rejection_reason && (
+                              <p className="mt-2 text-sm text-red-600 dark:text-red-300">
+                                Rejection reason:{" "}
+                                {order.payment_rejection_reason}
+                              </p>
+                            )}
+                          </div>
+
+                          {canUpdate &&
+                            (order.payment_status === "pending" ||
+                              order.payment_status === "pending_review") && (
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() =>
+                                    openPaymentReviewDialog(order, "approved")
+                                  }
+                                  className="rounded-lg border border-green-300 px-3 py-1.5 text-xs font-semibold text-green-700 transition hover:bg-green-50 dark:border-green-800 dark:text-green-300 dark:hover:bg-green-900/20"
+                                >
+                                  Approve Payment
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    openPaymentReviewDialog(order, "rejected")
+                                  }
+                                  className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/20"
+                                >
+                                  Reject Payment
+                                </button>
+                              </div>
+                            )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
             })}
           </div>
         )}
+
+        <Dialog
+          isOpen={paymentDialogOpen}
+          onClose={() => {
+            setPaymentDialogOpen(false);
+            setSelectedPaymentOrder(null);
+            setPaymentRejectionReason("");
+          }}
+          title={`${paymentReviewStatus === "approved" ? "Approve" : "Reject"} Payment #${selectedPaymentOrder?.id.substring(0, 8).toUpperCase() || ""}`}
+        >
+          <form onSubmit={handlePaymentReviewSubmit} className="space-y-4">
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              {paymentReviewStatus === "approved"
+                ? "Approving this proof will mark payment as paid and confirm the order."
+                : "Rejecting this proof keeps the order pending and records your reason."}
+            </p>
+
+            {paymentReviewStatus === "rejected" && (
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Rejection reason *
+                </label>
+                <textarea
+                  value={paymentRejectionReason}
+                  onChange={(event) =>
+                    setPaymentRejectionReason(event.target.value)
+                  }
+                  placeholder="Explain why this proof is rejected"
+                  rows={3}
+                  required
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                />
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentDialogOpen(false);
+                  setSelectedPaymentOrder(null);
+                  setPaymentRejectionReason("");
+                }}
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={reviewingOrder}
+                className="flex-1 rounded-lg bg-primary-600 px-4 py-2 font-medium text-white transition hover:bg-primary-700 disabled:opacity-60 dark:bg-primary-500 dark:hover:bg-primary-600"
+              >
+                {reviewingOrder
+                  ? "Saving..."
+                  : paymentReviewStatus === "approved"
+                    ? "Approve"
+                    : "Reject"}
+              </button>
+            </div>
+          </form>
+        </Dialog>
 
         <Dialog
           isOpen={showDialog}

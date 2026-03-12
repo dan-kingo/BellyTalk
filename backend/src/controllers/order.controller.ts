@@ -170,8 +170,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       };
     });
 
-    const initialPaymentStatus =
-      payment_method === "cod" ? "unpaid" : "pending_review";
+    const initialPaymentStatus = "pending";
     const initialOrderStatus =
       payment_method === "cod" ? "confirmed" : "pending";
 
@@ -285,7 +284,7 @@ export const processPayment = async (req: AuthRequest, res: Response) => {
         .from("orders")
         .update({
           payment_method: "cod",
-          payment_status: "unpaid",
+          payment_status: "pending",
           order_status: "confirmed",
           updated_at: new Date().toISOString(),
         })
@@ -334,7 +333,7 @@ export const processPayment = async (req: AuthRequest, res: Response) => {
       .from("orders")
       .update({
         payment_method: "proof_upload",
-        payment_status: "pending_review",
+        payment_status: "pending",
         order_status: "pending",
         payment_document_url: proofUrl,
         payment_reference: transaction_reference || null,
@@ -423,7 +422,7 @@ export const reviewOrderPayment = async (req: AuthRequest, res: Response) => {
     const { data: updatedOrder, error: updateError } = await supabaseAdmin
       .from("orders")
       .update({
-        payment_status: "rejected",
+        payment_status: "failed",
         order_status: "pending",
         payment_reviewed_by: reviewerId,
         payment_reviewed_at: new Date().toISOString(),
