@@ -191,7 +191,7 @@ const GroupChatPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={clearError}
-                    className="mt-2 text-xs text-red-700 dark:text-red-300 underline"
+                    className="cursor-pointer mt-2 text-xs text-red-700 dark:text-red-300 underline"
                   >
                     Dismiss
                   </button>

@@ -102,7 +102,7 @@ const NotificationsPage: React.FC = () => {
               <button
                 onClick={markAllAsRead}
                 disabled={notifications.length === 0}
-                className="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-60"
+                className="cursor-pointer rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-60"
               >
                 Mark all read
               </button>

@@ -57,7 +57,7 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
             {user && (
               <button
                 onClick={onMenuClick}
-                className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+                className="cursor-pointer lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
                 aria-label="Toggle sidebar"
               >
                 <Menu className="w-5 h-5 text-gray-700 dark:text-gray-300" />

@@ -186,7 +186,16 @@ const MyBookingsPage: React.FC = () => {
   const canUploadPaymentProof = (booking: Booking) =>
     booking.payment_method === "proof_upload" &&
     booking.status === "pending_payment" &&
-    booking.payment_status !== "paid";
+    ["", "pending", "rejected"].includes(booking.payment_status || "");
+
+  const hasSubmittedProof = (booking: Booking) =>
+    booking.payment_method === "proof_upload" &&
+    ["pending_review", "approved", "rejected"].includes(
+      booking.payment_status || "",
+    );
+
+  const canCancelBooking = (booking: Booking) =>
+    cancellableStatuses.includes(booking.status) && !hasSubmittedProof(booking);
 
   const openProofDialog = (booking: Booking) => {
     setProofBooking(booking);
@@ -535,7 +544,7 @@ const MyBookingsPage: React.FC = () => {
                   </button>
                 </div>
 
-                {cancellableStatuses.includes(booking.status) && (
+                {canCancelBooking(booking) && (
                   <div className="mt-4">
                     <button
                       onClick={() => cancelBooking(booking.id)}
@@ -791,14 +800,14 @@ const MyBookingsPage: React.FC = () => {
               type="button"
               onClick={closeProofDialog}
               disabled={proofSubmitting}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+              className="cursor-pointer rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
             >
               Close
             </button>
             <button
               type="submit"
               disabled={proofSubmitting}
-              className="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-60"
+              className="cursor-pointer rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-60"
             >
               {proofSubmitting ? "Submitting..." : "Submit Proof"}
             </button>

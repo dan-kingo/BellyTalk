@@ -71,7 +71,7 @@ const ResourcesPage: React.FC = () => {
             </div>
             <button
               onClick={() => navigate("/content")}
-              className="inline-flex items-center gap-2 text-sm font-semibold text-primary transition hover:gap-3 dark:text-secondary"
+              className="cursor-pointer inline-flex items-center gap-2 text-sm font-semibold text-primary transition hover:gap-3 dark:text-secondary"
             >
               Open Content <ArrowRight className="h-4 w-4" />
             </button>
@@ -97,12 +97,12 @@ const ResourcesPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setSelectedContent(item)}
-                    className="w-full text-left"
+                    className="w-full text-left cursor-pointer"
                   >
-                    <h3 className="line-clamp-2 text-sm font-semibold text-gray-900 dark:text-white">
+                    <h3 className="line-clamp-2 text-lg font-semibold text-gray-900 dark:text-white">
                       {item.title}
                     </h3>
-                    <p className="mt-2 line-clamp-3 text-xs text-gray-600 dark:text-gray-300">
+                    <p className="mt-2 line-clamp-3 text-md text-gray-600 dark:text-gray-300">
                       {item.body}
                     </p>
                     <p className="mt-3 text-xs font-medium text-primary dark:text-secondary">
@@ -125,7 +125,7 @@ const ResourcesPage: React.FC = () => {
             </div>
             <button
               onClick={() => navigate("/hospitals")}
-              className="inline-flex items-center gap-2 text-sm font-semibold text-primary transition hover:gap-3 dark:text-secondary"
+              className="cursor-pointer inline-flex items-center gap-2 text-sm font-semibold text-primary transition hover:gap-3 dark:text-secondary"
             >
               Open Hospitals <ArrowRight className="h-4 w-4" />
             </button>
@@ -151,16 +151,16 @@ const ResourcesPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setSelectedHospital(item)}
-                    className="w-full text-left"
+                    className="w-full text-left cursor-pointer"
                   >
-                    <h3 className="line-clamp-2 text-sm font-semibold text-gray-900 dark:text-white">
+                    <h3 className="line-clamp-2 text-lg font-semibold text-gray-900 dark:text-white">
                       {item.name}
                     </h3>
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                       {item.city || "City not specified"}
                     </p>
                     {item.description && (
-                      <p className="mt-2 line-clamp-3 text-xs text-gray-600 dark:text-gray-300">
+                      <p className="mt-2 line-clamp-3 text-md text-gray-600 dark:text-gray-300">
                         {item.description}
                       </p>
                     )}

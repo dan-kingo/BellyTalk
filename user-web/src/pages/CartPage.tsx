@@ -4,6 +4,7 @@ import Layout from "../components/layout/Layout";
 import { useShopStore } from "../stores/shop.store";
 import { toast } from "react-toastify";
 import Skeleton from "../components/common/Skeleton";
+import { getRenderableImageUrl } from "../utils/image";
 
 const CartPage: React.FC = () => {
   const navigate = useNavigate();
@@ -119,7 +120,7 @@ const CartPage: React.FC = () => {
                 >
                   {item.products?.image_url && (
                     <img
-                      src={item.products.image_url}
+                      src={getRenderableImageUrl(item.products.image_url)}
                       alt={item.products.title}
                       className="w-24 h-24 object-cover rounded-lg"
                     />

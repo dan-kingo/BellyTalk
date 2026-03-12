@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useShopStore } from "../stores/shop.store";
 import Skeleton from "../components/common/Skeleton";
+import { getRenderableImageUrl } from "../utils/image";
 
 const OrdersPage: React.FC = () => {
   const orders = useShopStore((state) => state.myOrders);
@@ -223,7 +224,9 @@ const OrdersPage: React.FC = () => {
                         >
                           {item.products?.image_url && (
                             <img
-                              src={item.products.image_url}
+                              src={getRenderableImageUrl(
+                                item.products.image_url,
+                              )}
                               alt={item.products.title}
                               className="w-20 h-20 object-cover rounded-lg"
                             />

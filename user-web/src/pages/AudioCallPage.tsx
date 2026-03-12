@@ -846,7 +846,7 @@ const AudioCallPage: React.FC = () => {
             </h2>
             <button
               onClick={loadCallHistory}
-              className="text-sm text-primary dark:text-secondary hover:underline"
+              className="cursor-pointer text-sm text-primary dark:text-secondary hover:underline"
             >
               Refresh
             </button>

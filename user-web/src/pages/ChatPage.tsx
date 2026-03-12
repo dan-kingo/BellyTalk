@@ -668,7 +668,7 @@ const ChatPage: React.FC = () => {
                     <button
                       onClick={handleLoadMore}
                       disabled={loadingMore}
-                      className="text-sm text-primary dark:text-secondary hover:underline disabled:opacity-50"
+                      className="cursor-pointer text-sm text-primary dark:text-secondary hover:underline disabled:opacity-50"
                     >
                       {loadingMore ? "Loading..." : "Load previous messages"}
                     </button>

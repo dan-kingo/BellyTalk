@@ -30,7 +30,7 @@ const Dialog: React.FC<DialogProps> = ({ isOpen, onClose, title, children }) => 
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">{title}</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+            className="cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
             aria-label="Close dialog"
           >
             <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />

@@ -421,7 +421,7 @@ const CheckoutPage: React.FC = () => {
 
                 <button
                   type="submit"
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-semibold text-white transition hover:bg-primary-700"
+                  className="cursor-pointer flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-semibold text-white transition hover:bg-primary-700"
                 >
                   <Lock className="h-5 w-5" />
                   Place Order - ${total.toFixed(2)}

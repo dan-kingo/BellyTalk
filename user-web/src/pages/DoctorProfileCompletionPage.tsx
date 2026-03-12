@@ -520,7 +520,7 @@ const DoctorProfileCompletionPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full md:w-auto px-6 py-2 rounded-lg bg-primary hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white font-medium disabled:opacity-60"
+                className="cursor-pointer w-full md:w-auto px-6 py-2 rounded-lg bg-primary hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white font-medium disabled:opacity-60"
               >
                 {saving ? "Saving..." : "Save and Continue"}
               </button>

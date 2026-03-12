@@ -722,7 +722,7 @@ const OrderManagementPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={reviewingOrder}
-                className="flex-1 rounded-lg bg-primary-600 px-4 py-2 font-medium text-white transition hover:bg-primary-700 disabled:opacity-60 dark:bg-primary-500 dark:hover:bg-primary-600"
+                className="cursor-pointer flex-1 rounded-lg bg-primary-600 px-4 py-2 font-medium text-white transition hover:bg-primary-700 disabled:opacity-60 dark:bg-primary-500 dark:hover:bg-primary-600"
               >
                 {reviewingOrder
                   ? "Saving..."
@@ -816,7 +816,7 @@ const OrderManagementPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={updatingOrder}
-                className="flex-1 px-4 py-2  bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white rounded-lg transition font-medium cursor-pointer disabled:opacity-60"
+                className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white rounded-lg transition font-medium cursor-pointer disabled:opacity-60"
               >
                 {updatingOrder ? "Updating..." : "Update Order"}
               </button>

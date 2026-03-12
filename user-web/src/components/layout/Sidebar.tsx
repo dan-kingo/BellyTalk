@@ -141,7 +141,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <div className="flex justify-end px-2 py-2 lg:hidden">
             <button
               onClick={onClose}
-              className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+              className="cursor-pointer lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
               aria-label="Close sidebar"
             >
               <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />

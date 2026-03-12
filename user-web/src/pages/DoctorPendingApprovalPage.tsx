@@ -151,7 +151,7 @@ const DoctorPendingApprovalPage: React.FC = () => {
               type="button"
               onClick={handleRefreshStatus}
               disabled={refreshing}
-              className="px-6 py-2 rounded-lg bg-primary hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white font-medium disabled:opacity-60"
+              className="cursor-pointer px-6 py-2 rounded-lg bg-primary hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white font-medium disabled:opacity-60"
             >
               {refreshing ? "Checking..." : "Check Status"}
             </button>
@@ -167,7 +167,7 @@ const DoctorPendingApprovalPage: React.FC = () => {
             <button
               type="button"
               onClick={handleSignOut}
-              className="px-6 py-2 rounded-lg border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 font-medium"
+              className="cursor-pointer px-6 py-2 rounded-lg border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 font-medium"
             >
               Sign Out
             </button>
