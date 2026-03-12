@@ -1,6 +1,37 @@
 import { Request, Response } from "express";
 import { supabase, supabaseAdmin } from "../configs/supabase.js";
 import { AuthRequest } from "../middlewares/auth.middleware.js";
+
+const isTransientSupabaseNetworkError = (error: any) => {
+  const causeCode = error?.cause?.code;
+  const directCode = error?.code;
+  const message = String(error?.message || "").toLowerCase();
+
+  return (
+    [
+      "EAI_AGAIN",
+      "ENOTFOUND",
+      "ECONNRESET",
+      "ETIMEDOUT",
+      "ECONNREFUSED",
+    ].includes(causeCode) ||
+    [
+      "EAI_AGAIN",
+      "ENOTFOUND",
+      "ECONNRESET",
+      "ETIMEDOUT",
+      "ECONNREFUSED",
+    ].includes(directCode) ||
+    message.includes("fetch failed")
+  );
+};
+
+const transientSupabaseResponse = (res: Response) => {
+  return res.status(503).json({
+    error:
+      "Auth service is temporarily unavailable. Please try again in a moment.",
+  });
+};
 /**
  * register:
  */
@@ -97,6 +128,9 @@ export const register = async (req: Request, res: Response) => {
     });
   } catch (err) {
     console.error("register error:", err);
+    if (isTransientSupabaseNetworkError(err)) {
+      return transientSupabaseResponse(res);
+    }
     return res.status(500).json({ error: "Server error" });
   }
 };
@@ -124,6 +158,9 @@ export const login = async (req: Request, res: Response) => {
     return res.status(200).json({ session: data.session, user: data.user });
   } catch (err) {
     console.error("login error:", err);
+    if (isTransientSupabaseNetworkError(err)) {
+      return transientSupabaseResponse(res);
+    }
     return res.status(500).json({ error: "Server error" });
   }
 };
@@ -167,6 +204,9 @@ export const forgotPassword = async (req: Request, res: Response) => {
     });
   } catch (err) {
     console.error("forgotPassword error:", err);
+    if (isTransientSupabaseNetworkError(err)) {
+      return transientSupabaseResponse(res);
+    }
     return res.status(500).json({ error: "Server error" });
   }
 };
@@ -182,11 +222,9 @@ export const resetPassword = async (req: Request, res: Response) => {
       });
 
     if (verifyError || !verifyData?.user?.id) {
-      return res
-        .status(400)
-        .json({
-          error: verifyError?.message || "Invalid or expired reset token",
-        });
+      return res.status(400).json({
+        error: verifyError?.message || "Invalid or expired reset token",
+      });
     }
 
     const userId = verifyData.user.id;
@@ -202,6 +240,9 @@ export const resetPassword = async (req: Request, res: Response) => {
     return res.status(200).json({ message: "Password has been reset" });
   } catch (err) {
     console.error("resetPassword error:", err);
+    if (isTransientSupabaseNetworkError(err)) {
+      return transientSupabaseResponse(res);
+    }
     return res.status(500).json({ error: "Server error" });
   }
 };
@@ -242,6 +283,9 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
     return res.status(200).json({ message: "Password changed successfully" });
   } catch (err) {
     console.error("changePassword error:", err);
+    if (isTransientSupabaseNetworkError(err)) {
+      return transientSupabaseResponse(res);
+    }
     return res.status(500).json({ error: "Server error" });
   }
 };

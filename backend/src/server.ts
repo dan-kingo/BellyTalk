@@ -32,6 +32,17 @@ import { startBookingReminderWorker } from "./services/booking-reminder.service.
 
 dotenv.config();
 
+process.on("unhandledRejection", (reason) => {
+  console.error("[process] Unhandled promise rejection:", reason);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("[process] Uncaught exception:", error);
+  if (process.env.NODE_ENV === "production") {
+    process.exit(1);
+  }
+});
+
 const app = express();
 app.use(
   cors({

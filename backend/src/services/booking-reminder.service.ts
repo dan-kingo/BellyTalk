@@ -335,12 +335,16 @@ export const runBookingReminderCycle = async () => {
 };
 
 export const startBookingReminderWorker = () => {
+  const explicitEnv = process.env.BOOKING_REMINDER_ENABLED;
   const enabled =
-    String(process.env.BOOKING_REMINDER_ENABLED || "true").toLowerCase() !==
-    "false";
+    explicitEnv !== undefined
+      ? String(explicitEnv).toLowerCase() !== "false"
+      : process.env.NODE_ENV === "production";
 
   if (!enabled) {
-    console.info("[booking-reminder] disabled by BOOKING_REMINDER_ENABLED");
+    console.info(
+      "[booking-reminder] disabled (set BOOKING_REMINDER_ENABLED=true to run it)",
+    );
     return;
   }
 
