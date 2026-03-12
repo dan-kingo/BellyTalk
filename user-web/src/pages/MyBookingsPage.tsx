@@ -12,7 +12,9 @@ import Layout from "../components/layout/Layout";
 import Skeleton from "../components/common/Skeleton";
 import { bookingService } from "../services/booking.service";
 import { doctorDiscoveryService } from "../services/doctor-discovery.service";
+import { useChatStore } from "../stores/chat.store";
 import { Booking, BookingStatus, DoctorServiceMode } from "../types";
+import { useNavigate } from "react-router-dom";
 
 const statusStyles: Record<BookingStatus, string> = {
   pending_payment:
@@ -36,6 +38,8 @@ const cancellableStatuses: BookingStatus[] = [
 ];
 
 const MyBookingsPage: React.FC = () => {
+  const navigate = useNavigate();
+  const createConversation = useChatStore((state) => state.createConversation);
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [doctorNames, setDoctorNames] = useState<Record<string, string>>({});
@@ -48,6 +52,18 @@ const MyBookingsPage: React.FC = () => {
   const [proofReference, setProofReference] = useState("");
   const [proofSubmitting, setProofSubmitting] = useState(false);
   const [proofError, setProofError] = useState<string | null>(null);
+  const [sessionActionLoading, setSessionActionLoading] = useState<
+    Record<string, boolean>
+  >({});
+  const [clockTick, setClockTick] = useState(Date.now());
+  const [visitGuideBooking, setVisitGuideBooking] = useState<Booking | null>(
+    null,
+  );
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockTick(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const loadBookings = useCallback(async () => {
     try {
@@ -181,6 +197,116 @@ const MyBookingsPage: React.FC = () => {
       );
     } finally {
       setProofSubmitting(false);
+    }
+  };
+
+  const formatDuration = (ms: number) => {
+    const totalMinutes = Math.max(0, Math.ceil(ms / 60000));
+    if (totalMinutes < 60) return `${totalMinutes}m`;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (hours < 24) return `${hours}h ${minutes}m`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ${hours % 24}h`;
+  };
+
+  const getSessionState = (booking: Booking) => {
+    if (booking.status !== "confirmed") {
+      return {
+        canStart: false,
+        reason: "Session actions unlock once booking is confirmed.",
+      };
+    }
+
+    if (booking.service_mode === "in_person") {
+      return { canStart: true, reason: "View visit instructions." };
+    }
+
+    if (booking.service_mode === "message") {
+      return { canStart: true, reason: "Open your consultation chat." };
+    }
+
+    const startAt = new Date(booking.scheduled_start).getTime();
+    const endAt = new Date(booking.scheduled_end).getTime();
+    const openAt = startAt - 15 * 60 * 1000;
+    const closeAt = endAt + 30 * 60 * 1000;
+
+    if (clockTick < openAt) {
+      return {
+        canStart: false,
+        reason: `Available in ${formatDuration(openAt - clockTick)}`,
+      };
+    }
+
+    if (clockTick > closeAt) {
+      return {
+        canStart: false,
+        reason: "Session window has passed.",
+      };
+    }
+
+    return { canStart: true, reason: "Session is live. You can join now." };
+  };
+
+  const setBookingActionLoading = (bookingId: string, value: boolean) => {
+    setSessionActionLoading((prev) => ({ ...prev, [bookingId]: value }));
+  };
+
+  const handleSessionAction = async (booking: Booking) => {
+    const bookingId = booking.id;
+    const doctorId = booking.doctor_id;
+
+    if (booking.service_mode === "in_person") {
+      setVisitGuideBooking(booking);
+      return;
+    }
+
+    const sessionState = getSessionState(booking);
+    if (!sessionState.canStart) {
+      toast.info(sessionState.reason);
+      return;
+    }
+
+    const channel =
+      booking.service_mode === "audio"
+        ? "audio"
+        : booking.service_mode === "video"
+          ? "video"
+          : "message";
+
+    try {
+      setBookingActionLoading(bookingId, true);
+      const join = await bookingService.checkJoinAccess(bookingId, channel);
+      if (!join.allowed) {
+        toast.error(join.error || "Session is not available yet.");
+        return;
+      }
+
+      if (channel === "message") {
+        await createConversation(doctorId, bookingId);
+        navigate("/chat");
+        toast.success("Consultation chat is ready.");
+        return;
+      }
+
+      const targetPath = channel === "audio" ? "/audio-call" : "/video-call";
+      navigate(targetPath, {
+        state: {
+          autoStartBookingCall: true,
+          bookingId,
+          bookingTarget: {
+            id: doctorId,
+            full_name: doctorNames[doctorId] || `Dr. ${doctorId.slice(0, 8)}`,
+            email: "",
+          },
+        },
+      });
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.error || "Failed to start booking session.",
+      );
+    } finally {
+      setBookingActionLoading(bookingId, false);
     }
   };
 
@@ -339,6 +465,32 @@ const MyBookingsPage: React.FC = () => {
                     </button>
                   </div>
                 )}
+
+                {booking.status === "confirmed" && (
+                  <div className="mt-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                    <p className="text-xs text-gray-700 dark:text-gray-300">
+                      {getSessionState(booking).reason}
+                    </p>
+                    <button
+                      onClick={() => handleSessionAction(booking)}
+                      disabled={
+                        !getSessionState(booking).canStart ||
+                        sessionActionLoading[booking.id]
+                      }
+                      className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-primary px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {sessionActionLoading[booking.id]
+                        ? "Opening..."
+                        : booking.service_mode === "in_person"
+                          ? "Visit Guidance"
+                          : booking.service_mode === "message"
+                            ? "Open Consultation Chat"
+                            : booking.service_mode === "audio"
+                              ? "Start Audio Session"
+                              : "Start Video Session"}
+                    </button>
+                  </div>
+                )}
               </article>
             ))}
           </div>
@@ -415,6 +567,46 @@ const MyBookingsPage: React.FC = () => {
             </button>
           </div>
         </form>
+      </Dialog>
+
+      <Dialog
+        isOpen={Boolean(visitGuideBooking)}
+        onClose={() => setVisitGuideBooking(null)}
+        title="In-Person Visit Guidance"
+      >
+        {visitGuideBooking && (
+          <div className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
+            <p>
+              <span className="font-semibold">Service:</span>{" "}
+              {visitGuideBooking.service_title_snapshot}
+            </p>
+            <p>
+              <span className="font-semibold">Visit time:</span>{" "}
+              {new Date(visitGuideBooking.scheduled_start).toLocaleString()} -{" "}
+              {new Date(visitGuideBooking.scheduled_end).toLocaleString()}
+            </p>
+            <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
+              <p className="font-semibold">How to attend</p>
+              <ul className="mt-1 list-disc pl-5 text-xs">
+                <li>Arrive 10-15 minutes before the scheduled start time.</li>
+                <li>Bring your ID and any relevant medical records.</li>
+                <li>
+                  If you cannot attend, cancel or reschedule early to avoid
+                  missing your slot.
+                </li>
+              </ul>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={() => setVisitGuideBooking(null)}
+                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
       </Dialog>
     </Layout>
   );

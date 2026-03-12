@@ -157,9 +157,21 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
 
       // Get tokens first to ensure session is ready
       if (incomingCall.isVideoCall) {
-        await videoService.getTokens(incomingCall.session.id);
+        await videoService.getTokens(
+          incomingCall.session.id,
+          undefined,
+          "guest",
+          undefined,
+          incomingCall.session.booking_id,
+        );
       } else {
-        await audioService.getTokens(incomingCall.session.id);
+        await audioService.getTokens(
+          incomingCall.session.id,
+          undefined,
+          "publisher",
+          undefined,
+          incomingCall.session.booking_id,
+        );
       }
 
       setIsVisible(false);

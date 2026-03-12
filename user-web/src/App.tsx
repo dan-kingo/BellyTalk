@@ -34,6 +34,8 @@ import MyBookingsPage from "./pages/MyBookingsPage";
 import MyServicesPage from "./pages/MyServicesPage";
 import DoctorBookingsPage from "./pages/DoctorBookingsPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import AudioCallPage from "./pages/AudioCallPage";
+import VideoCallPage from "./pages/VideoCallPage";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import DoctorOnboardingGuard from "./components/common/DoctorOnboardingGuard";
 import { AgoraProvider } from "./contexts/AgoraContext";
@@ -281,6 +283,28 @@ const App: React.FC = () => {
                   <PrivateRoute allowedRoles={["doctor", "admin"]}>
                     <DoctorOnboardingGuard>
                       <NotificationsPage />
+                    </DoctorOnboardingGuard>
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/audio-call"
+                element={
+                  <PrivateRoute allowedRoles={["mother", "doctor", "admin"]}>
+                    <DoctorOnboardingGuard>
+                      <AudioCallPage />
+                    </DoctorOnboardingGuard>
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/video-call"
+                element={
+                  <PrivateRoute allowedRoles={["mother", "doctor", "admin"]}>
+                    <DoctorOnboardingGuard>
+                      <VideoCallPage />
                     </DoctorOnboardingGuard>
                   </PrivateRoute>
                 }

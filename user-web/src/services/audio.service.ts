@@ -4,12 +4,21 @@ class AudioService {
   /**
    * Create a new audio session
    */
-  async createSession(receiverId: string, channelName?: string) {
-    console.log("🎯 Creating audio session:", { receiverId, channelName });
+  async createSession(
+    receiverId: string,
+    channelName?: string,
+    bookingId?: string,
+  ) {
+    console.log("🎯 Creating audio session:", {
+      receiverId,
+      channelName,
+      bookingId,
+    });
 
     const response = await api.post("/audio/create", {
       receiver_id: receiverId,
       channel_name: channelName,
+      booking_id: bookingId,
     });
 
     console.log("✅ Audio session created:", response.data);
@@ -24,11 +33,18 @@ class AudioService {
     channelName?: string,
     role: string = "publisher",
     userName?: string,
+    bookingId?: string,
   ) {
-    console.log("🎯 Getting auth tokens:", { sessionId, channelName, role });
+    console.log("🎯 Getting auth tokens:", {
+      sessionId,
+      channelName,
+      role,
+      bookingId,
+    });
 
     const response = await api.post("/audio/token", {
       session_id: sessionId,
+      booking_id: bookingId,
       channel_name: channelName,
       role,
       user_name: userName,

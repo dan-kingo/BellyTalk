@@ -151,4 +151,14 @@ export const bookingService = {
     );
     return response.data as { booking: Booking };
   },
+
+  async checkJoinAccess(
+    id: string,
+    channel: "message" | "audio" | "video",
+  ): Promise<{ allowed: boolean; error?: string; code?: string }> {
+    const response = await api.get(`/bookings/${id}/join-check`, {
+      params: { channel },
+    });
+    return response.data as { allowed: boolean; error?: string; code?: string };
+  },
 };

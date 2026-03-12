@@ -5,13 +5,22 @@ class VideoService {
   /**
    * Create a new video session
    */
-  async createSession(receiverId: string, channelName?: string) {
-    console.log("🎯 Creating video session:", { receiverId, channelName });
+  async createSession(
+    receiverId: string,
+    channelName?: string,
+    bookingId?: string,
+  ) {
+    console.log("🎯 Creating video session:", {
+      receiverId,
+      channelName,
+      bookingId,
+    });
 
     const response = await api.post("/audio/create", {
       receiver_id: receiverId,
       channel_name: channelName,
       call_type: "video", // Specify this is a video call
+      booking_id: bookingId,
     });
 
     console.log("✅ Video session created:", response.data);
@@ -26,15 +35,18 @@ class VideoService {
     channelName?: string,
     role: string = "publisher",
     userName?: string,
+    bookingId?: string,
   ) {
     console.log("🎯 Getting video auth tokens:", {
       sessionId,
       channelName,
       role,
+      bookingId,
     });
 
     const response = await api.post("/audio/token", {
       session_id: sessionId,
+      booking_id: bookingId,
       channel_name: channelName,
       role,
       user_name: userName,

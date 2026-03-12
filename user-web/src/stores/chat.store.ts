@@ -30,7 +30,10 @@ type ChatStore = {
   searchingUsers: boolean;
   searchUsers: (query: string) => Promise<void>;
   searchUsersList: (query: string) => Promise<Profile[]>;
-  createConversation: (userId: string) => Promise<Conversation>;
+  createConversation: (
+    userId: string,
+    bookingId?: string,
+  ) => Promise<Conversation>;
   clearUserSearch: () => void;
   unreadCount: number;
   unreadLoading: boolean;
@@ -304,10 +307,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
-  createConversation: async (userId: string) => {
+  createConversation: async (userId: string, bookingId?: string) => {
     set({ chatError: null });
     try {
-      const response = await chatService.createConversation(userId);
+      const response = await chatService.createConversation(userId, bookingId);
       const conversation: Conversation = response.conversation;
 
       set((state) => {

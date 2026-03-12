@@ -75,6 +75,7 @@ const AudioCallPage: React.FC = () => {
 
   const APP_ID = import.meta.env.VITE_AGORA_APP_ID!;
   const isIncomingCallView = Boolean(location.state?.isIncomingCall);
+  const bookingIdFromState = location.state?.bookingId as string | undefined;
 
   const loadCallHistory = async () => {
     try {
@@ -352,7 +353,13 @@ const AudioCallPage: React.FC = () => {
       });
 
       // Get tokens for the session
-      const authResponse = await audioService.getTokens(session.id);
+      const authResponse = await audioService.getTokens(
+        session.id,
+        undefined,
+        "publisher",
+        undefined,
+        session?.booking_id || bookingIdFromState,
+      );
 
       console.log("✅ Auth tokens received for RECEIVER:", {
         channelName: authResponse.channelName,
@@ -421,6 +428,7 @@ const AudioCallPage: React.FC = () => {
   const handleStartCall = async (
     receiverId: string,
     userProfile: CallTarget,
+    bookingId?: string,
   ) => {
     try {
       setLoading(true);
@@ -432,7 +440,11 @@ const AudioCallPage: React.FC = () => {
 
       // 1. Create session with Agora
       setCallStatus("Creating audio session...");
-      const sessionResponse = await audioService.createSession(receiverId);
+      const sessionResponse = await audioService.createSession(
+        receiverId,
+        undefined,
+        bookingId,
+      );
       setCurrentSession(sessionResponse.session);
 
       console.log("✅ Session created:", {
@@ -448,6 +460,8 @@ const AudioCallPage: React.FC = () => {
         sessionResponse.session.id,
         undefined,
         "publisher",
+        undefined,
+        bookingId,
       );
 
       console.log("✅ Auth tokens received for CALLER:", {
@@ -496,6 +510,23 @@ const AudioCallPage: React.FC = () => {
       email: item.counterpart.email,
     });
   };
+
+  useEffect(() => {
+    if (
+      !location.state?.autoStartBookingCall ||
+      !location.state?.bookingTarget ||
+      currentSession ||
+      joinState
+    ) {
+      return;
+    }
+
+    const target = location.state.bookingTarget as CallTarget;
+    const bookingId = location.state.bookingId as string | undefined;
+    void handleStartCall(target.id, target, bookingId);
+
+    navigate("/audio-call", { replace: true, state: {} });
+  }, [location.state, currentSession, joinState, navigate]);
 
   const handleEndCall = async () => {
     console.log("🔍 END CALL DEBUG:", {

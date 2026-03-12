@@ -80,6 +80,7 @@ const VideoCallPage: React.FC = () => {
 
   const APP_ID = import.meta.env.VITE_AGORA_APP_ID!;
   const isIncomingCallView = Boolean(location.state?.isIncomingCall);
+  const bookingIdFromState = location.state?.bookingId as string | undefined;
 
   const loadCallHistory = async () => {
     try {
@@ -381,6 +382,8 @@ const VideoCallPage: React.FC = () => {
         session.id,
         undefined,
         "publisher",
+        undefined,
+        session?.booking_id || bookingIdFromState,
       );
 
       console.log("✅ Receiver auth tokens received:", authResponse);
@@ -419,6 +422,7 @@ const VideoCallPage: React.FC = () => {
   const handleStartCall = async (
     receiverId: string,
     userProfile: CallTarget,
+    bookingId?: string,
   ) => {
     try {
       setLoading(true);
@@ -430,7 +434,11 @@ const VideoCallPage: React.FC = () => {
 
       // 1. Create session with Agora using VIDEO service
       setCallStatus("Creating video session...");
-      const sessionResponse = await videoService.createSession(receiverId);
+      const sessionResponse = await videoService.createSession(
+        receiverId,
+        undefined,
+        bookingId,
+      );
       setCurrentSession(sessionResponse.session);
 
       console.log("✅ Video session created:", sessionResponse.session.id);
@@ -442,6 +450,8 @@ const VideoCallPage: React.FC = () => {
         sessionResponse.session.id,
         undefined,
         "publisher",
+        undefined,
+        bookingId,
       );
 
       console.log("✅ Caller auth tokens received:", authResponse);
@@ -496,6 +506,23 @@ const VideoCallPage: React.FC = () => {
       email: item.counterpart.email,
     });
   };
+
+  useEffect(() => {
+    if (
+      !location.state?.autoStartBookingCall ||
+      !location.state?.bookingTarget ||
+      currentSession ||
+      joinState
+    ) {
+      return;
+    }
+
+    const target = location.state.bookingTarget as CallTarget;
+    const bookingId = location.state.bookingId as string | undefined;
+    void handleStartCall(target.id, target, bookingId);
+
+    navigate("/video-call", { replace: true, state: {} });
+  }, [location.state, currentSession, joinState, navigate]);
 
   const handleEndCall = async () => {
     console.log("🔍 END CALL DEBUG:", {
