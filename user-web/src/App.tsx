@@ -23,12 +23,13 @@ import OrdersPage from "./pages/OrdersPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import ProductManagementPage from "./pages/ProductManagementPage";
 import OrderManagementPage from "./pages/OrderManagementPage";
-import AudioCallPage from "./pages/AudioCallPage";
-import VideoCallPage from "./pages/VideoCallPage";
 import GroupChatPage from "./pages/GroupChatPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import DoctorProfileCompletionPage from "./pages/DoctorProfileCompletionPage";
+import DoctorPendingApprovalPage from "./pages/DoctorPendingApprovalPage";
 import ErrorBoundary from "./components/common/ErrorBoundary";
+import DoctorOnboardingGuard from "./components/common/DoctorOnboardingGuard";
 import { AgoraProvider } from "./contexts/AgoraContext";
 import { GlobalCallDialog } from "./components/audio/GlobalCallDialog";
 import { ToastContainer } from "react-toastify";
@@ -61,7 +62,9 @@ const App: React.FC = () => {
                 path="/dashboard"
                 element={
                   <PrivateRoute>
-                    <DashboardPage />
+                    <DoctorOnboardingGuard>
+                      <DashboardPage />
+                    </DoctorOnboardingGuard>
                   </PrivateRoute>
                 }
               />
@@ -70,7 +73,9 @@ const App: React.FC = () => {
                 path="/profile"
                 element={
                   <PrivateRoute>
-                    <ProfilePage />
+                    <DoctorOnboardingGuard>
+                      <ProfilePage />
+                    </DoctorOnboardingGuard>
                   </PrivateRoute>
                 }
               />
@@ -79,7 +84,9 @@ const App: React.FC = () => {
                 path="/hospitals"
                 element={
                   <PrivateRoute>
-                    <HospitalsPage />
+                    <DoctorOnboardingGuard>
+                      <HospitalsPage />
+                    </DoctorOnboardingGuard>
                   </PrivateRoute>
                 }
               />
@@ -88,7 +95,9 @@ const App: React.FC = () => {
                 path="/content"
                 element={
                   <PrivateRoute>
-                    <ContentPage />
+                    <DoctorOnboardingGuard>
+                      <ContentPage />
+                    </DoctorOnboardingGuard>
                   </PrivateRoute>
                 }
               />
@@ -97,7 +106,9 @@ const App: React.FC = () => {
                 path="/shop"
                 element={
                   <PrivateRoute>
-                    <ShopPage />
+                    <DoctorOnboardingGuard>
+                      <ShopPage />
+                    </DoctorOnboardingGuard>
                   </PrivateRoute>
                 }
               />
@@ -106,7 +117,9 @@ const App: React.FC = () => {
                 path="/cart"
                 element={
                   <PrivateRoute>
-                    <CartPage />
+                    <DoctorOnboardingGuard>
+                      <CartPage />
+                    </DoctorOnboardingGuard>
                   </PrivateRoute>
                 }
               />
@@ -115,7 +128,9 @@ const App: React.FC = () => {
                 path="/orders"
                 element={
                   <PrivateRoute>
-                    <OrdersPage />
+                    <DoctorOnboardingGuard>
+                      <OrdersPage />
+                    </DoctorOnboardingGuard>
                   </PrivateRoute>
                 }
               />
@@ -124,7 +139,9 @@ const App: React.FC = () => {
                 path="/checkout"
                 element={
                   <PrivateRoute>
-                    <CheckoutPage />
+                    <DoctorOnboardingGuard>
+                      <CheckoutPage />
+                    </DoctorOnboardingGuard>
                   </PrivateRoute>
                 }
               />
@@ -133,9 +150,11 @@ const App: React.FC = () => {
                 path="/chat"
                 element={
                   <PrivateRoute allowedRoles={["mother"]}>
-                    <ErrorBoundary>
-                      <ChatPage />
-                    </ErrorBoundary>
+                    <DoctorOnboardingGuard>
+                      <ErrorBoundary>
+                        <ChatPage />
+                      </ErrorBoundary>
+                    </DoctorOnboardingGuard>
                   </PrivateRoute>
                 }
               />
@@ -144,7 +163,9 @@ const App: React.FC = () => {
                 path="/manage/products"
                 element={
                   <PrivateRoute>
-                    <ProductManagementPage />
+                    <DoctorOnboardingGuard>
+                      <ProductManagementPage />
+                    </DoctorOnboardingGuard>
                   </PrivateRoute>
                 }
               />
@@ -153,25 +174,31 @@ const App: React.FC = () => {
                 path="/manage/orders"
                 element={
                   <PrivateRoute>
-                    <OrderManagementPage />
+                    <DoctorOnboardingGuard>
+                      <OrderManagementPage />
+                    </DoctorOnboardingGuard>
                   </PrivateRoute>
                 }
               />
 
               <Route
-                path="/audio-call"
+                path="/doctor/complete-profile"
                 element={
-                  <PrivateRoute>
-                    <AudioCallPage />
+                  <PrivateRoute allowedRoles={["doctor"]}>
+                    <DoctorOnboardingGuard>
+                      <DoctorProfileCompletionPage />
+                    </DoctorOnboardingGuard>
                   </PrivateRoute>
                 }
               />
 
               <Route
-                path="/video-call"
+                path="/doctor/pending-approval"
                 element={
-                  <PrivateRoute>
-                    <VideoCallPage />
+                  <PrivateRoute allowedRoles={["doctor"]}>
+                    <DoctorOnboardingGuard>
+                      <DoctorPendingApprovalPage />
+                    </DoctorOnboardingGuard>
                   </PrivateRoute>
                 }
               />
@@ -180,7 +207,9 @@ const App: React.FC = () => {
                 path="/group-chat"
                 element={
                   <PrivateRoute allowedRoles={["mother"]}>
-                    <GroupChatPage />
+                    <DoctorOnboardingGuard>
+                      <GroupChatPage />
+                    </DoctorOnboardingGuard>
                   </PrivateRoute>
                 }
               />

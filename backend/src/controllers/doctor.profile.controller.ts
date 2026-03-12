@@ -93,9 +93,34 @@ export const upsertMyDoctorProfile = async (
 ) => {
   try {
     const userId = req.user!.id;
+    const { data: profile, error: profileFetchError } = await supabaseAdmin
+      .from("profiles")
+      .select("role_status, extra")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (profileFetchError) throw profileFetchError;
+
+    const shouldResetToPending = profile?.role_status !== "approved";
+    const nextProfileExtra = {
+      ...(profile?.extra || {}),
+      requested_role: "doctor",
+      rejection_reason: null,
+    };
+
+    if (shouldResetToPending) {
+      const { error: profileUpdateError } = await supabaseAdmin
+        .from("profiles")
+        .update({ role_status: "pending", extra: nextProfileExtra })
+        .eq("id", userId);
+
+      if (profileUpdateError) throw profileUpdateError;
+    }
+
     const payload = {
       ...req.body,
       user_id: userId,
+      verification_status: shouldResetToPending ? "pending" : "approved",
       updated_at: new Date().toISOString(),
     };
 

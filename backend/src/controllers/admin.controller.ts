@@ -75,7 +75,71 @@ export const listProviders = async (req: AuthRequest, res: Response) => {
 
     if (error) return res.status(500).json({ error: error.message });
 
-    return res.status(200).json({ providers: data });
+    const providerCandidates = (data || []).filter((profile: any) => {
+      const targetRole = String(
+        profile?.extra?.requested_role || profile?.role || "",
+      ).toLowerCase();
+      return ["doctor", "counselor"].includes(targetRole);
+    });
+
+    const doctorIds = providerCandidates
+      .map((profile: any) => profile.id)
+      .filter((id: any) => typeof id === "string");
+
+    const doctorProfileDocsByUserId = new Map<string, string[]>();
+    if (doctorIds.length > 0) {
+      const { data: doctorProfiles, error: doctorProfilesError } =
+        await supabaseAdmin
+          .from("doctor_profiles")
+          .select("user_id, metadata")
+          .in("user_id", doctorIds);
+
+      if (doctorProfilesError) {
+        return res.status(500).json({ error: doctorProfilesError.message });
+      }
+
+      (doctorProfiles || []).forEach((doctorProfile: any) => {
+        const docs =
+          doctorProfile?.metadata?.verification_documents ||
+          doctorProfile?.metadata?.verificationDocs ||
+          [];
+
+        doctorProfileDocsByUserId.set(
+          doctorProfile.user_id,
+          Array.isArray(docs)
+            ? docs.filter((url: unknown) => typeof url === "string")
+            : [],
+        );
+      });
+    }
+
+    const providers = providerCandidates.map((profile: any) => {
+      const docsFromDoctorProfile =
+        doctorProfileDocsByUserId.get(profile.id) || [];
+      const docsFromProfileExtra =
+        profile?.extra?.verification_documents ||
+        profile?.extra?.documents ||
+        [];
+
+      const mergedDocs = Array.from(
+        new Set([
+          ...(Array.isArray(docsFromDoctorProfile)
+            ? docsFromDoctorProfile
+            : []),
+          ...(Array.isArray(docsFromProfileExtra) ? docsFromProfileExtra : []),
+        ]),
+      );
+
+      return {
+        ...profile,
+        extra: {
+          ...(profile.extra || {}),
+          verification_documents: mergedDocs,
+        },
+      };
+    });
+
+    return res.status(200).json({ providers });
   } catch (err) {
     console.error("listProviders error:", err);
     return res.status(500).json({ error: "Server error" });

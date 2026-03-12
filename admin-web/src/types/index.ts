@@ -42,6 +42,7 @@ export interface ProviderApproval extends Profile {
   extra?: {
     requested_role?: string;
     documents?: string[];
+    verification_documents?: string[];
     rejection_reason?: string | null;
     [key: string]: any;
   };

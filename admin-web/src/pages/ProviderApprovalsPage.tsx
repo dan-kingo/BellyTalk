@@ -212,9 +212,13 @@ const ProviderApprovalsPage: React.FC = () => {
             {filteredProviders.map((provider) => {
               const requestedRole =
                 provider.extra?.requested_role || provider.role;
-              const documents = Array.isArray(provider.extra?.documents)
-                ? provider.extra.documents
-                : [];
+              const documents = Array.isArray(
+                provider.extra?.verification_documents,
+              )
+                ? provider.extra.verification_documents
+                : Array.isArray(provider.extra?.documents)
+                  ? provider.extra.documents
+                  : [];
 
               return (
                 <div

@@ -24,6 +24,19 @@ export interface Profile {
   updated_at: string;
 }
 
+export interface DoctorProfile {
+  user_id: string;
+  headline?: string;
+  bio?: string;
+  specialties?: string[];
+  languages?: string[];
+  years_of_experience?: number;
+  hospital_affiliation?: string;
+  verification_status?: "pending" | "approved" | "rejected";
+  metadata?: Record<string, any>;
+  updated_at?: string;
+}
+
 export interface AuthContextType {
   user: User | null;
   profile: Profile | null;

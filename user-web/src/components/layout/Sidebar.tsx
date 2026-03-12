@@ -9,8 +9,6 @@ import {
   ShoppingCart,
   MessageSquare,
   ShoppingBag,
-  Phone,
-  Video,
   Users,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
@@ -75,18 +73,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       icon: MessageSquare,
       label: "Messages",
       roles: ["mother"],
-    },
-    {
-      path: "/audio-call",
-      icon: Phone,
-      label: "Audio Call",
-      roles: ["mother", "doctor", "counselor"],
-    },
-    {
-      path: "/video-call",
-      icon: Video,
-      label: "Video Call",
-      roles: ["mother", "doctor", "counselor"],
     },
     {
       path: "/group-chat",
