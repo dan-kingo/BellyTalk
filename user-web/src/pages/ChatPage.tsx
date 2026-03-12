@@ -92,18 +92,7 @@ const ChatPage: React.FC = () => {
     fetchConversations();
 
     if (user?.id) {
-      // Initialize and update presence - FIXED
-      presenceService.initializePresence();
-
-      // Update presence every 30 seconds to stay online - FIXED
-      const interval = setInterval(() => {
-        presenceService.updatePresence("online");
-      }, 30000);
-
       return () => {
-        clearInterval(interval);
-        // Set offline status when leaving - FIXED
-        presenceService.updatePresence("offline");
         presenceService.cleanup();
       };
     }

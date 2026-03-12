@@ -40,24 +40,30 @@ export const listDoctorsPresence = async (req: AuthRequest, res: Response) => {
       .map((id) => id.trim())
       .filter(Boolean);
 
-    let doctorQuery = supabaseAdmin
-      .from("profiles")
-      .select("id, full_name, role, role_status")
-      .eq("role", "doctor")
-      .eq("role_status", "approved")
-      .limit(200);
+    let doctorIds = Array.from(new Set(requestedIds));
 
-    if (requestedIds.length) {
-      doctorQuery = doctorQuery.in("id", requestedIds);
+    if (!doctorIds.length) {
+      const { data: doctorProfiles, error: doctorProfilesError } =
+        await supabaseAdmin
+          .from("doctor_profiles")
+          .select("user_id")
+          .eq("verification_status", "approved")
+          .limit(200);
+      if (doctorProfilesError) throw doctorProfilesError;
+      doctorIds = (doctorProfiles || []).map((d) => d.user_id);
     }
 
-    const { data: doctors, error: doctorsError } = await doctorQuery;
-    if (doctorsError) throw doctorsError;
-
-    const doctorIds = (doctors || []).map((d) => d.id);
     if (!doctorIds.length) {
       return res.json({ doctors: [] });
     }
+
+    const { data: profiles, error: profilesError } = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", doctorIds);
+    if (profilesError) throw profilesError;
+
+    const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
 
     const { data: presenceRows, error: presenceError } = await supabaseAdmin
       .from("user_presence")
@@ -69,11 +75,11 @@ export const listDoctorsPresence = async (req: AuthRequest, res: Response) => {
       (presenceRows || []).map((p) => [p.user_id, p]),
     );
     const result = doctorIds.map((id) => {
-      const doctor = (doctors || []).find((d) => d.id === id)!;
+      const doctor = profileMap.get(id);
       const p = presenceMap.get(id);
       return {
         id,
-        full_name: doctor.full_name,
+        full_name: doctor?.full_name || null,
         status: p?.status || "offline",
         last_seen: p?.last_seen || null,
         updated_at: p?.updated_at || null,

@@ -43,6 +43,7 @@ import { AgoraProvider } from "./contexts/AgoraContext";
 import { GlobalCallDialog } from "./components/audio/GlobalCallDialog";
 import { ToastContainer } from "react-toastify";
 import SeoManager from "./components/common/SeoManager";
+import PresenceHeartbeat from "./components/common/PresenceHeartbeat";
 
 const App: React.FC = () => {
   return (
@@ -50,6 +51,7 @@ const App: React.FC = () => {
       <SeoManager />
       <ThemeProvider>
         <AuthProvider>
+          <PresenceHeartbeat />
           <AgoraProvider>
             {/* Global Incoming Call Dialog - Works on all pages */}
             <GlobalCallDialog />

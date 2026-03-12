@@ -68,7 +68,8 @@ export const doctorDiscoveryService = {
           last_seen: presence?.last_seen ?? null,
         };
       });
-    } catch {
+    } catch (error) {
+      console.error("Failed to fetch doctor presence:", error);
       return doctors.map((doctor) => ({
         ...doctor,
         status: "offline" as const,
