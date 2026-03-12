@@ -20,7 +20,7 @@ import {
 import { toast } from "react-toastify";
 
 const ChatPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const conversations = useChatStore((state) => state.conversations);
   const selectedConversation = useChatStore(
     (state) => state.selectedConversation,
@@ -58,6 +58,9 @@ const ChatPage: React.FC = () => {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const motherOnlySearchResults = searchResults.filter(
+    (candidate) => candidate.role === "mother" && candidate.id !== user?.id,
+  );
 
   // Mobile responsiveness
   const [isMobile, setIsMobile] = useState(false);
@@ -303,6 +306,11 @@ const ChatPage: React.FC = () => {
       return;
     }
 
+    if (!isMotherToMotherConversation(selectedConversation)) {
+      toast.error("Direct chat is currently limited to mother-to-mother only.");
+      return;
+    }
+
     try {
       setSending(true);
 
@@ -343,6 +351,19 @@ const ChatPage: React.FC = () => {
   };
 
   const handleStartChat = async (userId: string) => {
+    if (profile?.role !== "mother") {
+      toast.error("Only mothers can start direct chats.");
+      return;
+    }
+
+    const isValidMotherTarget = motherOnlySearchResults.some(
+      (candidate) => candidate.id === userId,
+    );
+    if (!isValidMotherTarget) {
+      toast.error("You can only start chats with other mothers.");
+      return;
+    }
+
     try {
       const newConv = await createConversation(userId);
       setShowNewChatDialog(false);
@@ -360,6 +381,11 @@ const ChatPage: React.FC = () => {
   };
 
   const handleOpenNewChatDialog = async () => {
+    if (profile?.role !== "mother") {
+      toast.error("Only mothers can start direct chats.");
+      return;
+    }
+
     setShowNewChatDialog(true);
     try {
       await searchUsers("");
@@ -394,6 +420,11 @@ const ChatPage: React.FC = () => {
     return conversation.participant_a === user?.id
       ? conversation.participant_b_profile
       : conversation.participant_a_profile;
+  };
+
+  const isMotherToMotherConversation = (conversation: Conversation) => {
+    const otherProfile = getOtherParticipantProfile(conversation);
+    return profile?.role === "mother" && otherProfile?.role === "mother";
   };
 
   const formatTime = (date: string) => {
@@ -613,6 +644,12 @@ const ChatPage: React.FC = () => {
                       {getOtherParticipantProfile(selectedConversation)
                         ?.full_name || "Unknown User"}
                     </h3>
+                    {!isMotherToMotherConversation(selectedConversation) && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        This conversation is read-only under mother-to-mother
+                        policy.
+                      </p>
+                    )}
                     <div className="flex items-center gap-2 text-sm">
                       <div
                         className={`w-2 h-2 rounded-full ${otherUserStatus === "online" ? "bg-green-500" : "bg-gray-400"} shrink-0`}
@@ -743,6 +780,9 @@ const ChatPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
+                    disabled={
+                      !isMotherToMotherConversation(selectedConversation)
+                    }
                     className="p-2 text-gray-500 cursor-pointer dark:text-gray-400 hover:text-primary dark:hover:text-secondary transition-colors shrink-0"
                   >
                     <Paperclip className="w-5 h-5" />
@@ -755,13 +795,17 @@ const ChatPage: React.FC = () => {
                       handleTyping();
                     }}
                     placeholder="Type a message..."
-                    disabled={sending}
+                    disabled={
+                      sending ||
+                      !isMotherToMotherConversation(selectedConversation)
+                    }
                     className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-secondary text-sm md:text-base min-w-0"
                   />
                   <button
                     type="submit"
                     disabled={
                       sending ||
+                      !isMotherToMotherConversation(selectedConversation) ||
                       (!messageContent.trim() && attachments.length === 0)
                     }
                     className="bg-primary cursor-pointer hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white p-2 rounded-full disabled:opacity-50 transition-all shrink-0 w-10 h-10 md:w-12 md:h-12 flex items-center justify-center"
@@ -827,20 +871,20 @@ const ChatPage: React.FC = () => {
                 <div className="flex justify-center py-8">
                   <LoadingSpinner />
                 </div>
-              ) : searchResults.length === 0 ? (
+              ) : motherOnlySearchResults.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   {searchQuery
-                    ? "No users found"
-                    : "No users available right now"}
+                    ? "No mothers found"
+                    : "No mothers available right now"}
                 </div>
               ) : (
                 <div className="space-y-1">
                   {!searchQuery && (
                     <p className="px-3 pt-2 pb-1 text-xs text-gray-500 dark:text-gray-400">
-                      Tap a user to start chatting
+                      Tap a mother to start chatting
                     </p>
                   )}
-                  {searchResults.map((userProfile) => (
+                  {motherOnlySearchResults.map((userProfile) => (
                     <button
                       key={userProfile.id}
                       onClick={() => handleStartChat(userProfile.id)}

@@ -74,7 +74,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       path: "/chat",
       icon: MessageSquare,
       label: "Messages",
-      roles: ["mother", "doctor", "counselor"],
+      roles: ["mother"],
     },
     {
       path: "/audio-call",
@@ -92,7 +92,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       path: "/group-chat",
       icon: Users,
       label: "Group Chat",
-      roles: ["mother", "doctor", "counselor", "admin"],
+      roles: ["mother"],
     },
     {
       path: "/profile",
@@ -114,11 +114,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   }, [user, profile?.role, fetchCart, fetchOrders]);
 
   useEffect(() => {
-    if (
-      !user ||
-      !profile?.role ||
-      !["mother", "doctor", "counselor"].includes(profile.role)
-    ) {
+    if (!user || profile?.role !== "mother") {
       return;
     }
 

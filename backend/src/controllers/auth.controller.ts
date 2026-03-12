@@ -14,6 +14,9 @@ const isTransientSupabaseNetworkError = (error: any) => {
       "ECONNRESET",
       "ETIMEDOUT",
       "ECONNREFUSED",
+      "UND_ERR_CONNECT_TIMEOUT",
+      "UND_ERR_HEADERS_TIMEOUT",
+      "UND_ERR_SOCKET",
     ].includes(causeCode) ||
     [
       "EAI_AGAIN",
@@ -21,8 +24,12 @@ const isTransientSupabaseNetworkError = (error: any) => {
       "ECONNRESET",
       "ETIMEDOUT",
       "ECONNREFUSED",
+      "UND_ERR_CONNECT_TIMEOUT",
+      "UND_ERR_HEADERS_TIMEOUT",
+      "UND_ERR_SOCKET",
     ].includes(directCode) ||
-    message.includes("fetch failed")
+    message.includes("fetch failed") ||
+    message.includes("connect timeout")
   );
 };
 

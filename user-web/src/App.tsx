@@ -132,7 +132,7 @@ const App: React.FC = () => {
               <Route
                 path="/chat"
                 element={
-                  <PrivateRoute>
+                  <PrivateRoute allowedRoles={["mother"]}>
                     <ErrorBoundary>
                       <ChatPage />
                     </ErrorBoundary>
@@ -179,7 +179,7 @@ const App: React.FC = () => {
               <Route
                 path="/group-chat"
                 element={
-                  <PrivateRoute>
+                  <PrivateRoute allowedRoles={["mother"]}>
                     <GroupChatPage />
                   </PrivateRoute>
                 }
