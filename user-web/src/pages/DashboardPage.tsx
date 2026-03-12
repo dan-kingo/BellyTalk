@@ -243,7 +243,7 @@ const DashboardPage: React.FC = () => {
                     state: { openBookingId: motherNextBooking.id },
                   })
                 }
-                className="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-primary-700"
+                className="rounded-lg bg-primary cursor-pointer px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-primary-700"
               >
                 Open Details
               </button>
@@ -259,7 +259,7 @@ const DashboardPage: React.FC = () => {
             </p>
             <button
               onClick={() => navigate("/doctors")}
-              className="mt-3 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-primary-700"
+              className="mt-3 rounded-lg cursor-pointer bg-primary px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-primary-700"
             >
               Find Doctor
             </button>
@@ -277,7 +277,7 @@ const DashboardPage: React.FC = () => {
           </div>
           <button
             onClick={() => navigate("/doctors")}
-            className="text-sm font-semibold text-primary hover:underline dark:text-secondary"
+            className="text-sm font-semibold cursor-pointer text-primary hover:underline dark:text-secondary"
           >
             Browse all
           </button>
@@ -296,9 +296,11 @@ const DashboardPage: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {trustedDoctors.map((doctorItem) => (
-              <article
+              <button
                 key={doctorItem.id}
-                className="rounded-xl border border-gray-200 p-4 dark:border-gray-700"
+                type="button"
+                onClick={() => navigate(`/doctors/${doctorItem.id}`)}
+                className="rounded-xl border border-gray-200 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md cursor-pointer dark:border-gray-700"
               >
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -314,7 +316,10 @@ const DashboardPage: React.FC = () => {
                   {doctorItem.bookings_count} booking
                   {doctorItem.bookings_count > 1 ? "s" : ""} together
                 </p>
-              </article>
+                <p className="mt-2 text-xs font-semibold text-primary dark:text-secondary">
+                  View Services &amp; Book
+                </p>
+              </button>
             ))}
           </div>
         )}
@@ -331,7 +336,7 @@ const DashboardPage: React.FC = () => {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <button
             onClick={() => navigate("/bookings")}
-            className="rounded-xl border border-gray-200 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700"
+            className="rounded-xl border cursor-pointer border-gray-200 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700"
           >
             <HeartPulse className="h-5 w-5 text-primary dark:text-secondary" />
             <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
@@ -341,7 +346,7 @@ const DashboardPage: React.FC = () => {
 
           <button
             onClick={() => navigate("/doctors")}
-            className="rounded-xl border border-gray-200 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700"
+            className="rounded-xl border cursor-pointer border-gray-200 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700"
           >
             <MessageCircle className="h-5 w-5 text-primary dark:text-secondary" />
             <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
@@ -351,7 +356,7 @@ const DashboardPage: React.FC = () => {
 
           <button
             onClick={() => navigate("/shop")}
-            className="rounded-xl border border-gray-200 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700"
+            className="rounded-xl border cursor-pointer border-gray-200 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700"
           >
             <ShoppingBag className="h-5 w-5 text-primary dark:text-secondary" />
             <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
@@ -361,7 +366,7 @@ const DashboardPage: React.FC = () => {
 
           <button
             onClick={() => navigate("/hospitals")}
-            className="rounded-xl border border-gray-200 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700"
+            className="rounded-xl border cursor-pointer border-gray-200 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700"
           >
             <Building2 className="h-5 w-5 text-primary dark:text-secondary" />
             <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
@@ -497,7 +502,7 @@ const DashboardPage: React.FC = () => {
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <button
           onClick={() => navigate("/doctor/services")}
-          className="group rounded-xl border border-gray-200 bg-white p-5 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700 dark:bg-gray-900"
+          className="group rounded-xl border cursor-pointer border-gray-200 bg-white p-5 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700 dark:bg-gray-900"
         >
           <div className="flex items-center gap-3">
             <BriefcaseMedical className="h-5 w-5 text-primary dark:text-secondary" />
@@ -517,7 +522,7 @@ const DashboardPage: React.FC = () => {
 
         <button
           onClick={() => navigate("/doctor/bookings")}
-          className="group rounded-xl border border-gray-200 bg-white p-5 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700 dark:bg-gray-900"
+          className="group rounded-xl border cursor-pointer border-gray-200 bg-white p-5 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700 dark:bg-gray-900"
         >
           <div className="flex items-center gap-3">
             <ClipboardCheck className="h-5 w-5 text-primary dark:text-secondary" />
