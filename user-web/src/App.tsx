@@ -31,6 +31,8 @@ import DoctorPendingApprovalPage from "./pages/DoctorPendingApprovalPage";
 import DoctorsListPage from "./pages/DoctorsListPage";
 import DoctorDetailsPage from "./pages/DoctorDetailsPage";
 import MyBookingsPage from "./pages/MyBookingsPage";
+import MyServicesPage from "./pages/MyServicesPage";
+import DoctorBookingsPage from "./pages/DoctorBookingsPage";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import DoctorOnboardingGuard from "./components/common/DoctorOnboardingGuard";
 import { AgoraProvider } from "./contexts/AgoraContext";
@@ -245,6 +247,28 @@ const App: React.FC = () => {
                   <PrivateRoute allowedRoles={["mother"]}>
                     <DoctorOnboardingGuard>
                       <MyBookingsPage />
+                    </DoctorOnboardingGuard>
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/doctor/services"
+                element={
+                  <PrivateRoute allowedRoles={["doctor", "admin"]}>
+                    <DoctorOnboardingGuard>
+                      <MyServicesPage />
+                    </DoctorOnboardingGuard>
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/doctor/bookings"
+                element={
+                  <PrivateRoute allowedRoles={["doctor", "admin"]}>
+                    <DoctorOnboardingGuard>
+                      <DoctorBookingsPage />
                     </DoctorOnboardingGuard>
                   </PrivateRoute>
                 }

@@ -811,13 +811,33 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
         .json({ error: "COD is only allowed for in-person services" });
     }
 
+    const { data: activeAvailabilityRows, error: activeAvailabilityError } =
+      await supabaseAdmin
+        .from("doctor_service_availability")
+        .select("id", { count: "exact" })
+        .eq("service_id", service.id)
+        .eq("is_active", true)
+        .limit(1);
+
+    if (activeAvailabilityError) throw activeAvailabilityError;
+
+    const serviceHasActiveAvailability =
+      (activeAvailabilityRows || []).length > 0;
+    if (!availability_id && serviceHasActiveAvailability) {
+      return res.status(400).json({
+        error: "This service requires selecting an availability slot",
+        code: "BOOKING_AVAILABILITY_REQUIRED",
+      });
+    }
+
     let resolvedAvailabilityId: string | null = null;
+    let resolvedSlotCapacity = 1;
     if (availability_id) {
       const { data: availability, error: availabilityError } =
         await supabaseAdmin
           .from("doctor_service_availability")
           .select(
-            "id, service_id, doctor_id, day_of_week, specific_date, start_time, end_time, is_active",
+            "id, service_id, doctor_id, day_of_week, specific_date, start_time, end_time, slot_capacity, is_active",
           )
           .eq("id", availability_id)
           .maybeSingle();
@@ -845,23 +865,33 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
       }
 
       resolvedAvailabilityId = availability.id;
+      resolvedSlotCapacity = Number(availability.slot_capacity || 1);
     }
 
-    const { data: conflict, error: conflictError } = await supabaseAdmin
+    const { data: conflicts, error: conflictError } = await supabaseAdmin
       .from("bookings")
       .select("id")
       .eq("doctor_id", service.doctor_id)
       .in("status", ACTIVE_BOOKING_STATUSES)
       .lt("scheduled_start", scheduled_end)
       .gt("scheduled_end", scheduled_start)
-      .limit(1)
-      .maybeSingle();
+      .limit(50);
 
     if (conflictError) throw conflictError;
-    if (conflict) {
-      return res
-        .status(409)
-        .json({ error: "Selected time conflicts with another booking" });
+
+    const conflictCount = (conflicts || []).length;
+    if (resolvedAvailabilityId && conflictCount >= resolvedSlotCapacity) {
+      return res.status(409).json({
+        error: "Selected slot is fully booked. Please pick another slot.",
+        code: "BOOKING_SLOT_FULL",
+      });
+    }
+
+    if (!resolvedAvailabilityId && conflictCount > 0) {
+      return res.status(409).json({
+        error: "Selected time conflicts with another booking",
+        code: "BOOKING_TIME_CONFLICT",
+      });
     }
 
     const initialStatus =

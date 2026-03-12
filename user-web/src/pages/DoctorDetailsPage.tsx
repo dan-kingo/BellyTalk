@@ -242,7 +242,31 @@ const DoctorDetailsPage: React.FC = () => {
       toast.success("Booking submitted successfully.");
       navigate("/bookings");
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || "Failed to create booking.");
+      const code = err?.response?.data?.code as string | undefined;
+      const serverError =
+        err?.response?.data?.error || "Failed to create booking.";
+
+      if (
+        code === "BOOKING_SLOT_FULL" ||
+        code === "BOOKING_TIME_CONFLICT" ||
+        code === "BOOKING_AVAILABILITY_REQUIRED"
+      ) {
+        try {
+          if (selectedServiceId) {
+            const refreshedSlots = await doctorDiscoveryService.getServiceSlots(
+              selectedServiceId,
+              21,
+            );
+            setServiceSlots(refreshedSlots);
+            setSelectedSlotKey("");
+          }
+        } catch {
+          // keep original error message below
+        }
+      }
+
+      setBookingInputError(serverError);
+      toast.error(serverError);
     } finally {
       setSaving(false);
     }

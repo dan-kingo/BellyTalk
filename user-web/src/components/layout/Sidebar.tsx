@@ -12,6 +12,8 @@ import {
   Users,
   Stethoscope,
   CalendarClock,
+  BriefcaseMedical,
+  ClipboardCheck,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useShopStore } from "../../stores/shop.store";
@@ -93,6 +95,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       icon: CalendarClock,
       label: "Bookings",
       roles: ["mother"],
+    },
+    {
+      path: "/doctor/services",
+      icon: BriefcaseMedical,
+      label: "My Services",
+      roles: ["doctor", "admin"],
+    },
+    {
+      path: "/doctor/bookings",
+      icon: ClipboardCheck,
+      label: "Doctor Bookings",
+      roles: ["doctor", "admin"],
     },
     {
       path: "/profile",
