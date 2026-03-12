@@ -306,8 +306,8 @@ const ChatPage: React.FC = () => {
       return;
     }
 
-    if (!isMotherToMotherConversation(selectedConversation)) {
-      toast.error("Direct chat is currently limited to mother-to-mother only.");
+    if (!canMessageInConversation(selectedConversation)) {
+      toast.error("Messaging is not allowed in this conversation.");
       return;
     }
 
@@ -422,9 +422,16 @@ const ChatPage: React.FC = () => {
       : conversation.participant_a_profile;
   };
 
-  const isMotherToMotherConversation = (conversation: Conversation) => {
+  const canMessageInConversation = (conversation: Conversation) => {
     const otherProfile = getOtherParticipantProfile(conversation);
-    return profile?.role === "mother" && otherProfile?.role === "mother";
+    const selfRole = profile?.role;
+    const peerRole = otherProfile?.role;
+
+    if (!selfRole || !peerRole) return false;
+    if (selfRole === "mother" && peerRole === "mother") return true;
+    if (selfRole === "mother" && peerRole === "doctor") return true;
+    if (selfRole === "doctor" && peerRole === "mother") return true;
+    return false;
   };
 
   const formatTime = (date: string) => {
@@ -644,10 +651,9 @@ const ChatPage: React.FC = () => {
                       {getOtherParticipantProfile(selectedConversation)
                         ?.full_name || "Unknown User"}
                     </h3>
-                    {!isMotherToMotherConversation(selectedConversation) && (
+                    {!canMessageInConversation(selectedConversation) && (
                       <p className="text-xs text-amber-600 dark:text-amber-400">
-                        This conversation is read-only under mother-to-mother
-                        policy.
+                        This conversation is read-only for your role.
                       </p>
                     )}
                     <div className="flex items-center gap-2 text-sm">
@@ -780,9 +786,7 @@ const ChatPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={
-                      !isMotherToMotherConversation(selectedConversation)
-                    }
+                    disabled={!canMessageInConversation(selectedConversation)}
                     className="p-2 text-gray-500 cursor-pointer dark:text-gray-400 hover:text-primary dark:hover:text-secondary transition-colors shrink-0"
                   >
                     <Paperclip className="w-5 h-5" />
@@ -796,8 +800,7 @@ const ChatPage: React.FC = () => {
                     }}
                     placeholder="Type a message..."
                     disabled={
-                      sending ||
-                      !isMotherToMotherConversation(selectedConversation)
+                      sending || !canMessageInConversation(selectedConversation)
                     }
                     className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-secondary text-sm md:text-base min-w-0"
                   />
@@ -805,7 +808,7 @@ const ChatPage: React.FC = () => {
                     type="submit"
                     disabled={
                       sending ||
-                      !isMotherToMotherConversation(selectedConversation) ||
+                      !canMessageInConversation(selectedConversation) ||
                       (!messageContent.trim() && attachments.length === 0)
                     }
                     className="bg-primary cursor-pointer hover:bg-primary/90 dark:bg-secondary dark:hover:bg-secondary/90 text-white p-2 rounded-full disabled:opacity-50 transition-all shrink-0 w-10 h-10 md:w-12 md:h-12 flex items-center justify-center"

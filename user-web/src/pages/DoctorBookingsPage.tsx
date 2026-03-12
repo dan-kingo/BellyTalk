@@ -12,6 +12,8 @@ import Layout from "../components/layout/Layout";
 import Skeleton from "../components/common/Skeleton";
 import { bookingService } from "../services/booking.service";
 import { Booking, BookingStatus, DoctorServiceMode } from "../types";
+import { useNavigate } from "react-router-dom";
+import { useChatStore } from "../stores/chat.store";
 
 const actionableStatuses: BookingStatus[] = [
   "pending_payment",
@@ -22,6 +24,8 @@ const actionableStatuses: BookingStatus[] = [
 type ActionType = "confirm" | "cancel" | "complete" | "reschedule";
 
 const DoctorBookingsPage: React.FC = () => {
+  const navigate = useNavigate();
+  const createConversation = useChatStore((state) => state.createConversation);
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [typeFilter, setTypeFilter] = useState<"upcoming" | "past">("upcoming");
@@ -42,6 +46,17 @@ const DoctorBookingsPage: React.FC = () => {
     null,
   );
   const [rejectReason, setRejectReason] = useState("");
+  const [sessionActionLoading, setSessionActionLoading] = useState<
+    Record<string, boolean>
+  >({});
+  const [clockTick, setClockTick] = useState(Date.now());
+  const [inPersonGuideBooking, setInPersonGuideBooking] =
+    useState<Booking | null>(null);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockTick(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const loadBookings = async () => {
     try {
@@ -338,6 +353,127 @@ const DoctorBookingsPage: React.FC = () => {
     };
   };
 
+  const formatDuration = (ms: number) => {
+    const totalMinutes = Math.max(0, Math.ceil(ms / 60000));
+    if (totalMinutes < 60) return `${totalMinutes}m`;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (hours < 24) return `${hours}h ${minutes}m`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ${hours % 24}h`;
+  };
+
+  const getSessionState = (booking: Booking) => {
+    if (booking.status !== "confirmed") {
+      return {
+        canStart: false,
+        badge: "Not Ready",
+        reason: "Session actions unlock once booking is confirmed.",
+      };
+    }
+
+    if (booking.service_mode === "in_person") {
+      return {
+        canStart: true,
+        badge: "Visit",
+        reason: "Open in-person guidance for this booking.",
+      };
+    }
+
+    if (booking.service_mode === "message") {
+      return {
+        canStart: true,
+        badge: "Chat",
+        reason: "Open the consultation chat room.",
+      };
+    }
+
+    const startAt = new Date(booking.scheduled_start).getTime();
+    const endAt = new Date(booking.scheduled_end).getTime();
+    const openAt = startAt - 15 * 60 * 1000;
+    const closeAt = endAt + 30 * 60 * 1000;
+
+    if (clockTick < openAt) {
+      return {
+        canStart: false,
+        badge: `Starts in ${formatDuration(openAt - clockTick)}`,
+        reason: "Call window has not opened yet.",
+      };
+    }
+
+    if (clockTick > closeAt) {
+      return {
+        canStart: false,
+        badge: "Window Closed",
+        reason: "Call window has passed for this booking.",
+      };
+    }
+
+    return {
+      canStart: true,
+      badge: "Live Now",
+      reason: "Call window is open. You can join now.",
+    };
+  };
+
+  const setBookingActionLoading = (bookingId: string, value: boolean) => {
+    setSessionActionLoading((prev) => ({ ...prev, [bookingId]: value }));
+  };
+
+  const handleStartSession = async (booking: Booking) => {
+    if (booking.service_mode === "in_person") {
+      setInPersonGuideBooking(booking);
+      return;
+    }
+
+    const state = getSessionState(booking);
+    if (!state.canStart) {
+      toast.info(state.reason);
+      return;
+    }
+
+    const channel =
+      booking.service_mode === "audio"
+        ? "audio"
+        : booking.service_mode === "video"
+          ? "video"
+          : "message";
+
+    try {
+      setBookingActionLoading(booking.id, true);
+
+      const join = await bookingService.checkJoinAccess(booking.id, channel);
+      if (!join.allowed) {
+        toast.error(join.error || "Session cannot be started right now.");
+        return;
+      }
+
+      if (channel === "message") {
+        await createConversation(booking.mother_id, booking.id);
+        navigate("/chat");
+        toast.success("Consultation chat is ready.");
+        return;
+      }
+
+      const targetPath = channel === "audio" ? "/audio-call" : "/video-call";
+      navigate(targetPath, {
+        state: {
+          autoStartBookingCall: true,
+          bookingId: booking.id,
+          bookingTarget: {
+            id: booking.mother_id,
+            full_name: "Patient",
+            email: "",
+          },
+        },
+      });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || "Failed to start session.");
+    } finally {
+      setBookingActionLoading(booking.id, false);
+    }
+  };
+
   return (
     <Layout>
       <div className="mx-auto max-w-7xl space-y-6">
@@ -434,6 +570,14 @@ const DoctorBookingsPage: React.FC = () => {
                   </span>
                 </div>
 
+                {booking.status === "confirmed" && (
+                  <div className="mt-2">
+                    <span className="rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary">
+                      {getSessionState(booking).badge}
+                    </span>
+                  </div>
+                )}
+
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     onClick={() => openBookingDetail(booking.id)}
@@ -479,6 +623,28 @@ const DoctorBookingsPage: React.FC = () => {
                         </button>
                       )}
                     </>
+                  )}
+
+                  {booking.status === "confirmed" && (
+                    <button
+                      onClick={() => handleStartSession(booking)}
+                      disabled={
+                        !getSessionState(booking).canStart ||
+                        sessionActionLoading[booking.id]
+                      }
+                      className="inline-flex items-center gap-1 rounded-lg border border-primary px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-60"
+                      title={getSessionState(booking).reason}
+                    >
+                      {sessionActionLoading[booking.id]
+                        ? "Opening..."
+                        : booking.service_mode === "in_person"
+                          ? "Visit Guidance"
+                          : booking.service_mode === "message"
+                            ? "Open Chat"
+                            : booking.service_mode === "audio"
+                              ? "Start Audio"
+                              : "Start Video"}
+                    </button>
                   )}
                 </div>
               </article>
@@ -728,6 +894,46 @@ const DoctorBookingsPage: React.FC = () => {
             </button>
           </div>
         </form>
+      </Dialog>
+
+      <Dialog
+        isOpen={Boolean(inPersonGuideBooking)}
+        onClose={() => setInPersonGuideBooking(null)}
+        title="In-Person Visit Guidance"
+      >
+        {inPersonGuideBooking && (
+          <div className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
+            <p>
+              <span className="font-semibold">Service:</span>{" "}
+              {inPersonGuideBooking.service_title_snapshot}
+            </p>
+            <p>
+              <span className="font-semibold">Schedule:</span>{" "}
+              {new Date(inPersonGuideBooking.scheduled_start).toLocaleString()}{" "}
+              - {new Date(inPersonGuideBooking.scheduled_end).toLocaleString()}
+            </p>
+            <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
+              <p className="font-semibold">Doctor checklist</p>
+              <ul className="mt-1 list-disc pl-5 text-xs">
+                <li>Be ready at least 10 minutes before the booked slot.</li>
+                <li>Prepare consultation notes and required materials.</li>
+                <li>
+                  If the patient is late, wait through the grace window before
+                  marking no-show.
+                </li>
+              </ul>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={() => setInPersonGuideBooking(null)}
+                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
       </Dialog>
     </Layout>
   );

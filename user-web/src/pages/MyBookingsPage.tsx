@@ -248,6 +248,25 @@ const MyBookingsPage: React.FC = () => {
     return { canStart: true, reason: "Session is live. You can join now." };
   };
 
+  const getSessionBadge = (booking: Booking) => {
+    if (booking.status !== "confirmed") return null;
+    if (booking.service_mode === "in_person") return "Visit";
+    if (booking.service_mode === "message") return "Chat";
+
+    const startAt = new Date(booking.scheduled_start).getTime();
+    const endAt = new Date(booking.scheduled_end).getTime();
+    const openAt = startAt - 15 * 60 * 1000;
+    const closeAt = endAt + 30 * 60 * 1000;
+
+    if (clockTick < openAt) {
+      return `Starts in ${formatDuration(openAt - clockTick)}`;
+    }
+    if (clockTick > closeAt) {
+      return "Window Closed";
+    }
+    return "Live Now";
+  };
+
   const setBookingActionLoading = (bookingId: string, value: boolean) => {
     setSessionActionLoading((prev) => ({ ...prev, [bookingId]: value }));
   };
@@ -419,6 +438,14 @@ const MyBookingsPage: React.FC = () => {
                     {booking.status.replace(/_/g, " ")}
                   </span>
                 </div>
+
+                {getSessionBadge(booking) && (
+                  <div className="mt-2">
+                    <span className="rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary">
+                      {getSessionBadge(booking)}
+                    </span>
+                  </div>
+                )}
 
                 <div className="mt-4 grid grid-cols-1 gap-2 text-sm text-gray-600 dark:text-gray-300 sm:grid-cols-2">
                   <p className="inline-flex items-center gap-2">

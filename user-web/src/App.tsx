@@ -157,7 +157,7 @@ const App: React.FC = () => {
               <Route
                 path="/chat"
                 element={
-                  <PrivateRoute allowedRoles={["mother"]}>
+                  <PrivateRoute allowedRoles={["mother", "doctor", "admin"]}>
                     <DoctorOnboardingGuard>
                       <ErrorBoundary>
                         <ChatPage />
