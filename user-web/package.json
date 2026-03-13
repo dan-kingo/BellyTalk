@@ -14,6 +14,7 @@
     "agora-rtc-sdk-ng": "^4.24.0",
     "axios": "^1.13.1",
     "lucide-react": "^0.548.0",
+    "luxon": "^3.7.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.4",
@@ -21,6 +22,7 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@types/luxon": "^3.7.1",
     "@types/node": "^24.9.2",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
