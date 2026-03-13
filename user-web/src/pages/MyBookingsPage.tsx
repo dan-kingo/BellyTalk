@@ -188,9 +188,20 @@ const MyBookingsPage: React.FC = () => {
       booking.payment_status || "",
     );
 
-  const canCancelBooking = (booking: Booking) =>
-    booking.status === "pending_payment" && !hasSubmittedProof(booking);
-
+ const canCancelBooking = (booking: Booking) => {
+  
+  if (!["pending_payment", "pending_confirmation"].includes(booking.status)) {
+    return false;
+  }
+  
+  // For proof_upload, check if payment already submitted
+  if (booking.payment_method === "proof_upload") {
+    return !hasSubmittedProof(booking);
+  }
+  
+  // For COD, always cancellable in pending_confirmation
+  return true;
+};
   const openProofDialog = (booking: Booking) => {
     setProofBooking(booking);
     setProofFile(null);
@@ -433,7 +444,6 @@ const MyBookingsPage: React.FC = () => {
               className="rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none ring-primary-500 transition focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             >
               <option value="">All modes</option>
-              <option value="in_person">in_person</option>
               <option value="video">video</option>
               <option value="audio">audio</option>
               <option value="message">message</option>

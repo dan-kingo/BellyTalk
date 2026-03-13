@@ -406,13 +406,13 @@ const DoctorBookingsPage: React.FC = () => {
       };
     }
 
-    if (booking.service_mode === "in_person") {
-      return {
-        canStart: true,
-        badge: "Visit",
-        reason: "Open in-person guidance for this booking.",
-      };
-    }
+    // if (booking.service_mode === "in_person") {
+    //   return {
+    //     canStart: true,
+    //     badge: "Visit",
+    //     reason: "Open in-person guidance for this booking.",
+    //   };
+    // }
 
     if (booking.service_mode === "message") {
       return {
@@ -557,7 +557,6 @@ const DoctorBookingsPage: React.FC = () => {
               <option value="video">video</option>
               <option value="audio">audio</option>
               <option value="message">message</option>
-              <option value="in_person">in_person</option>
             </select>
 
             <button

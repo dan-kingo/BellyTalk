@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, PlusCircle, Trash2, Wrench } from "lucide-react";
 import { toast } from "react-toastify";
 import Layout from "../components/layout/Layout";
@@ -62,10 +62,48 @@ const WEEKDAY_OPTIONS = [
 
 const MyServicesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
+  const formRef = useRef<HTMLFormElement>(null);
   const [saving, setSaving] = useState(false);
   const [services, setServices] = useState<DoctorService[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [actionDialogOpen, setActionDialogOpen] = useState(false);
+  const [actionDialogType, setActionDialogType] = useState<
+    null | "toggle" | "delete"
+  >(null);
+  const [actionTargetService, setActionTargetService] =
+    useState<DoctorService | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
   const [form, setForm] = useState<ServiceFormState>(DEFAULT_FORM);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [detailService, setDetailService] = useState<DoctorService | null>(
+    null,
+  );
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailAvailabilities, setDetailAvailabilities] = useState<any[]>([]);
+  // Fetch service detail and availabilities
+  const openDetailDialog = async (service: DoctorService) => {
+    setDetailService(service);
+    setDetailDialogOpen(true);
+    setDetailLoading(true);
+    try {
+      // Use the correct function to fetch availabilities for the service
+      const avails = await doctorServiceService.listServiceAvailability(
+        service.id,
+      );
+      setDetailAvailabilities(avails || []);
+    } catch (err) {
+      setDetailAvailabilities([]);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const closeDetailDialog = () => {
+    setDetailDialogOpen(false);
+    setDetailService(null);
+    setDetailAvailabilities([]);
+    setDetailLoading(false);
+  };
   const [availabilityDialogOpen, setAvailabilityDialogOpen] = useState(false);
   const [availabilitySaving, setAvailabilitySaving] = useState(false);
   const [availabilityError, setAvailabilityError] = useState<string | null>(
@@ -79,7 +117,7 @@ const MyServicesPage: React.FC = () => {
     useState(false);
 
   const modeOptions = useMemo(
-    () => ["video", "audio", "message", "in_person"] as DoctorServiceMode[],
+    () => ["video", "audio", "message"] as DoctorServiceMode[],
     [],
   );
 
@@ -220,6 +258,14 @@ const MyServicesPage: React.FC = () => {
       booking_buffer_minutes: String(service.booking_buffer_minutes || 0),
       is_active: Boolean(service.is_active),
     });
+    // Scroll to the form when editing
+    setTimeout(() => {
+      if (formRef.current) {
+        formRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    }, 0);
   };
 
   const validateForm = () => {
@@ -288,36 +334,88 @@ const MyServicesPage: React.FC = () => {
     }
   };
 
-  const toggleServiceStatus = async (service: DoctorService) => {
-    try {
-      await doctorServiceService.updateService(service.id, {
-        is_active: !service.is_active,
-      });
-      toast.success(
-        `Service ${service.is_active ? "deactivated" : "activated"}.`,
-      );
-      await loadServices();
-    } catch (err: any) {
-      toast.error(
-        err?.response?.data?.error || "Failed to update service status.",
-      );
-    }
+  const handleToggleService = (service: DoctorService) => {
+    setActionTargetService(service);
+    setActionDialogType("toggle");
+    setActionDialogOpen(true);
   };
 
-  const removeService = async (serviceId: string) => {
-    if (!window.confirm("Delete this service? This cannot be undone.")) return;
+  const handleDeleteService = (service: DoctorService) => {
+    setActionTargetService(service);
+    setActionDialogType("delete");
+    setActionDialogOpen(true);
+  };
 
-    try {
-      await doctorServiceService.deleteService(serviceId);
-      toast.success("Service deleted.");
-      if (editingId === serviceId) {
-        resetForm();
+  const confirmAction = async () => {
+    if (!actionTargetService || !actionDialogType) return;
+    setActionLoading(true);
+    if (actionDialogType === "toggle") {
+      try {
+        await doctorServiceService.updateService(actionTargetService.id, {
+          is_active: !actionTargetService.is_active,
+        });
+        toast.success(
+          `Service ${actionTargetService.is_active ? "deactivated" : "activated"}.`,
+        );
+        await loadServices();
+      } catch (err: any) {
+        toast.error(
+          err?.response?.data?.error || "Failed to update service status.",
+        );
       }
-      await loadServices();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.error || "Failed to delete service.");
+    } else if (actionDialogType === "delete") {
+      try {
+        await doctorServiceService.deleteService(actionTargetService.id);
+        toast.success("Service deleted.");
+        if (editingId === actionTargetService.id) {
+          resetForm();
+        }
+        await loadServices();
+      } catch (err: any) {
+        // Handle foreign key constraint error for bookings
+        const msg =
+          err?.response?.data?.error ||
+          err?.message ||
+          "Failed to delete service.";
+        if (
+          msg.includes("violates foreign key constraint") &&
+          msg.includes("bookings_service_id_fkey")
+        ) {
+          toast.error(
+            "Can't be done, because there are bookings associated with it.",
+          );
+        } else {
+          toast.error(msg);
+        }
+      }
     }
+    setActionLoading(false);
+    setActionDialogOpen(false);
+    setActionDialogType(null);
+    setActionTargetService(null);
   };
+
+  const cancelAction = () => {
+    if (actionLoading) return;
+    setActionDialogOpen(false);
+    setActionDialogType(null);
+    setActionTargetService(null);
+  };
+
+  // const removeService = async (serviceId: string) => {
+  //   if (!window.confirm("Delete this service? This cannot be undone.")) return;
+
+  //   try {
+  //     await doctorServiceService.deleteService(serviceId);
+  //     toast.success("Service deleted.");
+  //     if (editingId === serviceId) {
+  //       resetForm();
+  //     }
+  //     await loadServices();
+  //   } catch (err: any) {
+  //     toast.error(err?.response?.data?.error || "Failed to delete service.");
+  //   }
+  // };
 
   return (
     <Layout>
@@ -330,7 +428,7 @@ const MyServicesPage: React.FC = () => {
             Create and manage consultation services shown to mothers.
           </p>
 
-          <form className="mt-5 space-y-4" onSubmit={submitForm}>
+          <form ref={formRef} className="mt-5 space-y-4" onSubmit={submitForm}>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <input
                 type="text"
@@ -516,17 +614,160 @@ const MyServicesPage: React.FC = () => {
 
                   <div className="mt-4 flex flex-wrap gap-2">
                     <button
+                      onClick={() => openDetailDialog(service)}
+                      className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-gray-400 px-3 py-1.5 text-xs font-semibold text-gray-800 transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                    >
+                      View Detail
+                    </button>
+                    {/* Service Detail Dialog */}
+                    <Dialog
+                      isOpen={detailDialogOpen}
+                      onClose={closeDetailDialog}
+                      title={
+                        detailService
+                          ? `Service Detail: ${detailService.title}`
+                          : "Service Detail"
+                      }
+                    >
+                      {detailService ? (
+                        <div className="space-y-4">
+                          <div>
+                            <h3 className="font-semibold text-lg text-gray-900 dark:text-white">
+                              {detailService.title}
+                            </h3>
+                            <p className="mt-1 text-sm text-gray-700 dark:text-gray-200">
+                              {detailService.description}
+                            </p>
+                            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                              <div>
+                                Mode:{" "}
+                                <span className="font-medium">
+                                  {detailService.service_mode}
+                                </span>
+                              </div>
+                              <div>
+                                Duration:{" "}
+                                <span className="font-medium">
+                                  {detailService.duration_minutes} min
+                                </span>
+                              </div>
+                              <div>
+                                Price:{" "}
+                                <span className="font-medium">
+                                  {Number(detailService.price_amount).toFixed(
+                                    2,
+                                  )}{" "}
+                                  {detailService.currency}
+                                </span>
+                              </div>
+                              <div>
+                                Status:{" "}
+                                <span
+                                  className={`font-medium ${detailService.is_active ? "text-green-600" : "text-gray-500"}`}
+                                >
+                                  {detailService.is_active
+                                    ? "Active"
+                                    : "Inactive"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-md text-gray-900 dark:text-white mb-2">
+                              Availabilities
+                            </h4>
+                            {detailLoading ? (
+                              <div className="text-sm text-gray-500 dark:text-gray-300">
+                                Loading...
+                              </div>
+                            ) : detailAvailabilities.length === 0 ? (
+                              <div className="text-sm text-gray-500 dark:text-gray-300">
+                                No availabilities found for this service.
+                              </div>
+                            ) : (
+                              <ul className="space-y-2">
+                                {detailAvailabilities.map((avail, idx) => (
+                                  <li
+                                    key={avail.id || idx}
+                                    className="rounded border border-gray-200 dark:border-gray-700 p-2 text-xs text-gray-800 dark:text-gray-200"
+                                  >
+                                    <div>
+                                      {avail.specific_date ? (
+                                        <span>
+                                          Date:{" "}
+                                          <span className="font-medium">
+                                            {avail.specific_date}
+                                          </span>
+                                        </span>
+                                      ) : (
+                                        <span>
+                                          Weekday:{" "}
+                                          <span className="font-medium">
+                                            {WEEKDAY_OPTIONS.find(
+                                              (w) =>
+                                                w.value === avail.day_of_week,
+                                            )?.label || avail.day_of_week}
+                                          </span>
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div>
+                                      Time:{" "}
+                                      <span className="font-medium">
+                                        {avail.start_time} - {avail.end_time}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      Timezone:{" "}
+                                      <span className="font-medium">
+                                        {avail.timezone}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      Slot Capacity:{" "}
+                                      <span className="font-medium">
+                                        {avail.slot_capacity}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      Status:{" "}
+                                      <span
+                                        className={`font-medium ${avail.is_active ? "text-green-600" : "text-gray-500"}`}
+                                      >
+                                        {avail.is_active
+                                          ? "Active"
+                                          : "Inactive"}
+                                      </span>
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
+                    </Dialog>
+                    <button
                       onClick={() => startEdit(service)}
                       className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
                     >
                       <Wrench className="h-3.5 w-3.5" /> Edit
                     </button>
                     <button
-                      onClick={() => toggleServiceStatus(service)}
+                      onClick={() => handleToggleService(service)}
                       className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-blue-300 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-900/20"
+                      disabled={actionLoading}
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" />
-                      {service.is_active ? "Deactivate" : "Activate"}
+                      {actionLoading &&
+                      actionDialogType === "toggle" &&
+                      actionTargetService?.id === service.id
+                        ? service.is_active
+                          ? "Deactivating..."
+                          : "Activating..."
+                        : service.is_active
+                          ? "Deactivate"
+                          : "Activate"}
                     </button>
                     <button
                       onClick={() => openAvailabilityDialog(service, false)}
@@ -535,11 +776,75 @@ const MyServicesPage: React.FC = () => {
                       <PlusCircle className="h-3.5 w-3.5" /> Add Availability
                     </button>
                     <button
-                      onClick={() => removeService(service.id)}
+                      onClick={() => handleDeleteService(service)}
                       className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/20"
+                      disabled={actionLoading}
                     >
-                      <Trash2 className="h-3.5 w-3.5" /> Delete
+                      <Trash2 className="h-3.5 w-3.5" />
+                      {actionLoading &&
+                      actionDialogType === "delete" &&
+                      actionTargetService?.id === service.id
+                        ? "Deleting..."
+                        : "Delete"}
                     </button>
+                    {/* Action Dialog for Activate/Deactivate and Delete */}
+                    <Dialog
+                      isOpen={actionDialogOpen}
+                      onClose={cancelAction}
+                      title={
+                        actionDialogType === "toggle"
+                          ? actionTargetService?.is_active
+                            ? "Deactivate Service?"
+                            : "Activate Service?"
+                          : actionDialogType === "delete"
+                            ? "Delete Service?"
+                            : "Confirm Action"
+                      }
+                    >
+                      <div className="space-y-4">
+                        <p className="text-sm text-gray-700 dark:text-gray-200">
+                          {actionDialogType === "toggle"
+                            ? actionTargetService?.is_active
+                              ? `Are you sure you want to deactivate the service "${actionTargetService?.title}"? It will not be available for booking.`
+                              : `Are you sure you want to activate the service "${actionTargetService?.title}"? It will be available for booking.`
+                            : actionDialogType === "delete"
+                              ? `Are you sure you want to delete the service "${actionTargetService?.title}"? This cannot be undone.`
+                              : "Are you sure you want to proceed?"}
+                        </p>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={cancelAction}
+                            className="cursor-pointer rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                            disabled={actionLoading}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={confirmAction}
+                            className={`cursor-pointer rounded-lg px-3 py-1.5 text-sm font-semibold text-white transition ${
+                              actionDialogType === "delete"
+                                ? "bg-red-600 hover:bg-red-700"
+                                : "bg-primary hover:bg-primary-700"
+                            }`}
+                            disabled={actionLoading}
+                          >
+                            {actionLoading
+                              ? actionDialogType === "delete"
+                                ? "Deleting..."
+                                : actionTargetService?.is_active
+                                  ? "Deactivating..."
+                                  : "Activating..."
+                              : actionDialogType === "delete"
+                                ? "Delete"
+                                : actionTargetService?.is_active
+                                  ? "Deactivate"
+                                  : "Activate"}
+                          </button>
+                        </div>
+                      </div>
+                    </Dialog>
                   </div>
                 </article>
               ))}
@@ -679,15 +984,15 @@ const MyServicesPage: React.FC = () => {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-               <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-  Timezone
-</label>
-<input
-  type="text"
-  value={availabilityForm.timezone}
-  readOnly
-  className="w-full rounded-xl border border-gray-300 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-/>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Timezone
+                </label>
+                <input
+                  type="text"
+                  value={availabilityForm.timezone}
+                  readOnly
+                  className="w-full rounded-xl border border-gray-300 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
