@@ -5,6 +5,7 @@ import { uploadFile } from "./upload.controller.js";
 import { checkDirectInteractionAccess } from "../services/booking-access.service.js";
 import { sendMail } from "../services/email.service.js";
 import { ensureBookingTransitionAllowed } from "../services/booking-lifecycle.service.js";
+import { DateTime } from "luxon";
 
 type ProfileRole = "mother" | "doctor" | "admin" | "counselor" | string;
 
@@ -733,10 +734,14 @@ const checkAvailabilityWindow = (
   scheduledStart: Date,
   scheduledEnd: Date,
 ) => {
-  const day = scheduledStart.getUTCDay();
-  const datePart = scheduledStart.toISOString().slice(0, 10);
-  const startTime = scheduledStart.toISOString().slice(11, 19);
-  const endTime = scheduledEnd.toISOString().slice(11, 19);
+  const tz = availability.timezone || "UTC";
+  const startDt = DateTime.fromJSDate(scheduledStart).setZone(tz);
+  const endDt = DateTime.fromJSDate(scheduledEnd).setZone(tz);
+
+  const day = startDt.weekday === 7 ? 0 : startDt.weekday;
+  const datePart = startDt.toISODate();
+  const startTime = startDt.toFormat("HH:mm:ss");
+  const endTime = endDt.toFormat("HH:mm:ss");
 
   if (availability.specific_date && availability.specific_date !== datePart) {
     return false;
