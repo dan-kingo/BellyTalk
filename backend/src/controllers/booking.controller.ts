@@ -458,7 +458,7 @@ export const rescheduleBooking = async (req: AuthRequest, res: Response) => {
         await supabaseAdmin
           .from("doctor_service_availability")
           .select(
-            "id, day_of_week, specific_date, start_time, end_time, is_active",
+            "id, day_of_week, specific_date, start_time, end_time, is_active, timezone",
           )
           .eq("id", booking.availability_id)
           .maybeSingle();
@@ -842,7 +842,7 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
         await supabaseAdmin
           .from("doctor_service_availability")
           .select(
-            "id, service_id, doctor_id, day_of_week, specific_date, start_time, end_time, slot_capacity, is_active",
+            "id, service_id, doctor_id, day_of_week, specific_date, start_time, end_time, slot_capacity, is_active, timezone",
           )
           .eq("id", availability_id)
           .maybeSingle();
