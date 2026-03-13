@@ -6,5 +6,9 @@ tailwindcss()
   ],
   server: {
     port: 3000,
+    headers: {
+      'Permissions-Policy': 'microphone=*, camera=*, display-capture=*',
+      'Feature-Policy': 'microphone *; camera *',
+    },
   },
 });
