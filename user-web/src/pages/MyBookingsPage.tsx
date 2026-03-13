@@ -385,7 +385,26 @@ const MyBookingsPage: React.FC = () => {
         return;
       }
 
-
+      if (channel === "audio" || channel === "video") {
+        try {
+          const constraints = channel === "video"
+            ? { audio: true, video: true }
+            : { audio: true };
+          const stream = await navigator.mediaDevices.getUserMedia(constraints);
+          stream.getTracks().forEach((track) => track.stop());
+        } catch (mediaErr: any) {
+          const name = mediaErr?.name || "";
+          // Only hard-block on explicit permission denial
+          if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+            toast.error(
+              "Microphone/Camera permission was denied. Please allow access in your browser and try again."
+            );
+            return;
+          }
+          // NotFoundError (no hardware), OverconstrainedError, etc. — let through
+          console.warn("getUserMedia non-fatal error:", mediaErr);
+        }
+      }
 
       const targetPath = channel === "audio" ? "/audio-call" : "/video-call";
       navigate(targetPath, {
