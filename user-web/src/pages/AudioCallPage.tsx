@@ -506,11 +506,11 @@ const AudioCallPage: React.FC = () => {
   const handleRedialFromHistory = (item: CallHistoryItem) => {
     if (!item.counterpart?.id || loading || joinState) return;
 
-  if (profile && ["mother", "doctor"].includes(profile.role)) {
-  toast.info("Please book an appointment to start a call.");
-  navigate("/doctors");
-  return;
-}
+    if (profile && ["mother", "doctor"].includes(profile.role)) {
+      toast.info("Please book an appointment to start a call.");
+      navigate("/doctors");
+      return;
+    }
     void handleStartCall(item.counterpart.id, {
       id: item.counterpart.id,
       full_name: item.counterpart.full_name,
@@ -518,21 +518,26 @@ const AudioCallPage: React.FC = () => {
     });
   };
 
+  // Instead of auto-joining, require user action for booking-based calls
+  const [pendingBookingCall, setPendingBookingCall] = useState<{
+    target: CallTarget;
+    bookingId?: string;
+  } | null>(null);
+
   useEffect(() => {
     if (
-      !location.state?.autoStartBookingCall ||
-      !location.state?.bookingTarget ||
-      currentSession ||
-      joinState
+      location.state?.autoStartBookingCall &&
+      location.state?.bookingTarget &&
+      !currentSession &&
+      !joinState
     ) {
-      return;
+      setPendingBookingCall({
+        target: location.state.bookingTarget as CallTarget,
+        bookingId: location.state.bookingId as string | undefined,
+      });
+      // Remove autoStartBookingCall from state to prevent repeated prompts
+      navigate("/audio-call", { replace: true, state: {} });
     }
-
-    const target = location.state.bookingTarget as CallTarget;
-    const bookingId = location.state.bookingId as string | undefined;
-    void handleStartCall(target.id, target, bookingId);
-
-    navigate("/audio-call", { replace: true, state: {} });
   }, [location.state, currentSession, joinState, navigate]);
 
   const handleEndCall = async () => {
@@ -599,22 +604,48 @@ const AudioCallPage: React.FC = () => {
               Audio Call
             </h1>
           </div>
-         {!joinState &&
-  !callStatus &&
-  !["mother", "doctor"].includes(profile?.role || "") && (
-            <button
-              onClick={handleOpenNewCallDialog}
-              className="bg-primary-600 hover:bg-primary-700 cursor-pointer text-white px-5 py-2.5 rounded-lg transition font-medium inline-flex items-center gap-2"
-            >
-              <Phone className="w-5 h-5" />
-              Start Audio Call
-            </button>
-          )}
+          {!joinState &&
+            !callStatus &&
+            !["mother", "doctor"].includes(profile?.role || "") && (
+              <button
+                onClick={handleOpenNewCallDialog}
+                className="bg-primary-600 hover:bg-primary-700 cursor-pointer text-white px-5 py-2.5 rounded-lg transition font-medium inline-flex items-center gap-2"
+              >
+                <Phone className="w-5 h-5" />
+                Start Audio Call
+              </button>
+            )}
         </div>
 
         {!joinState && callStatus && (
           <div className="mb-6 text-sm text-gray-600 dark:text-gray-400">
             {callStatus}
+          </div>
+        )}
+
+        {/* Show Join Call button for booking-based calls */}
+        {!joinState && !callStatus && pendingBookingCall && (
+          <div className="mb-6 flex flex-col items-center gap-2">
+            <p className="text-base text-gray-700 dark:text-gray-200">
+              Ready to join your scheduled call with
+              <span className="font-semibold ml-1">
+                {pendingBookingCall.target.full_name}
+              </span>
+              ?
+            </p>
+            <button
+              className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-medium mt-2"
+              onClick={() => {
+                handleStartCall(
+                  pendingBookingCall.target.id,
+                  pendingBookingCall.target,
+                  pendingBookingCall.bookingId,
+                );
+                setPendingBookingCall(null);
+              }}
+            >
+              Join Call
+            </button>
           </div>
         )}
 
