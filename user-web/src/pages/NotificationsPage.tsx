@@ -149,7 +149,7 @@ const NotificationsPage: React.FC = () => {
                         {item.message}
                       </p>
                       <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        {new Date(item.createdAt).toLocaleString()}
+                        {new Date(item.createdAt).toLocaleString(undefined, { timeZone: 'Africa/Addis_Ababa' })}
                       </p>
                     </div>
 

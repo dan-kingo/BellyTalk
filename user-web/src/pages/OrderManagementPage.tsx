@@ -633,7 +633,7 @@ const OrderManagementPage: React.FC = () => {
                                 Submitted:{" "}
                                 {new Date(
                                   order.payment_submitted_at,
-                                ).toLocaleString()}
+                                ).toLocaleString(undefined, { timeZone: 'Africa/Addis_Ababa' })}
                               </p>
                             )}
                             {order.payment_document_url && (

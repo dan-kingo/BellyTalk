@@ -29,7 +29,7 @@ const WEEKDAY_LABELS = [
   "Saturday",
 ];
 
-const DISPLAY_TIMEZONE = 'UTC'
+const DISPLAY_TIMEZONE = 'Africa/Addis_Ababa'
 
 const formatAvailabilityRule = (row: DoctorServiceAvailability) => {
   const dayOrDate = row.specific_date
@@ -450,7 +450,7 @@ const DoctorDetailsPage: React.FC = () => {
       hour: "2-digit",
       minute: "2-digit",
     })}{" "}
-    (UTC)
+    (EAT)
   </p>
 )}
                     </div>

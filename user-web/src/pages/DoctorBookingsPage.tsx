@@ -620,7 +620,7 @@ const DoctorBookingsPage: React.FC = () => {
                       {booking.service_title_snapshot}
                     </h3>
                     <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                      {new Date(booking.scheduled_start).toLocaleString()} •{" "}
+                      {new Date(booking.scheduled_start).toLocaleString(undefined, { timeZone: 'Africa/Addis_Ababa' })} •{" "}
                       {booking.service_mode}
                     </p>
                   </div>
@@ -733,8 +733,8 @@ const DoctorBookingsPage: React.FC = () => {
             </p>
             <p>
               <span className="font-semibold">Schedule:</span>{" "}
-              {new Date(selectedBooking.scheduled_start).toLocaleString()} -{" "}
-              {new Date(selectedBooking.scheduled_end).toLocaleString()}
+              {new Date(selectedBooking.scheduled_start).toLocaleString(undefined, { timeZone: 'Africa/Addis_Ababa' })} -{" "}
+              {new Date(selectedBooking.scheduled_end).toLocaleString(undefined, { timeZone: 'Africa/Addis_Ababa' })}
             </p>
             <p>
               <span className="font-semibold">Payment status:</span>{" "}

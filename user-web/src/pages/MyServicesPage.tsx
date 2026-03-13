@@ -38,7 +38,7 @@ const DEFAULT_FORM: ServiceFormState = {
   booking_buffer_minutes: "0",
   is_active: true,
 };
-const DEFAULT_TIMEZONE = "UTC";
+const DEFAULT_TIMEZONE = "Africa/Addis_Ababa";
 
 const DEFAULT_AVAILABILITY_FORM: AvailabilityFormState = {
   scheduleType: "weekly",

@@ -101,7 +101,7 @@ const buildDoctorNotifications = async (): Promise<AppNotification[]> => {
         title: "New booking request",
         message: `${booking.service_title_snapshot} on ${new Date(
           booking.scheduled_start,
-        ).toLocaleString()}`,
+        ).toLocaleString(undefined, { timeZone: 'Africa/Addis_Ababa' })}`,
         createdAt,
         link: "/doctor/bookings",
       });
@@ -118,7 +118,7 @@ const buildDoctorNotifications = async (): Promise<AppNotification[]> => {
         title: "Upcoming consultation reminder",
         message: `${booking.service_title_snapshot} starts ${new Date(
           booking.scheduled_start,
-        ).toLocaleString()}`,
+        ).toLocaleString(undefined, { timeZone: 'Africa/Addis_Ababa' })}`,
         createdAt: booking.scheduled_start,
         link: "/doctor/bookings",
       });
@@ -198,7 +198,7 @@ const buildMotherNotifications = async (): Promise<AppNotification[]> => {
         title: "Booking confirmed",
         message: `${booking.service_title_snapshot} is confirmed for ${new Date(
           booking.scheduled_start,
-        ).toLocaleString()}`,
+        ).toLocaleString(undefined, { timeZone: 'Africa/Addis_Ababa' })}`,
         createdAt,
         link: "/bookings",
       });
@@ -215,7 +215,7 @@ const buildMotherNotifications = async (): Promise<AppNotification[]> => {
         title: "Upcoming consultation reminder",
         message: `${booking.service_title_snapshot} starts ${new Date(
           booking.scheduled_start,
-        ).toLocaleString()}`,
+        ).toLocaleString(undefined, { timeZone: 'Africa/Addis_Ababa' })}`,
         createdAt: booking.scheduled_start,
         link: "/bookings",
       });

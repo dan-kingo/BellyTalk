@@ -245,7 +245,7 @@ const DashboardPage: React.FC = () => {
                     {booking.service_title_snapshot}
                   </p>
                   <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
-                    {new Date(booking.scheduled_start).toLocaleString()} •{" "}
+                    {new Date(booking.scheduled_start).toLocaleString(undefined, { timeZone: 'Africa/Addis_Ababa' })} •{" "}
                     {booking.service_mode}
                   </p>
                   <p className="mt-2 inline-flex rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-primary dark:bg-gray-800">
@@ -600,7 +600,7 @@ const DashboardPage: React.FC = () => {
                       {booking.service_title_snapshot}
                     </p>
                     <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
-                      {new Date(booking.scheduled_start).toLocaleString()} •{" "}
+                      {new Date(booking.scheduled_start).toLocaleString(undefined, { timeZone: 'Africa/Addis_Ababa' })} •{" "}
                       {booking.service_mode}
                     </p>
                   </div>
