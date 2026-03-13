@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { supabaseAdmin } from "../configs/supabase.js";
 import { AuthRequest } from "../middlewares/auth.middleware.js";
+import { DateTime } from "luxon";
 
 type ProfileRole = "mother" | "doctor" | "admin" | "counselor" | string;
 
@@ -110,7 +111,7 @@ const parseTimeToMinutes = (time: string) => {
   return hours * 60 + minutes;
 };
 
-const buildUtcIsoFromDateAndMinutes = (dateYmd: string, minutes: number) => {
+const buildUtcIsoFromDateAndMinutes = (dateYmd: string, minutes: number, timezone: string) => {
   const [yearStr, monthStr, dayStr] = dateYmd.split("-");
   const year = Number(yearStr);
   const month = Number(monthStr);
@@ -118,26 +119,26 @@ const buildUtcIsoFromDateAndMinutes = (dateYmd: string, minutes: number) => {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
 
-  return new Date(Date.UTC(year, month - 1, day, hours, mins, 0)).toISOString();
+  return DateTime.fromObject(
+    { year, month, day, hour: hours, minute: mins, second: 0 },
+    { zone: timezone }
+  ).toUTC().toISO()!;
 };
 
-const getUpcomingDateStringsByWeekdayUtc = (
+const getUpcomingDateStringsByWeekday = (
   dayOfWeek: number,
   lookaheadDays: number,
+  timezone: string
 ) => {
   const results: string[] = [];
-  const now = new Date();
+  const now = DateTime.now().setZone(timezone);
 
   for (let offset = 0; offset <= lookaheadDays; offset += 1) {
-    const candidate = new Date(
-      Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate() + offset,
-      ),
-    );
-    if (candidate.getUTCDay() === dayOfWeek) {
-      results.push(candidate.toISOString().slice(0, 10));
+    const candidate = now.plus({ days: offset });
+    // luxon 1=Monday, 7=Sunday vs JS 0=Sunday, 1=Monday
+    const candDayOfWeek = candidate.weekday === 7 ? 0 : candidate.weekday;
+    if (candDayOfWeek === dayOfWeek) {
+      results.push(candidate.toISODate()!);
     }
   }
 
@@ -424,14 +425,17 @@ export const listServiceSlots = async (req: Request, res: Response) => {
         continue;
       }
 
+      const tz = String(availability.timezone || "UTC");
+
       const dates: string[] = [];
       if (availability.specific_date) {
         dates.push(String(availability.specific_date));
       } else if (typeof availability.day_of_week === "number") {
         dates.push(
-          ...getUpcomingDateStringsByWeekdayUtc(
+          ...getUpcomingDateStringsByWeekday(
             Number(availability.day_of_week),
             lookaheadDays,
+            tz
           ),
         );
       }
@@ -442,10 +446,11 @@ export const listServiceSlots = async (req: Request, res: Response) => {
           cursor + duration <= endMinutes;
           cursor += step
         ) {
-          const startIso = buildUtcIsoFromDateAndMinutes(dateYmd, cursor);
+          const startIso = buildUtcIsoFromDateAndMinutes(dateYmd, cursor, tz);
           const endIso = buildUtcIsoFromDateAndMinutes(
             dateYmd,
             cursor + duration,
+            tz
           );
 
           if (new Date(startIso).getTime() <= now.getTime()) {
