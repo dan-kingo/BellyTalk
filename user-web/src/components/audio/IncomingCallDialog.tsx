@@ -1,5 +1,5 @@
 // src/components/audio/IncomingCallDialog.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { audioService } from "../../services/audio.service";
 import { videoService } from "../../services/video.service";
@@ -29,6 +29,15 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
   const [isVisible, setIsVisible] = useState(false);
   const [isResponding, setIsResponding] = useState(false);
   const [callTimeout, setCallTimeout] = useState<NodeJS.Timeout | null>(null);
+  // Refs to always access latest state in timeout
+  const incomingCallRef = useRef<IncomingCall | null>(null);
+  const isVisibleRef = useRef(false);
+  useEffect(() => {
+    incomingCallRef.current = incomingCall;
+  }, [incomingCall]);
+  useEffect(() => {
+    isVisibleRef.current = isVisible;
+  }, [isVisible]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -70,14 +79,17 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
           });
           setIsVisible(true);
 
-          // Auto-dismiss after 45 seconds if not answered
+          // Auto-dismiss after 45 seconds if not answered (always use latest state via refs)
           const timeout = setTimeout(() => {
-            console.log("⏰ Auto-dismissing call after timeout");
-            if (isVisible && incomingCall?.session.id === session.id) {
-              handleRejectCall();
+            const currentCall = incomingCallRef.current;
+            const currentVisible = isVisibleRef.current;
+            if (currentVisible && currentCall?.session.id === session.id) {
+              console.log("⏰ Auto-dismissing call after timeout (receiver)");
+              setIsVisible(false);
+              setIncomingCall(null);
+              if (onCallRejected) onCallRejected(session.id);
             }
           }, 45000);
-
           setCallTimeout(timeout);
         } catch (error: any) {
           console.error("❌ Failed to fetch session details:", error);
@@ -105,14 +117,19 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = ({
           setIncomingCall(basicCall);
           setIsVisible(true);
 
-          // Auto-dismiss after 45 seconds if not answered
+          // Auto-dismiss after 45 seconds if not answered (always use latest state via refs)
           const timeout = setTimeout(() => {
-            console.log("⏰ Auto-dismissing call after timeout (fallback)");
-            if (isVisible && basicCall.session.id === session.id) {
-              handleRejectCall();
+            const currentCall = incomingCallRef.current;
+            const currentVisible = isVisibleRef.current;
+            if (currentVisible && currentCall?.session.id === session.id) {
+              console.log(
+                "⏰ Auto-dismissing call after timeout (receiver fallback)",
+              );
+              setIsVisible(false);
+              setIncomingCall(null);
+              if (onCallRejected) onCallRejected(session.id);
             }
           }, 45000);
-
           setCallTimeout(timeout);
         }
       }

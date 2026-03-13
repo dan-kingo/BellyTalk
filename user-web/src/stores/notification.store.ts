@@ -82,6 +82,9 @@ const buildDoctorNotifications = async (): Promise<AppNotification[]> => {
     "pending_verification",
     "pending_review",
     "under_review",
+    "unpaid",
+    "rejected",
+    "proof_uploaded",
   ];
 
   const items: AppNotification[] = [];
@@ -89,6 +92,7 @@ const buildDoctorNotifications = async (): Promise<AppNotification[]> => {
   bookings.forEach((booking) => {
     const startAt = new Date(booking.scheduled_start).getTime();
     const createdAt = booking.created_at || booking.scheduled_start;
+    const paymentStatus = String(booking.payment_status || "").toLowerCase();
 
     if (booking.status === "pending_confirmation") {
       items.push({
@@ -104,7 +108,7 @@ const buildDoctorNotifications = async (): Promise<AppNotification[]> => {
     }
 
     if (
-      booking.status === "confirmed" &&
+      ["confirmed", "pending_confirmation"].includes(booking.status) &&
       startAt > now &&
       startAt - now <= oneDayMs
     ) {
@@ -120,7 +124,6 @@ const buildDoctorNotifications = async (): Promise<AppNotification[]> => {
       });
     }
 
-    const paymentStatus = String(booking.payment_status || "").toLowerCase();
     if (
       booking.payment_method === "proof_upload" &&
       paymentStatusesForProof.includes(paymentStatus)
@@ -132,6 +135,28 @@ const buildDoctorNotifications = async (): Promise<AppNotification[]> => {
         message: `${booking.service_title_snapshot} has proof awaiting verification`,
         createdAt,
         link: "/doctor/bookings",
+      });
+    }
+
+    if (["approved", "paid"].includes(paymentStatus)) {
+      items.push({
+        id: `payment_approved:${booking.id}`,
+        type: "payment_approved",
+        title: "Payment approved",
+        message: `Your payment proof for ${booking.service_title_snapshot} was approved.`,
+        createdAt,
+        link: "/bookings",
+      });
+    }
+
+    if (["rejected", "unpaid"].includes(paymentStatus)) {
+      items.push({
+        id: `payment_rejected:${booking.id}`,
+        type: "payment_rejected",
+        title: "Payment needs attention",
+        message: `Your payment proof for ${booking.service_title_snapshot} was rejected or unpaid. Please resubmit or check your payment status.`,
+        createdAt,
+        link: "/bookings",
       });
     }
   });

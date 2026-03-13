@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { DateTime } from "luxon";
 import {
   CalendarClock,
   CircleDollarSign,
@@ -188,20 +189,19 @@ const MyBookingsPage: React.FC = () => {
       booking.payment_status || "",
     );
 
- const canCancelBooking = (booking: Booking) => {
-  
-  if (!["pending_payment", "pending_confirmation"].includes(booking.status)) {
-    return false;
-  }
-  
-  // For proof_upload, check if payment already submitted
-  if (booking.payment_method === "proof_upload") {
-    return !hasSubmittedProof(booking);
-  }
-  
-  // For COD, always cancellable in pending_confirmation
-  return true;
-};
+  const canCancelBooking = (booking: Booking) => {
+    if (!["pending_payment", "pending_confirmation"].includes(booking.status)) {
+      return false;
+    }
+
+    // For proof_upload, check if payment already submitted
+    if (booking.payment_method === "proof_upload") {
+      return !hasSubmittedProof(booking);
+    }
+
+    // For COD, always cancellable in pending_confirmation
+    return true;
+  };
   const openProofDialog = (booking: Booking) => {
     setProofBooking(booking);
     setProofFile(null);
@@ -295,8 +295,12 @@ const MyBookingsPage: React.FC = () => {
       return { canStart: true, reason: "Open your consultation chat." };
     }
 
-    const startAt = new Date(booking.scheduled_start).getTime();
-    const endAt = new Date(booking.scheduled_end).getTime();
+    const startAt = DateTime.fromISO(booking.scheduled_start, { zone: "utc" })
+      .setZone("Africa/Addis_Ababa")
+      .toMillis();
+    const endAt = DateTime.fromISO(booking.scheduled_end, { zone: "utc" })
+      .setZone("Africa/Addis_Ababa")
+      .toMillis();
     const openAt = startAt - 15 * 60 * 1000;
     const closeAt = endAt + 30 * 60 * 1000;
 
@@ -322,8 +326,12 @@ const MyBookingsPage: React.FC = () => {
     if (booking.service_mode === "in_person") return "Visit";
     if (booking.service_mode === "message") return "Chat";
 
-    const startAt = new Date(booking.scheduled_start).getTime();
-    const endAt = new Date(booking.scheduled_end).getTime();
+    const startAt = DateTime.fromISO(booking.scheduled_start, { zone: "utc" })
+      .setZone("Africa/Addis_Ababa")
+      .toMillis();
+    const endAt = DateTime.fromISO(booking.scheduled_end, { zone: "utc" })
+      .setZone("Africa/Addis_Ababa")
+      .toMillis();
     const openAt = startAt - 15 * 60 * 1000;
     const closeAt = endAt + 30 * 60 * 1000;
 
@@ -518,7 +526,9 @@ const MyBookingsPage: React.FC = () => {
                 <div className="mt-4 grid grid-cols-1 gap-2 text-sm text-gray-600 dark:text-gray-300 sm:grid-cols-2">
                   <p className="inline-flex items-center gap-2">
                     <CalendarClock className="h-4 w-4" />
-                    {new Date(booking.scheduled_start).toLocaleString()}
+                    {DateTime.fromISO(booking.scheduled_start, { zone: "utc" })
+                      .setZone("Africa/Addis_Ababa")
+                      .toLocaleString(DateTime.DATETIME_MED)}
                   </p>
                   <p className="inline-flex items-center gap-2">
                     <Clock3 className="h-4 w-4" />
@@ -641,14 +651,24 @@ const MyBookingsPage: React.FC = () => {
                   Start time
                 </p>
                 <p>
-                  {new Date(detailBooking.scheduled_start).toLocaleString()}
+                  {DateTime.fromISO(detailBooking.scheduled_start, {
+                    zone: "utc",
+                  })
+                    .setZone("Africa/Addis_Ababa")
+                    .toLocaleString(DateTime.DATETIME_MED)}
                 </p>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                   End time
                 </p>
-                <p>{new Date(detailBooking.scheduled_end).toLocaleString()}</p>
+                <p>
+                  {DateTime.fromISO(detailBooking.scheduled_end, {
+                    zone: "utc",
+                  })
+                    .setZone("Africa/Addis_Ababa")
+                    .toLocaleString(DateTime.DATETIME_MED)}
+                </p>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -832,8 +852,17 @@ const MyBookingsPage: React.FC = () => {
             </p>
             <p>
               <span className="font-semibold">Visit time:</span>{" "}
-              {new Date(visitGuideBooking.scheduled_start).toLocaleString()} -{" "}
-              {new Date(visitGuideBooking.scheduled_end).toLocaleString()}
+              {DateTime.fromISO(visitGuideBooking.scheduled_start, {
+                zone: "utc",
+              })
+                .setZone("Africa/Addis_Ababa")
+                .toLocaleString(DateTime.DATETIME_MED)}
+              {" - "}
+              {DateTime.fromISO(visitGuideBooking.scheduled_end, {
+                zone: "utc",
+              })
+                .setZone("Africa/Addis_Ababa")
+                .toLocaleString(DateTime.DATETIME_MED)}
             </p>
             <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
               <p className="font-semibold">How to attend</p>

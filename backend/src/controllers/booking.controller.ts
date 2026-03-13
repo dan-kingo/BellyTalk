@@ -896,7 +896,7 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
 
     const initialStatus =
       payment_method === "cod" ? "pending_confirmation" : "pending_payment";
-    const initialPaymentStatus = 'unpaid'
+    const initialPaymentStatus = "unpaid";
 
     const { data: booking, error: bookingError } = await supabaseAdmin
       .from("bookings")
@@ -1242,6 +1242,15 @@ export const submitBookingPayment = async (req: AuthRequest, res: Response) => {
       },
     ]);
 
+    // Notify doctor and mother about payment submission if proof_upload
+    if (payment_method === "proof_upload") {
+      await notifyBookingParticipants(
+        id,
+        "Booking Payment Submitted - BellyTalk",
+        (motherName, doctorName) =>
+          `<p>Hello ${doctorName} and ${motherName},</p><p>A payment proof has been submitted for your booking. Please review the payment document at your earliest convenience.</p>`,
+      );
+    }
     return res.status(201).json({ payment, booking: updatedBooking });
   } catch (err: any) {
     console.error("submitBookingPayment error:", err);
