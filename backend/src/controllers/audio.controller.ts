@@ -83,6 +83,7 @@ export const createSession = async (req: AuthRequest, res: Response) => {
       channel_name: channelInfo.channelName,
       uid: channelInfo.uid,
       call_type, // Add call_type: 'audio' or 'video'
+      booking_id,
       status: "pending",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -148,21 +149,14 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
   });
 
   try {
-    const { session_id, booking_id, role = "publisher" } = req.body;
+    const { session_id, booking_id: body_booking_id, role = "publisher" } = req.body;
     const user_id = req.user!.id;
 
     if (!session_id) {
       return res.status(400).json({
-        error:
-          "Legacy token flow is deprecated. session_id and booking_id are required.",
+        error: "session_id is required.",
         code: "SESSION_ID_REQUIRED",
       });
-    }
-
-    if (!booking_id) {
-      return res
-        .status(400)
-        .json({ error: "booking_id is required", code: "BOOKING_ID_REQUIRED" });
     }
 
     let channelName: string;
@@ -186,6 +180,9 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
 
     session = sessionData;
     channelName = sessionData.channel_name;
+
+    // Use booking_id from the session record (authoritative), fall back to request body
+    const booking_id: string | null = sessionData.booking_id || body_booking_id || null;
 
     if (
       sessionData.initiator_id !== user_id &&
@@ -214,7 +211,7 @@ export const getAuthToken = async (req: AuthRequest, res: Response) => {
       actorId: user_id,
       peerId,
       channel,
-      bookingId: booking_id,
+      bookingId: booking_id ?? undefined,
     });
     if (!access.ok) {
       return res

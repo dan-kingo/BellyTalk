@@ -385,24 +385,7 @@ const MyBookingsPage: React.FC = () => {
         return;
       }
 
-      if (channel === "audio" || channel === "video") {
-        try {
-          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            throw new Error("Media devices API not available");
-          }
-          const stream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-            video: channel === "video",
-          });
-          stream.getTracks().forEach((track) => track.stop());
-        } catch (mediaErr) {
-          console.error("Media permission error:", mediaErr);
-          toast.error(
-            "Microphone/Camera permission is required. Please check your browser settings."
-          );
-          return;
-        }
-      }
+
 
       const targetPath = channel === "audio" ? "/audio-call" : "/video-call";
       navigate(targetPath, {
