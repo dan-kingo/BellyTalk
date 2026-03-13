@@ -180,11 +180,11 @@ const MyBookingsPage: React.FC = () => {
   const canUploadPaymentProof = (booking: Booking) =>
     booking.payment_method === "proof_upload" &&
     booking.status === "pending_payment" &&
-    ["", "pending", "rejected"].includes(booking.payment_status || "");
+    ["", "unpaid", "rejected"].includes(booking.payment_status || "");
 
   const hasSubmittedProof = (booking: Booking) =>
     booking.payment_method === "proof_upload" &&
-    ["pending_review", "approved", "rejected"].includes(
+    ["pending_review", "paid", "rejected"].includes(
       booking.payment_status || "",
     );
 

@@ -896,8 +896,7 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
 
     const initialStatus =
       payment_method === "cod" ? "pending_confirmation" : "pending_payment";
-    const initialPaymentStatus =
-      payment_method === "cod" ? "unpaid" : "pending_review";
+    const initialPaymentStatus = 'unpaid'
 
     const { data: booking, error: bookingError } = await supabaseAdmin
       .from("bookings")
@@ -1193,7 +1192,7 @@ export const submitBookingPayment = async (req: AuthRequest, res: Response) => {
     const paymentStatus =
       payment_method === "proof_upload" ? "pending_review" : "approved";
     const bookingPaymentStatus =
-      payment_method === "proof_upload" ? "pending_review" : "unpaid";
+      payment_method === "proof_upload" ? "unpaid" : "";
     const bookingStatus =
       payment_method === "proof_upload"
         ? "pending_payment"

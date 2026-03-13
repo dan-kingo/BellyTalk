@@ -191,19 +191,17 @@ const DashboardPage: React.FC = () => {
   const todaysBookings = doctorUpcomingBookings.filter(
     (booking) => booking.scheduled_start.slice(0, 10) === todayDateIso,
   );
-  const motherUpcomingBookings = motherBookings
-    .filter(
-      (booking) =>
-        ["pending_confirmation", "confirmed", "pending_payment"].includes(
-          booking.status,
-        ) && new Date(booking.scheduled_start).getTime() >= Date.now(),
-    )
-    .sort(
-      (a, b) =>
-        new Date(a.scheduled_start).getTime() -
-        new Date(b.scheduled_start).getTime(),
-    );
-  const motherNextBooking = motherUpcomingBookings[0];
+ const motherUpcomingBookings = motherBookings
+  .filter(
+    (booking) =>
+      booking.status === "confirmed" &&
+      new Date(booking.scheduled_start).getTime() >= Date.now(),
+  )
+  .sort(
+    (a, b) =>
+      new Date(a.scheduled_start).getTime() -
+      new Date(b.scheduled_start).getTime(),
+  );
 
   const formatStatusLabel = (status: Booking["status"]) =>
     status.replace(/_/g, " ");
