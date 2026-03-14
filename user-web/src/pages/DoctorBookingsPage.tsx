@@ -114,18 +114,23 @@ const DoctorBookingsPage: React.FC = () => {
       setActionLoading(true);
       await action();
       toast.success(successMessage);
+  
+      // ✅ main action done – stop “Processing…” now
+      setActionLoading(false);
+  
+      // 🔄 refresh UI in background
       if (selectedBooking?.id) {
-        await openBookingDetail(selectedBooking.id);
+        void openBookingDetail(selectedBooking.id);
       }
-      await loadBookings();
+      void loadBookings();
+  
       return true;
     } catch (err: any) {
       const message = err?.response?.data?.error || "Action failed.";
       setActionError(message);
       toast.error(message);
-      return false;
-    } finally {
       setActionLoading(false);
+      return false;
     }
   };
 
@@ -292,41 +297,44 @@ const DoctorBookingsPage: React.FC = () => {
       setPaymentReviewError("No pending proof payment found.");
       return;
     }
-
+  
     if (status === "rejected" && !rejectReason.trim()) {
       setPaymentReviewError("Please provide a rejection reason.");
       return;
     }
-
+  
     try {
       setPaymentReviewLoading(true);
       setPaymentReviewError(null);
-
+  
       await bookingService.reviewBookingPayment(
         selectedBooking.id,
         pendingProofPayment.id,
         {
           status,
-          rejection_reason:
-            status === "rejected" ? rejectReason.trim() : undefined,
+          rejection_reason: status === "rejected" ? rejectReason.trim() : undefined,
         },
       );
-
+  
+      // ✅ stop loading immediately after main call
+      setPaymentReviewLoading(false);
+  
       toast.success(
         status === "approved" ? "Payment approved." : "Payment rejected.",
       );
       setRejectReason("");
-      await openBookingDetail(selectedBooking.id);
-      await loadBookings();
+  
+      // 🔄 non-blocking refresh
+      void openBookingDetail(selectedBooking.id);
+      void loadBookings();
     } catch (err: any) {
       setPaymentReviewError(
         err?.response?.data?.error || "Failed to review payment.",
       );
-    } finally {
       setPaymentReviewLoading(false);
     }
   };
-
+  
   const hasApprovedPayment = (booking: Booking) => {
     const normalizedBookingStatus = `${booking.payment_status || ""}`
       .trim()

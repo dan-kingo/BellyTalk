@@ -232,11 +232,11 @@ const MyBookingsPage: React.FC = () => {
       setProofError("File must be 8MB or smaller.");
       return;
     }
-
+  
     try {
       setProofSubmitting(true);
       setProofError(null);
-
+  
       const docs = await bookingService.addBookingDocuments(
         proofBooking.id,
         [proofFile],
@@ -246,7 +246,7 @@ const MyBookingsPage: React.FC = () => {
       if (!paymentProof?.id) {
         throw new Error("Payment proof upload did not return a document ID.");
       }
-
+  
       await bookingService.submitBookingPayment(proofBooking.id, {
         payment_method: "proof_upload",
         amount: Number(proofBooking.service_price_snapshot),
@@ -254,18 +254,21 @@ const MyBookingsPage: React.FC = () => {
         transaction_reference: proofReference || undefined,
         proof_document_id: paymentProof.id,
       });
-
+  
+      // ✅ main work done – immediately reset UI & close dialog
+      setProofSubmitting(false);
       toast.success("Payment proof submitted. Waiting for doctor review.");
       closeProofDialog();
-      await loadBookings();
+  
+      // 🔄 refresh list in background (no impact on button label)
+      void loadBookings();
     } catch (err: any) {
       setProofError(
         err?.response?.data?.error ||
           err?.message ||
           "Failed to submit payment proof.",
       );
-    } finally {
-      setProofSubmitting(false);
+      setProofSubmitting(false); // ensure we always reset on error
     }
   };
 
